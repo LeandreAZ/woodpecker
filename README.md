@@ -1,229 +1,106 @@
-# 🪵 Woodpecker Trainer
+# Woodpecker Trainer
 
-> A modern web application to practice the **Woodpecker Method** with interactive chess puzzles, progress tracking and advanced analytics.
+Woodpecker Trainer is a personal chess training application based on the Woodpecker Method.
+The goal is to solve a fixed puzzle set over repeated cycles, measure progress, and later compare training periods with rating evolution from Lichess or Chess.com.
 
----
+The project is also a learning project around a modern full-stack architecture: Symfony, API Platform, React, TypeScript, PostgreSQL and Docker.
 
-# 📖 About
+## Current Status
 
-Woodpecker Trainer is a personal project built to experiment with modern web technologies while creating a complete application around the **Woodpecker Method**.
+The repository currently contains the backend foundation:
 
-The application allows users to create multiple Woodpecker trainings, solve puzzles on an interactive chessboard, monitor their progress through successive cycles and analyze their performance over time.
+- Docker Compose environment with Nginx, PHP-FPM and PostgreSQL.
+- Symfony 7.4 LTS backend in `backend/`.
+- API Platform installed and available on `/api`.
+- Doctrine ORM and Doctrine Migrations configured.
+- MakerBundle installed for development code generation.
 
-Although initially developed for personal use, the application is designed with a scalable architecture and clean domain model.
+The frontend will be added later in `frontend/`.
 
----
+## Run The Project
 
-# 🎯 Goals
+Start the containers:
 
-## Functional goals
+```bash
+docker compose up -d --wait
+```
 
-- Create and manage multiple Woodpecker trainings.
-- Follow the official Woodpecker workflow.
-- Solve puzzles directly on an interactive chessboard.
-- Compare performances between cycles.
-- Keep personal notes for every puzzle.
-- Visualize progress through dashboards.
-- Correlate Woodpecker training with Chess.com and Lichess ratings.
+Open the API:
 
-## Technical goals
+```text
+http://localhost:8080/api
+```
 
-This project is mainly built to learn and experiment with:
+Run a Symfony command:
 
-- Symfony
-- API Platform
-- React
-- TypeScript
-- PostgreSQL
-- Docker
-- Power BI
-- Clean Architecture
-- Domain Driven Design concepts
-- REST APIs
-- Authentication
-- CSV imports
-- Symfony Console Commands
+```bash
+docker compose exec php php bin/console about
+```
 
----
+Stop the containers:
 
-# ✨ Main Features
+```bash
+docker compose down
+```
 
-## 👤 User Management
+Reset the database volume only when you intentionally want to delete local database data:
 
-- Registration
-- Login
-- JWT Authentication
-- User profile
-- Archive account
+```bash
+docker compose down -v
+```
 
-### External chess accounts
+## Docker Notes
 
-Users can connect:
+This project uses Docker so the local machine does not need to manage PHP extensions, PostgreSQL, Nginx or Composer versions manually.
 
-- Lichess
-- Chess.com
+On Windows with WSL2, Docker should ideally have at least 3-4 GB of memory for comfortable Symfony/API Platform work. With around 2 GB, the project can run, but first requests and Composer installs may be slow. If `/api` times out right after startup, run:
 
-The application stores rating history in order to compare rating evolution with Woodpecker trainings.
+```bash
+docker compose exec php php bin/console cache:warmup
+```
 
----
+Then reload `http://localhost:8080/api`.
 
-# 🪵 Woodpecker Trainings
+## Architecture
 
-A user can create as many trainings as desired.
+The repository follows a common full-stack monorepo layout:
 
-Examples:
+```text
+woodpecker/
+  backend/          Symfony API application
+  docker/           Docker service configuration
+  compose.yaml      Local development services
+  frontend/         React application, added later
+```
 
-- Woodpecker Book
-- Lichess Fork Collection
-- My Tournament Mistakes
-- Mates in Two
+The backend follows the standard Symfony directory structure. We avoid a heavy custom architecture at the start and keep the code close to Symfony and API Platform conventions. Domain-specific organization will be introduced progressively when entities and use cases become clearer.
 
-Each training contains:
+Expected backend direction:
 
-- a fixed puzzle collection
-- multiple cycles
-- planning configuration
-- personal notes
-- statistics
-- dashboard
+- `src/Entity` for Doctrine entities.
+- `src/Repository` for Doctrine repositories.
+- `src/ApiResource` or API Platform metadata where useful.
+- `src/Service` for application services when logic does not belong in an entity.
+- `src/Command` for imports, maintenance tasks and experiments.
+- `migrations/` for database migrations.
 
-Once the first cycle starts, the puzzle list becomes immutable.
+## Functional Goals
 
----
+- Create and manage several Woodpecker trainings.
+- Keep a fixed puzzle list per training after the first cycle starts.
+- Solve puzzles on an interactive chessboard.
+- Track attempts, mistakes, solving time and success rate.
+- Compare cycles and progress over time.
+- Add personal notes to puzzles inside a training.
+- Import puzzle collections from CSV.
+- Connect Lichess and Chess.com accounts later for rating history.
+- Provide dashboards and exports for analysis.
 
-# ♟ Puzzle Sources
+## Provisional Domain Model
 
-A training can be created from:
+The current UML/MCD diagrams are provisional design documents. They may contain incorrect cardinalities, missing constraints or details that will change during implementation.
 
-- Lichess puzzle database
-- Manual puzzle creation
-- CSV import
-
-Manual puzzles may contain a FEN position but it is optional.
-
----
-
-# ♟ Interactive Puzzle Solving
-
-Each puzzle can be solved directly inside the application using an interactive chessboard.
-
-For every attempt the application stores:
-
-- solving time
-- success/failure
-- number of mistakes
-- played moves
-- timestamps
-
-Multiple attempts are allowed.
-
-Only the **first attempt** is used for the official Woodpecker statistics.
-
-Additional attempts remain available for advanced analytics.
-
-After solving a puzzle, users may:
-
-- replay the solution
-- browse the expected line
-- analyze the position with Stockfish (future feature)
-
----
-
-# 🔄 Woodpecker Cycles
-
-Each training contains multiple cycles.
-
-Every cycle reuses **exactly the same puzzle collection**.
-
-The objective is to complete every new cycle in less time than the previous one.
-
-The application manages:
-
-- cycle progression
-- completion percentage
-- remaining puzzles
-- target duration
-- daily objectives
-
-Users can customize objectives before starting a cycle or modify them later if necessary.
-
----
-
-# 📝 Personal Notes
-
-Each puzzle can have a personal note.
-
-Notes belong to the puzzle **inside a specific training**.
-
-Therefore:
-
-- notes are shared across all cycles of the same training
-- the same puzzle used in another training has different notes
-
----
-
-# 📊 Dashboard
-
-The dashboard provides insights such as:
-
-- completed puzzles
-- completion percentage
-- average solving time
-- first-attempt success rate
-- cycle comparison
-- daily activity
-- streaks
-- weakest tactical themes
-- strongest tactical themes
-
----
-
-# 📈 Rating Evolution
-
-When connected to Lichess and/or Chess.com, users can visualize:
-
-- Rapid rating
-- Blitz rating
-- Bullet rating
-- Classical rating
-
-Woodpecker trainings are displayed on the timeline in order to observe possible correlations between training periods and rating progression.
-
----
-
-# 📥 CSV Import
-
-Puzzle collections can be imported from CSV files.
-
-The import system is intentionally designed as a dedicated module to experiment with:
-
-- Symfony Console Commands
-- Validation
-- Background processing
-- Import reports
-
----
-
-# 🗄 Archive
-
-Trainings are archived instead of permanently deleted.
-
-Archived trainings preserve:
-
-- cycles
-- attempts
-- notes
-- statistics
-
-This allows users to keep historical data while hiding inactive trainings.
-
----
-
-# 📐 Domain Model Status
-
-The current UML and MCD diagrams are **provisional design documents**. They describe the intended domain and may contain incorrect or overly strict cardinalities. They must not be treated as an exact database schema or as the sole source of truth during code generation.
-
-Until the domain has been implemented and validated, use the following rules:
+Until the domain has been implemented and validated, use these rules:
 
 - A user may own `0..N` Woodpecker trainings; each training belongs to exactly one user.
 - A draft training may contain `0..N` puzzles and `0..N` cycles.
@@ -237,70 +114,43 @@ Until the domain has been implemented and validated, use the following rules:
 - Passwords are stored only as hashes, and external-account tokens must be stored securely.
 - Calculated counters and statistics must either be derived from attempts or updated transactionally to avoid inconsistent data.
 
-The CSV import section of the current diagram is intentionally incomplete and will be refined when that module is implemented.
+The CSV import part is intentionally incomplete and will be refined when that module is implemented. Implementation decisions, tests and database constraints take precedence when they clarify or correct the provisional diagrams. A new UML diagram and MCD will be generated at the end so they reflect the final domain model.
 
-Implementation decisions, automated tests and database constraints take precedence when they clarify or correct the provisional diagrams. A new UML diagram and MCD will be generated at the end of the implementation so that they reflect the final domain model.
+## Planned Stack
 
----
+Backend:
 
-# 🛠 Technical Stack
-
-## Backend
-
-- PHP 8+
-- Symfony
+- PHP 8.4
+- Symfony 7.4 LTS
 - API Platform
 - Doctrine ORM
 - PostgreSQL
-- JWT Authentication
+- JWT authentication later
 
-## Frontend
+Frontend:
 
 - React
 - TypeScript
+- Vite
 - React Router
-- React Query
+- TanStack Query
 - react-chessboard
 - chess.js
 
-## Infrastructure
+Infrastructure:
 
 - Docker
 - Docker Compose
+- Nginx
 
-## Analytics
+Analytics:
 
-- Power BI
-- CSV Export
+- CSV export
+- Power BI later
 
----
+## Roadmap
 
-# 🧪 Symfony Experiments
-
-This project is also a playground to explore the Symfony ecosystem.
-
-Topics include:
-
-- Custom Console Commands
-- CSV Import
-- Doctrine Migrations
-- Fixtures
-- Services
-- DTOs
-- API Platform Filters
-- Event Listeners
-- Event Subscribers
-- Messenger
-- Validation
-- Serialization Groups
-- Testing
-- Docker workflows
-
----
-
-# 🚀 Roadmap
-
-## Version 1
+Version 1:
 
 - Authentication
 - Woodpecker trainings
@@ -310,7 +160,7 @@ Topics include:
 - Personal notes
 - Dashboard
 
-## Version 2
+Version 2:
 
 - CSV import
 - Training planner
@@ -318,7 +168,7 @@ Topics include:
 - Chess.com integration
 - Rating graphs
 
-## Version 3
+Version 3:
 
 - Stockfish analysis
 - Power BI reports
@@ -326,8 +176,6 @@ Topics include:
 - Public/shared trainings
 - PWA support
 
----
+## License
 
-# 📄 License
-
-This project is an educational and personal project created to learn modern web development while building a complete chess training platform around the Woodpecker Method.
+This is an educational and personal project created to learn modern web development while building a complete chess training platform around the Woodpecker Method.
