@@ -7,15 +7,16 @@ The project is also a learning project around a modern full-stack architecture: 
 
 ## Current Status
 
-The repository currently contains the backend foundation:
+The repository currently contains the backend and frontend foundation:
 
 - Docker Compose environment with Nginx, PHP-FPM and PostgreSQL.
 - Symfony 7.4 LTS backend in `backend/`.
 - API Platform installed and available on `/api`.
 - Doctrine ORM and Doctrine Migrations configured.
 - MakerBundle installed for development code generation.
+- React, TypeScript and Vite frontend in `frontend/`.
 
-The frontend will be added later in `frontend/`.
+Important project decisions, known issues and setup notes are documented in `docs/PROJECT_NOTES.md`.
 
 ## Run The Project
 
@@ -31,10 +32,22 @@ Open the API:
 http://localhost:8080/api
 ```
 
+Open the frontend:
+
+```text
+http://localhost:5173
+```
+
 Run a Symfony command:
 
 ```bash
 docker compose exec php php bin/console about
+```
+
+Run an npm command:
+
+```bash
+docker compose exec frontend npm run lint
 ```
 
 Stop the containers:
@@ -70,7 +83,8 @@ woodpecker/
   backend/          Symfony API application
   docker/           Docker service configuration
   compose.yaml      Local development services
-  frontend/         React application, added later
+  docs/             Project decisions and notes
+  frontend/         React TypeScript application
 ```
 
 The backend follows the standard Symfony directory structure. We avoid a heavy custom architecture at the start and keep the code close to Symfony and API Platform conventions. Domain-specific organization will be introduced progressively when entities and use cases become clearer.
@@ -142,6 +156,7 @@ Infrastructure:
 - Docker
 - Docker Compose
 - Nginx
+- Node.js container for frontend tooling
 
 Analytics:
 
