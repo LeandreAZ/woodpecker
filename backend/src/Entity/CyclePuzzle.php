@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use App\Enum\CyclePuzzleStatus;
 use App\Repository\CyclePuzzleRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -17,11 +18,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource]
 class CyclePuzzle
 {
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_SOLVED = 'solved';
-    public const STATUS_FAILED = 'failed';
-    public const STATUS_SKIPPED = 'skipped';
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -39,9 +35,8 @@ class CyclePuzzle
     #[Assert\PositiveOrZero]
     private ?int $position = null;
 
-    #[ORM\Column(length: 20)]
-    #[Assert\Choice([self::STATUS_PENDING, self::STATUS_SOLVED, self::STATUS_FAILED, self::STATUS_SKIPPED])]
-    private string $status = self::STATUS_PENDING;
+    #[ORM\Column(length: 20, enumType: CyclePuzzleStatus::class)]
+    private CyclePuzzleStatus $status = CyclePuzzleStatus::Pending;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $completedAt = null;
@@ -100,12 +95,12 @@ class CyclePuzzle
 
     public function getStatus(): string
     {
-        return $this->status;
+        return $this->status->value;
     }
 
-    public function setStatus(string $status): self
+    public function setStatus(CyclePuzzleStatus|string $status): self
     {
-        $this->status = $status;
+        $this->status = $status instanceof CyclePuzzleStatus ? $status : CyclePuzzleStatus::from($status);
 
         return $this;
     }

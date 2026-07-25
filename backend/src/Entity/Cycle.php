@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use App\Enum\CycleStatus;
 use App\Repository\CycleRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -17,10 +18,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource]
 class Cycle
 {
-    public const STATUS_PLANNED = 'planned';
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_COMPLETED = 'completed';
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -34,9 +31,8 @@ class Cycle
     #[Assert\Positive]
     private ?int $number = null;
 
-    #[ORM\Column(length: 20)]
-    #[Assert\Choice([self::STATUS_PLANNED, self::STATUS_ACTIVE, self::STATUS_COMPLETED])]
-    private string $status = self::STATUS_PLANNED;
+    #[ORM\Column(length: 20, enumType: CycleStatus::class)]
+    private CycleStatus $status = CycleStatus::Planned;
 
     #[ORM\Column(nullable: true)]
     #[Assert\Positive]
@@ -104,12 +100,12 @@ class Cycle
 
     public function getStatus(): string
     {
-        return $this->status;
+        return $this->status->value;
     }
 
-    public function setStatus(string $status): self
+    public function setStatus(CycleStatus|string $status): self
     {
-        $this->status = $status;
+        $this->status = $status instanceof CycleStatus ? $status : CycleStatus::from($status);
 
         return $this;
     }

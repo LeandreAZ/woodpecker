@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use App\Enum\TrainingStatus;
 use App\Repository\TrainingRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -15,10 +16,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource]
 class Training
 {
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_ARCHIVED = 'archived';
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -32,9 +29,8 @@ class Training
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
-    #[ORM\Column(length: 20)]
-    #[Assert\Choice([self::STATUS_DRAFT, self::STATUS_ACTIVE, self::STATUS_ARCHIVED])]
-    private string $status = self::STATUS_DRAFT;
+    #[ORM\Column(length: 20, enumType: TrainingStatus::class)]
+    private TrainingStatus $status = TrainingStatus::Draft;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -103,12 +99,12 @@ class Training
 
     public function getStatus(): string
     {
-        return $this->status;
+        return $this->status->value;
     }
 
-    public function setStatus(string $status): self
+    public function setStatus(TrainingStatus|string $status): self
     {
-        $this->status = $status;
+        $this->status = $status instanceof TrainingStatus ? $status : TrainingStatus::from($status);
 
         return $this;
     }
