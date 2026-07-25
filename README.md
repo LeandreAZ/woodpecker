@@ -15,6 +15,7 @@ The repository currently contains the backend and frontend foundation:
 - Doctrine ORM and Doctrine Migrations configured.
 - MakerBundle installed for development code generation.
 - React, TypeScript and Vite frontend in `frontend/`.
+- First backend domain resources: `Training`, `Puzzle` and `TrainingPuzzle`.
 
 Important project decisions, known issues and setup notes are documented in `docs/PROJECT_NOTES.md`.
 
