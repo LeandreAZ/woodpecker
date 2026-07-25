@@ -52,9 +52,24 @@ class Training
     #[ORM\OrderBy(['position' => 'ASC'])]
     private Collection $trainingPuzzles;
 
+    /**
+     * @var Collection<int, Cycle>
+     */
+    #[ORM\OneToMany(mappedBy: 'training', targetEntity: Cycle::class, orphanRemoval: true)]
+    #[ORM\OrderBy(['number' => 'ASC'])]
+    private Collection $cycles;
+
+    /**
+     * @var Collection<int, TrainingSession>
+     */
+    #[ORM\OneToMany(mappedBy: 'training', targetEntity: TrainingSession::class, orphanRemoval: true)]
+    private Collection $trainingSessions;
+
     public function __construct()
     {
         $this->trainingPuzzles = new ArrayCollection();
+        $this->cycles = new ArrayCollection();
+        $this->trainingSessions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -143,6 +158,64 @@ class Training
         if ($this->trainingPuzzles->removeElement($trainingPuzzle)) {
             if ($trainingPuzzle->getTraining() === $this) {
                 $trainingPuzzle->setTraining(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Cycle>
+     */
+    public function getCycles(): Collection
+    {
+        return $this->cycles;
+    }
+
+    public function addCycle(Cycle $cycle): self
+    {
+        if (!$this->cycles->contains($cycle)) {
+            $this->cycles->add($cycle);
+            $cycle->setTraining($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCycle(Cycle $cycle): self
+    {
+        if ($this->cycles->removeElement($cycle)) {
+            if ($cycle->getTraining() === $this) {
+                $cycle->setTraining(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TrainingSession>
+     */
+    public function getTrainingSessions(): Collection
+    {
+        return $this->trainingSessions;
+    }
+
+    public function addTrainingSession(TrainingSession $trainingSession): self
+    {
+        if (!$this->trainingSessions->contains($trainingSession)) {
+            $this->trainingSessions->add($trainingSession);
+            $trainingSession->setTraining($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTrainingSession(TrainingSession $trainingSession): self
+    {
+        if ($this->trainingSessions->removeElement($trainingSession)) {
+            if ($trainingSession->getTraining() === $this) {
+                $trainingSession->setTraining(null);
             }
         }
 

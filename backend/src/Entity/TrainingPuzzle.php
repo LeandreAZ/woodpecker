@@ -4,6 +4,8 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\TrainingPuzzleRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -37,6 +39,17 @@ class TrainingPuzzle
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
+
+    /**
+     * @var Collection<int, CyclePuzzle>
+     */
+    #[ORM\OneToMany(mappedBy: 'trainingPuzzle', targetEntity: CyclePuzzle::class)]
+    private Collection $cyclePuzzles;
+
+    public function __construct()
+    {
+        $this->cyclePuzzles = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -94,6 +107,35 @@ class TrainingPuzzle
     public function getCreatedAt(): ?\DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    /**
+     * @return Collection<int, CyclePuzzle>
+     */
+    public function getCyclePuzzles(): Collection
+    {
+        return $this->cyclePuzzles;
+    }
+
+    public function addCyclePuzzle(CyclePuzzle $cyclePuzzle): self
+    {
+        if (!$this->cyclePuzzles->contains($cyclePuzzle)) {
+            $this->cyclePuzzles->add($cyclePuzzle);
+            $cyclePuzzle->setTrainingPuzzle($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCyclePuzzle(CyclePuzzle $cyclePuzzle): self
+    {
+        if ($this->cyclePuzzles->removeElement($cyclePuzzle)) {
+            if ($cyclePuzzle->getTrainingPuzzle() === $this) {
+                $cyclePuzzle->setTrainingPuzzle(null);
+            }
+        }
+
+        return $this;
     }
 
     #[ORM\PrePersist]

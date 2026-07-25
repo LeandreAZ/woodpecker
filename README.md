@@ -16,6 +16,7 @@ The repository currently contains the backend and frontend foundation:
 - MakerBundle installed for development code generation.
 - React, TypeScript and Vite frontend in `frontend/`.
 - First backend domain resources: `Training`, `Puzzle` and `TrainingPuzzle`.
+- Cycle/session resources: `Cycle`, `CyclePuzzle`, `TrainingSession` and `Attempt`.
 
 Important project decisions, known issues and setup notes are documented in `docs/PROJECT_NOTES.md`.
 
