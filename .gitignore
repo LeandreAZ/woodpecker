@@ -11,6 +11,7 @@
 /var/
 .phpunit.result.cache
 /config/jwt/*.pem
+/backend/config/jwt/*.pem
 
 # React / Node.js
 /frontend/node_modules/

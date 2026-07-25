@@ -5,41 +5,59 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use App\Enum\TrainingStatus;
 use App\Repository\TrainingRepository;
+use App\State\TrainingOwnerProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TrainingRepository::class)]
 #[ORM\HasLifecycleCallbacks]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['training:read']],
+    denormalizationContext: ['groups' => ['training:write']],
+    processor: TrainingOwnerProcessor::class,
+)]
 class Training
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['training:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 120)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 120)]
+    #[Groups(['training:read', 'training:write'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['training:read', 'training:write'])]
     private ?string $description = null;
 
     #[ORM\Column(length: 20, enumType: TrainingStatus::class)]
+    #[Groups(['training:read', 'training:write'])]
     private TrainingStatus $status = TrainingStatus::Draft;
 
     #[ORM\Column]
+    #[Groups(['training:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
+    #[Groups(['training:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['training:read'])]
     private ?\DateTimeImmutable $firstCycleStartedAt = null;
+
+    #[ORM\ManyToOne(inversedBy: 'trainings')]
+    #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['training:read'])]
+    private ?User $owner = null;
 
     /**
      * @var Collection<int, TrainingPuzzle>
@@ -127,6 +145,18 @@ class Training
     public function setFirstCycleStartedAt(?\DateTimeImmutable $firstCycleStartedAt): self
     {
         $this->firstCycleStartedAt = $firstCycleStartedAt;
+
+        return $this;
+    }
+
+    public function getOwner(): ?User
+    {
+        return $this->owner;
+    }
+
+    public function setOwner(?User $owner): self
+    {
+        $this->owner = $owner;
 
         return $this;
     }

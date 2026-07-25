@@ -17,6 +17,10 @@ The repository currently contains the backend and frontend foundation:
 - React, TypeScript and Vite frontend in `frontend/`.
 - First backend domain resources: `Training`, `Puzzle` and `TrainingPuzzle`.
 - Cycle/session resources: `Cycle`, `CyclePuzzle`, `TrainingSession` and `Attempt`.
+- User resource with hashed password storage and owned trainings.
+- JWT authentication with a login endpoint on `/api/login_check`.
+- API access protected by default, except registration and API documentation in development.
+- Owner-based API scoping for trainings and training-related resources.
 
 Important project decisions, known issues and setup notes are documented in `docs/PROJECT_NOTES.md`.
 
@@ -45,6 +49,21 @@ Run a Symfony command:
 ```bash
 docker compose exec php php bin/console about
 ```
+
+Create an account, then log in through:
+
+```text
+POST http://localhost:8080/api/users
+POST http://localhost:8080/api/login_check
+```
+
+Authenticated API calls must send:
+
+```text
+Authorization: Bearer <token>
+```
+
+When a training is created, its owner is automatically set from the authenticated user. The API client must not send an `owner` field.
 
 Run an npm command:
 
@@ -141,7 +160,7 @@ Backend:
 - API Platform
 - Doctrine ORM
 - PostgreSQL
-- JWT authentication later
+- JWT authentication with LexikJWTAuthenticationBundle
 
 Frontend:
 
