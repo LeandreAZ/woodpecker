@@ -15,6 +15,8 @@ The repository currently contains the backend and frontend foundation:
 - Doctrine ORM and Doctrine Migrations configured.
 - MakerBundle installed for development code generation.
 - React, TypeScript and Vite frontend in `frontend/`.
+- Basic frontend authentication flow with registration, login and logout.
+- First authenticated dashboard to create and list personal trainings.
 - First backend domain resources: `Training`, `Puzzle` and `TrainingPuzzle`.
 - Cycle/session resources: `Cycle`, `CyclePuzzle`, `TrainingSession` and `Attempt`.
 - User resource with hashed password storage and owned trainings.
@@ -43,6 +45,8 @@ Open the frontend:
 ```text
 http://localhost:5173
 ```
+
+From the frontend, you can create an account, log in, create a first training and see only the trainings owned by the connected account.
 
 Run a Symfony command:
 
@@ -167,10 +171,10 @@ Frontend:
 - React
 - TypeScript
 - Vite
-- React Router
 - TanStack Query
 - react-chessboard
 - chess.js
+- React Router later
 
 Infrastructure:
 
