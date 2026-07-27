@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\TrainingPuzzleRepository;
+use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -14,7 +15,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'uniq_training_puzzle_training_puzzle', columns: ['training_id', 'puzzle_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_training_puzzle_training_position', columns: ['training_id', 'position'])]
-#[ApiResource]
+#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
 class TrainingPuzzle
 {
     #[ORM\Id]

@@ -4,13 +4,14 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\AttemptRepository;
+use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: AttemptRepository::class)]
 #[ORM\Index(name: 'idx_attempt_cycle_puzzle', columns: ['cycle_puzzle_id'])]
 #[ORM\Index(name: 'idx_attempt_training_session', columns: ['training_session_id'])]
-#[ApiResource]
+#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
 class Attempt
 {
     #[ORM\Id]

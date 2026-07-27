@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\TrainingSessionRepository;
+use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -12,7 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: TrainingSessionRepository::class)]
 #[ORM\Index(name: 'idx_training_session_training', columns: ['training_id'])]
 #[ORM\Index(name: 'idx_training_session_cycle', columns: ['cycle_id'])]
-#[ApiResource]
+#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
 class TrainingSession
 {
     #[ORM\Id]

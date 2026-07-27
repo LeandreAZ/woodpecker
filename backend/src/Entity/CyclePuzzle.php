@@ -5,6 +5,7 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use App\Enum\CyclePuzzleStatus;
 use App\Repository\CyclePuzzleRepository;
+use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -15,7 +16,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'idx_cycle_puzzle_training_puzzle', columns: ['training_puzzle_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cycle_puzzle_cycle_training_puzzle', columns: ['cycle_id', 'training_puzzle_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cycle_puzzle_cycle_position', columns: ['cycle_id', 'position'])]
-#[ApiResource]
+#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
 class CyclePuzzle
 {
     #[ORM\Id]

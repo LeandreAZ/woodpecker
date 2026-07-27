@@ -22,10 +22,39 @@ type TrainingCollection = {
   'hydra:member'?: Training[];
 };
 
+type Puzzle = {
+  '@id': string;
+  id: number;
+  fen?: string | null;
+  solution: string[];
+  themes: string[];
+  rating?: number | null;
+};
+
+type TrainingPuzzle = {
+  '@id': string;
+  id: number;
+  training: string;
+  puzzle: Puzzle | string;
+  position: number;
+  personalNote?: string | null;
+};
+
+type TrainingPuzzleCollection = {
+  member?: TrainingPuzzle[];
+  'hydra:member'?: TrainingPuzzle[];
+};
+
 export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedTrainingIri, setSelectedTrainingIri] = useState<string | null>(null);
+  const [fen, setFen] = useState('');
+  const [solutionText, setSolutionText] = useState('');
+  const [themesText, setThemesText] = useState('');
+  const [rating, setRating] = useState('');
+  const [personalNote, setPersonalNote] = useState('');
 
   const trainingsQuery = useQuery({
     queryKey: ['trainings', session.email],
@@ -35,6 +64,24 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       });
 
       return collection.member ?? collection['hydra:member'] ?? [];
+    },
+  });
+
+  const selectedTraining =
+    trainingsQuery.data?.find((training) => training['@id'] === selectedTrainingIri) ?? null;
+
+  const trainingPuzzlesQuery = useQuery({
+    queryKey: ['training-puzzles', session.email, selectedTrainingIri],
+    enabled: Boolean(selectedTrainingIri),
+    queryFn: async () => {
+      const collection = await apiRequest<TrainingPuzzleCollection>('/training_puzzles', {
+        token: session.token,
+      });
+      const trainingPuzzles = collection.member ?? collection['hydra:member'] ?? [];
+
+      return trainingPuzzles
+        .filter((trainingPuzzle) => trainingPuzzle.training === selectedTrainingIri)
+        .sort((left, right) => left.position - right.position);
     },
   });
 
@@ -48,10 +95,59 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
           description: description.trim() || null,
         },
       }),
-    onSuccess: async () => {
+    onSuccess: async (training) => {
       setName('');
       setDescription('');
+      setSelectedTrainingIri(training['@id']);
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
+    },
+  });
+
+  const createPuzzleMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTrainingIri) {
+        throw new Error('Select a training first.');
+      }
+
+      const solution = splitList(solutionText);
+
+      if (solution.length === 0) {
+        throw new Error('Add at least one solution move.');
+      }
+
+      const puzzle = await apiRequest<Puzzle>('/puzzles', {
+        method: 'POST',
+        token: session.token,
+        body: {
+          fen: fen.trim() || null,
+          solution,
+          themes: splitList(themesText),
+          rating: rating.trim() ? Number(rating) : null,
+        },
+      });
+
+      await apiRequest<TrainingPuzzle>('/training_puzzles', {
+        method: 'POST',
+        token: session.token,
+        body: {
+          training: selectedTrainingIri,
+          puzzle: puzzle['@id'],
+          position: trainingPuzzlesQuery.data?.length ?? 0,
+          personalNote: personalNote.trim() || null,
+        },
+      });
+
+      return puzzle;
+    },
+    onSuccess: async () => {
+      setFen('');
+      setSolutionText('');
+      setThemesText('');
+      setRating('');
+      setPersonalNote('');
+      await queryClient.invalidateQueries({
+        queryKey: ['training-puzzles', session.email, selectedTrainingIri],
+      });
     },
   });
 
@@ -64,18 +160,18 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             <h2>Bienvenue</h2>
           </div>
           <button className="ghost-button" type="button" onClick={onLogout}>
-            Se déconnecter
+            Se deconnecter
           </button>
         </div>
         <p className="muted">
-          Connecté avec <strong>{session.email}</strong>. Les entraînements affichés ici sont filtrés
-          côté API pour cet utilisateur.
+          Connecte avec <strong>{session.email}</strong>. Les trainings affiches ici sont filtres
+          cote API pour cet utilisateur.
         </p>
       </div>
 
       <div className="card">
-        <p className="eyebrow">Nouvel entraînement</p>
-        <h2>Créer un cycle Woodpecker</h2>
+        <p className="eyebrow">Nouvel entrainement</p>
+        <h2>Creer un cycle Woodpecker</h2>
         <form
           className="form-stack"
           onSubmit={(event) => {
@@ -113,7 +209,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             disabled={createTrainingMutation.isPending || name.trim().length === 0}
             type="submit"
           >
-            {createTrainingMutation.isPending ? 'Création...' : "Créer l'entraînement"}
+            {createTrainingMutation.isPending ? 'Creation...' : "Creer l'entrainement"}
           </button>
         </form>
       </div>
@@ -121,35 +217,178 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       <div className="card trainings-card">
         <div className="card-header">
           <div>
-            <p className="eyebrow">Mes entraînements</p>
-            <h2>Liste privée</h2>
+            <p className="eyebrow">Mes entrainements</p>
+            <h2>Liste privee</h2>
           </div>
           <span className="status-pill status-ok">
             {trainingsQuery.data?.length ?? 0} training{(trainingsQuery.data?.length ?? 0) > 1 ? 's' : ''}
           </span>
         </div>
 
-        {trainingsQuery.isLoading && <p className="muted">Chargement des entraînements...</p>}
+        {trainingsQuery.isLoading && <p className="muted">Chargement des entrainements...</p>}
         {trainingsQuery.isError && <p className="alert error-alert">{trainingsQuery.error.message}</p>}
 
         {trainingsQuery.isSuccess && trainingsQuery.data.length === 0 && (
-          <p className="empty-state">Aucun entraînement pour l’instant. Crée le premier.</p>
+          <p className="empty-state">Aucun entrainement pour l'instant. Cree le premier.</p>
         )}
 
         {trainingsQuery.isSuccess && trainingsQuery.data.length > 0 && (
           <ul className="training-list">
             {trainingsQuery.data.map((training) => (
-              <li key={training['@id']}>
+              <li
+                className={training['@id'] === selectedTrainingIri ? 'selected-training' : undefined}
+                key={training['@id']}
+              >
                 <div>
                   <strong>{training.name}</strong>
                   {training.description && <p>{training.description}</p>}
                 </div>
-                <span>{training.status}</span>
+                <div className="training-actions">
+                  <span>{training.status}</span>
+                  <button
+                    className="small-button"
+                    type="button"
+                    onClick={() => setSelectedTrainingIri(training['@id'])}
+                  >
+                    Ouvrir
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <div className="card detail-card">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">Detail entrainement</p>
+            <h2>{selectedTraining ? selectedTraining.name : 'Selectionne un training'}</h2>
+          </div>
+        </div>
+
+        {!selectedTraining && (
+          <p className="empty-state">Ouvre un entrainement pour ajouter les premiers puzzles.</p>
+        )}
+
+        {selectedTraining && (
+          <div className="detail-stack">
+            <p className="muted">
+              Les puzzles ajoutes ici restent rattaches a cet entrainement. Pour l'instant, on saisit
+              les donnees a la main; l'import CSV viendra plus tard.
+            </p>
+
+            <form
+              className="form-stack"
+              onSubmit={(event) => {
+                event.preventDefault();
+                createPuzzleMutation.mutate();
+              }}
+            >
+              <label>
+                FEN optionnelle
+                <textarea
+                  onChange={(event) => setFen(event.target.value)}
+                  placeholder="Position FEN si connue"
+                  rows={2}
+                  value={fen}
+                />
+              </label>
+
+              <label>
+                Solution
+                <input
+                  onChange={(event) => setSolutionText(event.target.value)}
+                  placeholder="ex: e2e4 e7e5 g1f3"
+                  required
+                  value={solutionText}
+                />
+              </label>
+
+              <div className="form-grid">
+                <label>
+                  Themes
+                  <input
+                    onChange={(event) => setThemesText(event.target.value)}
+                    placeholder="fork, pin, mate"
+                    value={themesText}
+                  />
+                </label>
+
+                <label>
+                  Rating
+                  <input
+                    min={1}
+                    onChange={(event) => setRating(event.target.value)}
+                    placeholder="1500"
+                    type="number"
+                    value={rating}
+                  />
+                </label>
+              </div>
+
+              <label>
+                Note perso
+                <textarea
+                  onChange={(event) => setPersonalNote(event.target.value)}
+                  placeholder="Pourquoi ce puzzle est interessant ?"
+                  rows={3}
+                  value={personalNote}
+                />
+              </label>
+
+              {createPuzzleMutation.isError && (
+                <p className="alert error-alert">{createPuzzleMutation.error.message}</p>
+              )}
+
+              <button
+                className="primary-button"
+                disabled={createPuzzleMutation.isPending}
+                type="submit"
+              >
+                {createPuzzleMutation.isPending ? 'Ajout...' : 'Ajouter le puzzle'}
+              </button>
+            </form>
+
+            <div>
+              <p className="eyebrow">Puzzles du training</p>
+              {trainingPuzzlesQuery.isLoading && <p className="muted">Chargement des puzzles...</p>}
+              {trainingPuzzlesQuery.isError && (
+                <p className="alert error-alert">{trainingPuzzlesQuery.error.message}</p>
+              )}
+              {trainingPuzzlesQuery.isSuccess && trainingPuzzlesQuery.data.length === 0 && (
+                <p className="empty-state">Aucun puzzle ajoute pour l'instant.</p>
+              )}
+              {trainingPuzzlesQuery.isSuccess && trainingPuzzlesQuery.data.length > 0 && (
+                <ul className="puzzle-list">
+                  {trainingPuzzlesQuery.data.map((trainingPuzzle) => {
+                    const puzzle =
+                      typeof trainingPuzzle.puzzle === 'string' ? null : trainingPuzzle.puzzle;
+
+                    return (
+                      <li key={trainingPuzzle['@id']}>
+                        <strong>#{trainingPuzzle.position + 1}</strong>
+                        <div>
+                          <p>{puzzle?.solution.join(' ') ?? 'Solution non chargee'}</p>
+                          {puzzle?.themes.length ? <span>{puzzle.themes.join(', ')}</span> : null}
+                          {trainingPuzzle.personalNote && <em>{trainingPuzzle.personalNote}</em>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

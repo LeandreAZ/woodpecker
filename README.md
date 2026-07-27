@@ -17,12 +17,14 @@ The repository currently contains the backend and frontend foundation:
 - React, TypeScript and Vite frontend in `frontend/`.
 - Basic frontend authentication flow with registration, login and logout.
 - First authenticated dashboard to create and list personal trainings.
+- First functional training detail panel with manual puzzle attachment.
 - First backend domain resources: `Training`, `Puzzle` and `TrainingPuzzle`.
 - Cycle/session resources: `Cycle`, `CyclePuzzle`, `TrainingSession` and `Attempt`.
 - User resource with hashed password storage and owned trainings.
 - JWT authentication with a login endpoint on `/api/login_check`.
 - API access protected by default, except registration and API documentation in development.
 - Owner-based API scoping for trainings and training-related resources.
+- Owner-based write guards for training-related child resources.
 
 Important project decisions, known issues and setup notes are documented in `docs/PROJECT_NOTES.md`.
 
@@ -47,6 +49,7 @@ http://localhost:5173
 ```
 
 From the frontend, you can create an account, log in, create a first training and see only the trainings owned by the connected account.
+You can also open a training and manually attach a first puzzle with solution moves, optional themes, rating, FEN and personal note.
 
 Run a Symfony command:
 

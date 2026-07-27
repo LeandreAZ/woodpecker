@@ -219,18 +219,83 @@ textarea {
   padding: 16px;
 }
 
+.selected-training {
+  border-color: rgba(31, 107, 63, 0.45) !important;
+  background: #f3fbf6 !important;
+}
+
 .training-list p {
   margin: 6px 0 0;
   color: #596158;
 }
 
-.training-list span {
+.training-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.training-list span,
+.puzzle-list span {
   border-radius: 999px;
   background: #e7f5ec;
   color: #1f6b3f;
   padding: 6px 10px;
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.small-button {
+  border: 1px solid rgba(23, 33, 26, 0.16);
+  border-radius: 999px;
+  background: #fff8e8;
+  color: #244f3c;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.detail-card {
+  grid-column: 1 / -1;
+}
+
+.detail-stack {
+  display: grid;
+  gap: 24px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.35fr);
+  gap: 14px;
+}
+
+.puzzle-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.puzzle-list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  border: 1px solid rgba(23, 33, 26, 0.12);
+  border-radius: 12px;
+  background: #fffdf8;
+  padding: 14px;
+}
+
+.puzzle-list p {
+  margin: 0 0 8px;
+}
+
+.puzzle-list em {
+  display: block;
+  margin-top: 8px;
+  color: #596158;
 }
 
 @media (max-width: 860px) {
@@ -246,5 +311,9 @@ textarea {
 
   .card {
     padding: 22px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 }

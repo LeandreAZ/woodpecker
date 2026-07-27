@@ -5,6 +5,7 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use App\Enum\CycleStatus;
 use App\Repository\CycleRepository;
+use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -15,7 +16,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Index(name: 'idx_cycle_training', columns: ['training_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cycle_training_number', columns: ['training_id', 'number'])]
-#[ApiResource]
+#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
 class Cycle
 {
     #[ORM\Id]
