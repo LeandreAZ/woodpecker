@@ -298,6 +298,55 @@ textarea {
   color: #596158;
 }
 
+.puzzle-solve-button {
+  margin-top: 10px;
+}
+
+.solver-section {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid rgba(23, 33, 26, 0.12);
+  padding-top: 22px;
+}
+
+.solver-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(220px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.solver-board {
+  width: min(420px, 100%);
+}
+
+.solver-info {
+  display: grid;
+  gap: 10px;
+}
+
+.solver-feedback {
+  margin: 0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-weight: 800;
+}
+
+.solver-feedback-info {
+  background: #fff8e8;
+  color: #79511c;
+}
+
+.solver-feedback-success {
+  background: #e7f5ec;
+  color: #1f6b3f;
+}
+
+.solver-feedback-error {
+  background: #fff0ec;
+  color: #8a2a1f;
+}
+
 .csv-import-panel {
   display: grid;
   gap: 14px;
@@ -333,6 +382,10 @@ code {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .solver-panel {
     grid-template-columns: 1fr;
   }
 }

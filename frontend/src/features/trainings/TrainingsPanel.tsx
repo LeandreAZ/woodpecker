@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import { parsePuzzleCsv, type PuzzleCsvRow } from './csvImport';
+import { PuzzleSolver } from './PuzzleSolver';
 
 type TrainingsPanelProps = {
   session: AuthSession;
@@ -59,6 +60,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   const [csvRows, setCsvRows] = useState<PuzzleCsvRow[]>([]);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvFileName, setCsvFileName] = useState('');
+  const [selectedTrainingPuzzleIri, setSelectedTrainingPuzzleIri] = useState<string | null>(null);
 
   const trainingsQuery = useQuery({
     queryKey: ['trainings', session.email],
@@ -83,11 +85,31 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       });
       const trainingPuzzles = collection.member ?? collection['hydra:member'] ?? [];
 
-      return trainingPuzzles
+      const filteredTrainingPuzzles = trainingPuzzles
         .filter((trainingPuzzle) => trainingPuzzle.training === selectedTrainingIri)
         .sort((left, right) => left.position - right.position);
+
+      return Promise.all(
+        filteredTrainingPuzzles.map(async (trainingPuzzle) => {
+          if (typeof trainingPuzzle.puzzle !== 'string') {
+            return trainingPuzzle;
+          }
+
+          return {
+            ...trainingPuzzle,
+            puzzle: await apiRequest<Puzzle>(apiPathFromIri(trainingPuzzle.puzzle), {
+              token: session.token,
+            }),
+          };
+        }),
+      );
     },
   });
+
+  const selectedTrainingPuzzle =
+    trainingPuzzlesQueryData(trainingPuzzlesQuery.data).find(
+      (trainingPuzzle) => trainingPuzzle['@id'] === selectedTrainingPuzzleIri,
+    ) ?? null;
 
   const createTrainingMutation = useMutation({
     mutationFn: async () =>
@@ -103,6 +125,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       setName('');
       setDescription('');
       setSelectedTrainingIri(training['@id']);
+      setSelectedTrainingPuzzleIri(null);
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
     },
   });
@@ -302,7 +325,10 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
                   <button
                     className="small-button"
                     type="button"
-                    onClick={() => setSelectedTrainingIri(training['@id'])}
+                    onClick={() => {
+                      setSelectedTrainingIri(training['@id']);
+                      setSelectedTrainingPuzzleIri(null);
+                    }}
                   >
                     Ouvrir
                   </button>
@@ -426,6 +452,15 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
                           <p>{puzzle?.solution.join(' ') ?? 'Solution non chargee'}</p>
                           {puzzle?.themes.length ? <span>{puzzle.themes.join(', ')}</span> : null}
                           {trainingPuzzle.personalNote && <em>{trainingPuzzle.personalNote}</em>}
+                          {puzzle && (
+                            <button
+                              className="small-button puzzle-solve-button"
+                              type="button"
+                              onClick={() => setSelectedTrainingPuzzleIri(trainingPuzzle['@id'])}
+                            >
+                              Solve
+                            </button>
+                          )}
                         </div>
                       </li>
                     );
@@ -433,6 +468,17 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
                 </ul>
               )}
             </div>
+
+            {selectedTrainingPuzzle && typeof selectedTrainingPuzzle.puzzle !== 'string' && (
+              <div className="solver-section">
+                <p className="eyebrow">Solveur</p>
+                <PuzzleSolver
+                  key={selectedTrainingPuzzle['@id']}
+                  fen={selectedTrainingPuzzle.puzzle.fen}
+                  solution={selectedTrainingPuzzle.puzzle.solution}
+                />
+              </div>
+            )}
 
             <div className="csv-import-panel">
               <p className="eyebrow">Import CSV</p>
@@ -503,6 +549,14 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       </div>
     </section>
   );
+}
+
+function trainingPuzzlesQueryData(trainingPuzzles: TrainingPuzzle[] | undefined): TrainingPuzzle[] {
+  return trainingPuzzles ?? [];
+}
+
+function apiPathFromIri(iri: string): string {
+  return iri.startsWith('/api/') ? iri.slice(4) : iri;
 }
 
 function splitList(value: string): string[] {

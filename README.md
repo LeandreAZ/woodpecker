@@ -18,6 +18,7 @@ The repository currently contains the backend and frontend foundation:
 - Basic frontend authentication flow with registration, login and logout.
 - First authenticated dashboard to create and list personal trainings.
 - First functional training detail panel with manual puzzle attachment.
+- First interactive puzzle solver with a draggable chessboard.
 - First backend domain resources: `Training`, `Puzzle` and `TrainingPuzzle`.
 - Cycle/session resources: `Cycle`, `CyclePuzzle`, `TrainingSession` and `Attempt`.
 - User resource with hashed password storage and owned trainings.
@@ -57,6 +58,7 @@ solution,fen,themes,rating,personalNote
 ```
 
 Only `solution` is required. Moves and themes can be separated with spaces or commas.
+After adding puzzles, open one from the training detail and click `Solve` to test the first interactive chessboard flow.
 
 Run a Symfony command:
 
