@@ -12,31 +12,29 @@ type Feedback = {
   message: string;
 };
 
-const defaultFeedback: Feedback = {
-  kind: 'info',
-  message: 'Play the next move from the solution.',
+type SolverState = {
+  game: Chess;
+  currentFen: string;
+  moveIndex: number;
+  playedMoves: string[];
+  feedback: Feedback;
 };
 
 export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
   const initialFen = fen?.trim() || undefined;
-  const [game, setGame] = useState(() => createGame(initialFen));
-  const [currentFen, setCurrentFen] = useState(() => game.fen());
-  const [moveIndex, setMoveIndex] = useState(0);
-  const [playedMoves, setPlayedMoves] = useState<string[]>([]);
-  const [feedback, setFeedback] = useState<Feedback>(defaultFeedback);
-
   const normalizedSolution = useMemo(
     () => solution.map((move) => move.trim()).filter(Boolean),
     [solution],
   );
+  const [solverState, setSolverState] = useState(() =>
+    createInitialSolverState(initialFen, normalizedSolution),
+  );
+
+  const { game, currentFen, moveIndex, playedMoves, feedback } = solverState;
+  const boardOrientation = game.turn() === 'w' ? 'white' : 'black';
 
   function resetPuzzle() {
-    const nextGame = createGame(initialFen);
-    setGame(nextGame);
-    setCurrentFen(nextGame.fen());
-    setMoveIndex(0);
-    setPlayedMoves([]);
-    setFeedback(defaultFeedback);
+    setSolverState(createInitialSolverState(initialFen, normalizedSolution));
   }
 
   function handlePieceDrop(sourceSquare: string, targetSquare: string | null): boolean {
@@ -47,9 +45,12 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
     const expectedMove = normalizedSolution[moveIndex];
 
     if (!expectedMove) {
-      setFeedback({
-        kind: 'success',
-        message: 'Puzzle already solved.',
+      setSolverState({
+        ...solverState,
+        feedback: {
+          kind: 'success',
+          message: 'Puzzle déjà terminé.',
+        },
       });
 
       return false;
@@ -58,9 +59,12 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
     const attemptedMove = `${sourceSquare}${targetSquare}`;
 
     if (!isExpectedMove(attemptedMove, expectedMove)) {
-      setFeedback({
-        kind: 'error',
-        message: `Wrong move. Expected ${expectedMove}.`,
+      setSolverState({
+        ...solverState,
+        feedback: {
+          kind: 'error',
+          message: `Mauvais coup. Coup attendu : ${expectedMove}.`,
+        },
       });
 
       return false;
@@ -69,9 +73,12 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
     const playerMove = playMove(game, expectedMove);
 
     if (!playerMove) {
-      setFeedback({
-        kind: 'error',
-        message: `Move ${expectedMove} is not legal from this position.`,
+      setSolverState({
+        ...solverState,
+        feedback: {
+          kind: 'error',
+          message: `Le coup ${expectedMove} n'est pas légal depuis cette position.`,
+        },
       });
 
       return false;
@@ -80,16 +87,19 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
     const nextPlayedMoves = [...playedMoves, moveToUci(playerMove)];
     let nextMoveIndex = moveIndex + 1;
 
-    while (nextMoveIndex < normalizedSolution.length) {
+    if (nextMoveIndex < normalizedSolution.length) {
       const replyMove = playMove(game, normalizedSolution[nextMoveIndex]);
 
       if (!replyMove) {
-        setPlayedMoves(nextPlayedMoves);
-        setCurrentFen(game.fen());
-        setMoveIndex(nextMoveIndex);
-        setFeedback({
-          kind: 'error',
-          message: `Reply ${normalizedSolution[nextMoveIndex]} is not legal from this position.`,
+        setSolverState({
+          game,
+          currentFen: game.fen(),
+          moveIndex: nextMoveIndex,
+          playedMoves: nextPlayedMoves,
+          feedback: {
+            kind: 'error',
+            message: `La réponse ${normalizedSolution[nextMoveIndex]} n'est pas légale depuis cette position.`,
+          },
         });
 
         return true;
@@ -97,26 +107,24 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
 
       nextPlayedMoves.push(moveToUci(replyMove));
       nextMoveIndex += 1;
-
-      if (nextMoveIndex < normalizedSolution.length) {
-        break;
-      }
     }
 
-    setPlayedMoves(nextPlayedMoves);
-    setCurrentFen(game.fen());
-    setMoveIndex(nextMoveIndex);
-    setFeedback(
-      nextMoveIndex >= normalizedSolution.length
-        ? {
-            kind: 'success',
-            message: 'Puzzle solved.',
-          }
-        : {
-            kind: 'info',
-            message: `Good. Next move: ${normalizedSolution[nextMoveIndex]}.`,
-          },
-    );
+    setSolverState({
+      game,
+      currentFen: game.fen(),
+      moveIndex: nextMoveIndex,
+      playedMoves: nextPlayedMoves,
+      feedback:
+        nextMoveIndex >= normalizedSolution.length
+          ? {
+              kind: 'success',
+              message: 'Puzzle terminé. Bien joué !',
+            }
+          : {
+              kind: 'info',
+              message: `Bon coup. Prochain coup : ${normalizedSolution[nextMoveIndex]}.`,
+            },
+    });
 
     return true;
   }
@@ -128,6 +136,7 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
           options={{
             id: 'woodpecker-solver-board',
             position: currentFen,
+            boardOrientation,
             onPieceDrop: ({ sourceSquare, targetSquare }) =>
               handlePieceDrop(sourceSquare, targetSquare),
             boardStyle: {
@@ -139,19 +148,82 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
       </div>
 
       <div className="solver-info">
+        <div className="solver-stat-card">
+          <span>Progression</span>
+          <strong>
+            {Math.min(moveIndex, normalizedSolution.length)} / {normalizedSolution.length}
+          </strong>
+        </div>
+
         <p className={`solver-feedback solver-feedback-${feedback.kind}`}>{feedback.message}</p>
-        <p className="muted">
-          Progress: {Math.min(moveIndex, normalizedSolution.length)} / {normalizedSolution.length}{' '}
-          moves
-        </p>
-        <p className="muted">Solution: {normalizedSolution.join(' ')}</p>
-        {playedMoves.length > 0 && <p className="muted">Played: {playedMoves.join(' ')}</p>}
+
+        <div className="solver-meta-card">
+          <span>Format Lichess</span>
+          <p>
+            La FEN est avant le premier coup. Le premier coup de Moves est joué automatiquement.
+          </p>
+        </div>
+
+        <div className="solver-meta-card">
+          <span>Moves</span>
+          <p>{normalizedSolution.join(' ')}</p>
+        </div>
+
+        {playedMoves.length > 0 && (
+          <div className="solver-meta-card">
+            <span>Historique</span>
+            <p>{playedMoves.join(' ')}</p>
+          </div>
+        )}
+
         <button className="small-button" type="button" onClick={resetPuzzle}>
-          Reset puzzle
+          Recommencer
         </button>
       </div>
     </div>
   );
+}
+
+function createInitialSolverState(fen: string | undefined, solution: string[]): SolverState {
+  const game = createGame(fen);
+  const playedMoves: string[] = [];
+  let moveIndex = 0;
+  let feedback: Feedback = {
+    kind: 'info',
+    message: 'Joue le prochain coup de la ligne Moves Lichess.',
+  };
+
+  if (solution.length > 0) {
+    const firstMove = playMove(game, solution[0]);
+
+    if (firstMove) {
+      playedMoves.push(moveToUci(firstMove));
+      moveIndex = 1;
+      feedback =
+        solution.length > 1
+          ? {
+              kind: 'info',
+              message: `Premier coup Lichess joué automatiquement. À toi : ${solution[1]}.`,
+            }
+          : {
+              kind: 'success',
+              message: 'Puzzle terminé après le premier coup Lichess.',
+            };
+    } else {
+      feedback = {
+        kind: 'error',
+        message: `Le premier coup Lichess ${solution[0]} n'est pas légal depuis cette FEN.`,
+      };
+    }
+  }
+
+  return {
+    game,
+    currentFen: game.fen(),
+    moveIndex,
+    playedMoves,
+    feedback,
+  };
 }
 
 function createGame(fen: string | undefined): Chess {

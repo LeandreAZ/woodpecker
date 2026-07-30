@@ -4,6 +4,7 @@ import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from './authStorage';
 
 type AuthPanelProps = {
+  sessionMessage?: string | null;
   onAuthenticated: (session: AuthSession) => void;
 };
 
@@ -11,7 +12,7 @@ type LoginResponse = {
   token: string;
 };
 
-export function AuthPanel({ onAuthenticated }: AuthPanelProps) {
+export function AuthPanel({ sessionMessage, onAuthenticated }: AuthPanelProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,11 +48,11 @@ export function AuthPanel({ onAuthenticated }: AuthPanelProps) {
     onSuccess: onAuthenticated,
   });
 
-  const title = mode === 'login' ? 'Connexion' : 'Créer un compte';
-  const submitLabel = mode === 'login' ? 'Se connecter' : "S'inscrire";
+  const title = mode === 'login' ? 'Se connecter' : 'Créer un compte';
+  const submitLabel = mode === 'login' ? 'Se connecter' : 'Créer un compte';
 
   return (
-    <section className="card auth-card" aria-labelledby="auth-title">
+    <section className="auth-card" aria-labelledby="auth-title">
       <div className="card-header">
         <div>
           <p className="eyebrow">Compte</p>
@@ -99,6 +100,8 @@ export function AuthPanel({ onAuthenticated }: AuthPanelProps) {
             value={password}
           />
         </label>
+
+        {sessionMessage && <p className="alert info-alert">{sessionMessage}</p>}
 
         {authMutation.isError && (
           <p className="alert error-alert">{authMutation.error.message}</p>

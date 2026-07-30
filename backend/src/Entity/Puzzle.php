@@ -8,42 +8,54 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: PuzzleRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'uniq_puzzle_source_external_id', columns: ['source', 'external_id'])]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['puzzle:read']],
+    denormalizationContext: ['groups' => ['puzzle:write']],
+)]
 class Puzzle
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['puzzle:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 50, nullable: true)]
     #[Assert\Length(max: 50)]
+    #[Groups(['puzzle:read', 'puzzle:write'])]
     private ?string $source = null;
 
     #[ORM\Column(length: 120, nullable: true)]
     #[Assert\Length(max: 120)]
+    #[Groups(['puzzle:read', 'puzzle:write'])]
     private ?string $externalId = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['puzzle:read', 'puzzle:write'])]
     private ?string $fen = null;
 
     #[ORM\Column]
     #[Assert\NotBlank]
+    #[Groups(['puzzle:read', 'puzzle:write'])]
     private array $solution = [];
 
     #[ORM\Column]
+    #[Groups(['puzzle:read', 'puzzle:write'])]
     private array $themes = [];
 
     #[ORM\Column(nullable: true)]
     #[Assert\Positive]
+    #[Groups(['puzzle:read', 'puzzle:write'])]
     private ?int $rating = null;
 
     #[ORM\Column]
+    #[Groups(['puzzle:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     /**

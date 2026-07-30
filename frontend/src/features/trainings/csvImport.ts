@@ -11,8 +11,21 @@ type CsvParseResult = {
   errors: string[];
 };
 
-const requiredHeaders = ['solution'];
-const knownHeaders = new Set(['fen', 'solution', 'themes', 'rating', 'personalnote', 'personal_note']);
+const knownHeaders = new Set([
+  'game_url',
+  'moves',
+  'nbplays',
+  'openingtags',
+  'personalnote',
+  'personal_note',
+  'popularity',
+  'puzzleid',
+  'rating',
+  'ratingdeviation',
+  'solution',
+  'themes',
+  'fen',
+]);
 
 export function parsePuzzleCsv(csvText: string): CsvParseResult {
   const lines = csvText
@@ -30,10 +43,8 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
   const headers = parseCsvLine(lines[0]).map(normalizeHeader);
   const errors: string[] = [];
 
-  for (const requiredHeader of requiredHeaders) {
-    if (!headers.includes(requiredHeader)) {
-      errors.push(`Missing required column: ${requiredHeader}`);
-    }
+  if (!headers.includes('moves') && !headers.includes('solution')) {
+    errors.push('Missing required column: Moves or solution');
   }
 
   headers.forEach((header) => {
@@ -55,10 +66,10 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
     const rowNumber = index + 2;
     const values = parseCsvLine(line);
     const record = Object.fromEntries(headers.map((header, valueIndex) => [header, values[valueIndex] ?? '']));
-    const solution = splitList(record.solution ?? '');
+    const solution = splitList(record.moves || record.solution || '');
 
     if (solution.length === 0) {
-      errors.push(`Line ${rowNumber}: solution is required.`);
+      errors.push(`Line ${rowNumber}: Moves/solution is required.`);
 
       return;
     }

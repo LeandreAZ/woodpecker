@@ -51,13 +51,13 @@ http://localhost:5173
 
 From the frontend, you can create an account, log in, create a first training and see only the trainings owned by the connected account.
 You can also open a training and manually attach a first puzzle with solution moves, optional themes, rating, FEN and personal note.
-For batches, the frontend can import a CSV with this header:
+For batches, the frontend can import the Lichess puzzle CSV format:
 
 ```csv
-solution,fen,themes,rating,personalNote
+PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags
 ```
 
-Only `solution` is required. Moves and themes can be separated with spaces or commas.
+Only `Moves` is required by the current importer. Lichess uses UCI moves such as `e2e4 e7e5 g1f3`.
 After adding puzzles, open one from the training detail and click `Solve` to test the first interactive chessboard flow.
 
 Run a Symfony command:
@@ -86,6 +86,14 @@ Run an npm command:
 ```bash
 docker compose exec frontend npm run lint
 ```
+
+Frontend restart convention:
+
+```bash
+docker compose restart frontend
+```
+
+After every frontend change, restart the `frontend` container so the visible app reflects the latest UI and client-side code. This is especially useful while the project is still being shaped from the mockup in `maquette.png`.
 
 Stop the containers:
 

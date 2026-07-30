@@ -9,36 +9,47 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TrainingPuzzleRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'uniq_training_puzzle_training_puzzle', columns: ['training_id', 'puzzle_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_training_puzzle_training_position', columns: ['training_id', 'position'])]
-#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
+#[ApiResource(
+    normalizationContext: ['groups' => ['training_puzzle:read', 'puzzle:read']],
+    denormalizationContext: ['groups' => ['training_puzzle:write']],
+    processor: OwnedTrainingResourceProcessor::class,
+)]
 class TrainingPuzzle
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['training_puzzle:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'trainingPuzzles')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['training_puzzle:read', 'training_puzzle:write'])]
     private ?Training $training = null;
 
     #[ORM\ManyToOne(inversedBy: 'trainingPuzzles')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['training_puzzle:read', 'training_puzzle:write'])]
     private ?Puzzle $puzzle = null;
 
     #[ORM\Column]
     #[Assert\PositiveOrZero]
+    #[Groups(['training_puzzle:read', 'training_puzzle:write'])]
     private ?int $position = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['training_puzzle:read', 'training_puzzle:write'])]
     private ?string $personalNote = null;
 
     #[ORM\Column]
+    #[Groups(['training_puzzle:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     /**
