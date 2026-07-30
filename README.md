@@ -50,6 +50,13 @@ http://localhost:5173
 
 From the frontend, you can create an account, log in, create a first training and see only the trainings owned by the connected account.
 You can also open a training and manually attach a first puzzle with solution moves, optional themes, rating, FEN and personal note.
+For batches, the frontend can import a CSV with this header:
+
+```csv
+solution,fen,themes,rating,personalNote
+```
+
+Only `solution` is required. Moves and themes can be separated with spaces or commas.
 
 Run a Symfony command:
 

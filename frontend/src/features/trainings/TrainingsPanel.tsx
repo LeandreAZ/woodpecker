@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
+import { parsePuzzleCsv, type PuzzleCsvRow } from './csvImport';
 
 type TrainingsPanelProps = {
   session: AuthSession;
@@ -55,6 +56,9 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   const [themesText, setThemesText] = useState('');
   const [rating, setRating] = useState('');
   const [personalNote, setPersonalNote] = useState('');
+  const [csvRows, setCsvRows] = useState<PuzzleCsvRow[]>([]);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [csvFileName, setCsvFileName] = useState('');
 
   const trainingsQuery = useQuery({
     queryKey: ['trainings', session.email],
@@ -145,6 +149,56 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       setThemesText('');
       setRating('');
       setPersonalNote('');
+      await queryClient.invalidateQueries({
+        queryKey: ['training-puzzles', session.email, selectedTrainingIri],
+      });
+    },
+  });
+
+  const importCsvMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTrainingIri) {
+        throw new Error('Select a training first.');
+      }
+
+      if (csvRows.length === 0) {
+        throw new Error('Choose a valid CSV file first.');
+      }
+
+      let nextPosition = trainingPuzzlesQuery.data?.length ?? 0;
+
+      for (const row of csvRows) {
+        const puzzle = await apiRequest<Puzzle>('/puzzles', {
+          method: 'POST',
+          token: session.token,
+          body: {
+            fen: row.fen,
+            solution: row.solution,
+            themes: row.themes,
+            rating: row.rating,
+          },
+        });
+
+        await apiRequest<TrainingPuzzle>('/training_puzzles', {
+          method: 'POST',
+          token: session.token,
+          body: {
+            training: selectedTrainingIri,
+            puzzle: puzzle['@id'],
+            position: nextPosition,
+            personalNote: row.personalNote,
+          },
+        });
+
+        nextPosition += 1;
+      }
+
+      return csvRows.length;
+    },
+    onSuccess: async () => {
+      setCsvRows([]);
+      setCsvErrors([]);
+      setCsvFileName('');
       await queryClient.invalidateQueries({
         queryKey: ['training-puzzles', session.email, selectedTrainingIri],
       });
@@ -378,6 +432,71 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
                   })}
                 </ul>
               )}
+            </div>
+
+            <div className="csv-import-panel">
+              <p className="eyebrow">Import CSV</p>
+              <p className="muted">
+                Format attendu: <code>solution,fen,themes,rating,personalNote</code>. Seule la
+                colonne <code>solution</code> est obligatoire.
+              </p>
+
+              <label>
+                Fichier CSV
+                <input
+                  accept=".csv,text/csv"
+                  type="file"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+
+                    if (!file) {
+                      setCsvRows([]);
+                      setCsvErrors([]);
+                      setCsvFileName('');
+
+                      return;
+                    }
+
+                    const result = parsePuzzleCsv(await file.text());
+                    setCsvRows(result.rows);
+                    setCsvErrors(result.errors);
+                    setCsvFileName(file.name);
+                  }}
+                />
+              </label>
+
+              {csvFileName && (
+                <p className="muted">
+                  Fichier charge: <strong>{csvFileName}</strong> - {csvRows.length} ligne
+                  {csvRows.length > 1 ? 's' : ''} valide{csvRows.length > 1 ? 's' : ''}
+                </p>
+              )}
+
+              {csvErrors.length > 0 && (
+                <div className="alert error-alert">
+                  <p>Import impossible pour le moment:</p>
+                  <ul>
+                    {csvErrors.map((error) => (
+                      <li key={error}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {importCsvMutation.isError && (
+                <p className="alert error-alert">{importCsvMutation.error.message}</p>
+              )}
+
+              <button
+                className="primary-button"
+                disabled={
+                  importCsvMutation.isPending || csvRows.length === 0 || csvErrors.length > 0
+                }
+                type="button"
+                onClick={() => importCsvMutation.mutate()}
+              >
+                {importCsvMutation.isPending ? 'Import...' : `Importer ${csvRows.length} puzzle(s)`}
+              </button>
             </div>
           </div>
         )}
