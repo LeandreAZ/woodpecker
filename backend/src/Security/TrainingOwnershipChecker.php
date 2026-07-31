@@ -20,7 +20,7 @@ final class TrainingOwnershipChecker
             return false;
         }
 
-        if ($training->getOwner() !== $user) {
+        if ($training->getOwner()?->getId() !== $user->getId()) {
             return false;
         }
 
@@ -43,17 +43,32 @@ final class TrainingOwnershipChecker
     private function hasConsistentTrainingRelations(mixed $data): bool
     {
         if ($data instanceof CyclePuzzle) {
-            return $data->getCycle()?->getTraining() === $data->getTrainingPuzzle()?->getTraining();
+            return $this->isSameTraining(
+                $data->getCycle()?->getTraining(),
+                $data->getTrainingPuzzle()?->getTraining(),
+            );
         }
 
         if ($data instanceof TrainingSession && null !== $data->getCycle()) {
-            return $data->getTraining() === $data->getCycle()->getTraining();
+            return $this->isSameTraining($data->getTraining(), $data->getCycle()->getTraining());
         }
 
         if ($data instanceof Attempt) {
-            return $data->getTrainingSession()?->getTraining() === $data->getCyclePuzzle()?->getCycle()?->getTraining();
+            return $this->isSameTraining(
+                $data->getTrainingSession()?->getTraining(),
+                $data->getCyclePuzzle()?->getCycle()?->getTraining(),
+            );
         }
 
         return true;
+    }
+
+    private function isSameTraining(?Training $left, ?Training $right): bool
+    {
+        if (null === $left || null === $right) {
+            return false;
+        }
+
+        return $left->getId() === $right->getId();
     }
 }

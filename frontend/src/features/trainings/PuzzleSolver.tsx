@@ -4,8 +4,18 @@ import { Chessboard } from 'react-chessboard';
 
 type PuzzleSolverProps = {
   fen?: string | null;
+  onCompleted?: (result: PuzzleCompletionResult) => void;
+  onFailed?: (result: PuzzleCompletionResult) => void;
   solution: string[];
 };
+
+export type PuzzleCompletionResult = {
+  durationMilliseconds: number;
+  mistakesCount: number;
+  playedMoves: string[];
+};
+
+const maxMistakesBeforeFailure = 3;
 
 type Feedback = {
   kind: 'info' | 'success' | 'error';
@@ -25,7 +35,7 @@ type SolverState = {
 
 type ChessSquare = Parameters<Chess['get']>[0];
 
-export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
+export function PuzzleSolver({ fen, onCompleted, onFailed, solution }: PuzzleSolverProps) {
   const initialFen = fen?.trim() || undefined;
   const normalizedSolution = useMemo(
     () => solution.map((move) => move.trim()).filter(Boolean),
@@ -63,6 +73,10 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
   }
 
   function handlePieceDrop(sourceSquare: string, targetSquare: string | null): boolean {
+    if (completedAt) {
+      return false;
+    }
+
     if (!targetSquare) {
       return false;
     }
@@ -74,7 +88,7 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
         ...solverState,
         feedback: {
           kind: 'success',
-          message: 'Puzzle déjà terminé.',
+          message: '',
         },
       });
 
@@ -84,14 +98,28 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
     const attemptedMove = `${sourceSquare}${targetSquare}`;
 
     if (!isExpectedMove(attemptedMove, expectedMove)) {
+      const nextMistakesCount = mistakesCount + 1;
+      const failedAt = nextMistakesCount >= maxMistakesBeforeFailure ? Date.now() : null;
+
       setSolverState({
         ...solverState,
-        mistakesCount: mistakesCount + 1,
+        mistakesCount: nextMistakesCount,
+        completedAt: failedAt,
         feedback: {
           kind: 'error',
-          message: 'Mauvais coup. Continue à chercher.',
+          message: failedAt
+            ? 'Tentative échouée. Tu peux recommencer.'
+            : 'Mauvais coup. Continue à chercher.',
         },
       });
+
+      if (failedAt) {
+        onFailed?.({
+          durationMilliseconds: failedAt - startedAt,
+          mistakesCount: nextMistakesCount,
+          playedMoves,
+        });
+      }
 
       return false;
     }
@@ -140,6 +168,7 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
 
     const isCompleted = nextMoveIndex >= normalizedSolution.length;
     const finishedAt = isCompleted ? Date.now() : null;
+    const durationMilliseconds = (finishedAt ?? Date.now()) - startedAt;
 
     setSolverState({
       ...solverState,
@@ -151,13 +180,21 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
       feedback: isCompleted
         ? {
             kind: 'success',
-            message: 'Puzzle terminé. Bien joué !',
+            message: '',
           }
         : {
             kind: 'info',
             message: 'Bon coup. Trouve la suite.',
           },
     });
+
+    if (isCompleted) {
+      onCompleted?.({
+        durationMilliseconds,
+        mistakesCount,
+        playedMoves: nextPlayedMoves,
+      });
+    }
 
     setSelectedSquare(null);
     return true;
@@ -243,13 +280,14 @@ export function PuzzleSolver({ fen, solution }: PuzzleSolverProps) {
           </div>
         </div>
 
-        <p className={`solver-feedback solver-feedback-${feedback.kind}`}>{feedback.message}</p>
+        {feedback.message && (
+          <p className={`solver-feedback solver-feedback-${feedback.kind}`}>{feedback.message}</p>
+        )}
 
         {isSolutionVisible ? (
           <div className="solver-solution-card">
             <span>Solution</span>
             <strong>{formatSolutionForDisplay(initialFen, normalizedSolution)}</strong>
-            <small>{normalizedSolution.join(' ')}</small>
           </div>
         ) : (
           <button

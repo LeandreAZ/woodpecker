@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import { parsePuzzleCsv, type PuzzleCsvRow } from './csvImport';
-import { PuzzleSolver } from './PuzzleSolver';
+import { PuzzleSolver, type PuzzleCompletionResult } from './PuzzleSolver';
 
 type TrainingsPanelProps = {
   session: AuthSession;
@@ -66,6 +66,17 @@ type TrainingSession = {
   startedAt: string;
 };
 
+type Attempt = {
+  '@id': string;
+  id: number;
+  cyclePuzzle: string;
+  trainingSession: string;
+  playedMoves: string[];
+  successful: boolean;
+  mistakesCount: number;
+  durationMilliseconds: number;
+};
+
 type ApiCollection<Item> = {
   member?: Item[];
   'hydra:member'?: Item[];
@@ -93,6 +104,10 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvFileName, setCsvFileName] = useState('');
   const [selectedTrainingPuzzleIri, setSelectedTrainingPuzzleIri] = useState<string | null>(null);
+  const [activeCycleIri, setActiveCycleIri] = useState<string | null>(null);
+  const [activeTrainingSessionIri, setActiveTrainingSessionIri] = useState<string | null>(null);
+  const [savedCyclePuzzleIris, setSavedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
+  const [failedCyclePuzzleIris, setFailedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
 
   const trainingsQuery = useQuery({
     queryKey: ['trainings', session.email],
@@ -130,6 +145,42 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
     },
   });
 
+  const effectiveActiveCycleIri =
+    activeCycleIri ??
+    cyclesQuery.data
+      ?.filter((cycle) => cycle.status === 'active')
+      .at(-1)?.['@id'] ??
+    null;
+
+  const cyclePuzzlesQuery = useQuery({
+    queryKey: ['cycle-puzzles', session.email, effectiveActiveCycleIri],
+    enabled: Boolean(effectiveActiveCycleIri),
+    queryFn: async () => {
+      const cyclePuzzles = await fetchAllCollection<CyclePuzzle>('/cycle_puzzles', session.token);
+
+      return cyclePuzzles
+        .filter((cyclePuzzle) => cyclePuzzle.cycle === effectiveActiveCycleIri)
+        .sort((left, right) => left.position - right.position);
+    },
+  });
+
+  const trainingSessionsQuery = useQuery({
+    queryKey: ['training-sessions', session.email, effectiveSelectedTrainingIri, effectiveActiveCycleIri],
+    enabled: Boolean(effectiveSelectedTrainingIri && effectiveActiveCycleIri),
+    queryFn: async () => {
+      const trainingSessions = await fetchAllCollection<TrainingSession>(
+        '/training_sessions',
+        session.token,
+      );
+
+      return trainingSessions.filter(
+        (trainingSession) =>
+          trainingSession.training === effectiveSelectedTrainingIri &&
+          trainingSession.cycle === effectiveActiveCycleIri,
+      );
+    },
+  });
+
   const effectiveSelectedTrainingPuzzleIri =
     selectedTrainingPuzzleIri ?? trainingPuzzlesQuery.data?.[0]?.['@id'] ?? null;
   const selectedTrainingPuzzle =
@@ -153,6 +204,15 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       ? selectedTrainingPuzzle.puzzle
       : selectedPuzzleQuery.data;
   const selectedPuzzleCount = trainingPuzzlesQuery.data?.length ?? 0;
+  const effectiveActiveTrainingSessionIri =
+    activeTrainingSessionIri ?? trainingSessionsQuery.data?.at(-1)?.['@id'] ?? null;
+  const selectedCyclePuzzle =
+    cyclePuzzlesQuery.data?.find(
+      (cyclePuzzle) => cyclePuzzle.trainingPuzzle === selectedTrainingPuzzle?.['@id'],
+    ) ?? null;
+  const selectedCyclePuzzleIsSaved = selectedCyclePuzzle
+    ? selectedCyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(selectedCyclePuzzle['@id'])
+    : false;
 
   const createTrainingMutation = useMutation({
     mutationFn: async () =>
@@ -313,7 +373,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         });
       }
 
-      await apiRequest<TrainingSession>('/training_sessions', {
+      const trainingSession = await apiRequest<TrainingSession>('/training_sessions', {
         method: 'POST',
         token: session.token,
         body: {
@@ -323,12 +383,98 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         },
       });
 
-      return cycle;
+      return { cycle, trainingSession };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ cycle, trainingSession }) => {
+      setActiveCycleIri(cycle['@id']);
+      setActiveTrainingSessionIri(trainingSession['@id']);
+      setSavedCyclePuzzleIris(new Set());
+      setFailedCyclePuzzleIris(new Set());
       setActiveView('solver');
       await queryClient.invalidateQueries({
         queryKey: ['cycles', session.email, effectiveSelectedTrainingIri],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['cycle-puzzles', session.email, cycle['@id']],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['training-sessions', session.email, effectiveSelectedTrainingIri, cycle['@id']],
+      });
+    },
+  });
+
+  const recordAttemptMutation = useMutation({
+    mutationFn: async ({
+      cyclePuzzle,
+      result,
+      successful,
+      trainingSession,
+    }: {
+      cyclePuzzle: CyclePuzzle;
+      result: PuzzleCompletionResult;
+      successful: boolean;
+      trainingSession: string;
+    }) => {
+      const attempt = await apiRequest<Attempt>('/attempts', {
+        method: 'POST',
+        token: session.token,
+        body: {
+          cyclePuzzle: cyclePuzzle['@id'],
+          trainingSession,
+          playedMoves: result.playedMoves,
+          successful,
+          mistakesCount: result.mistakesCount,
+          durationMilliseconds: result.durationMilliseconds,
+        },
+      });
+
+      await apiRequest<CyclePuzzle>(apiPathFromIri(cyclePuzzle['@id']), {
+        method: 'PATCH',
+        token: session.token,
+        contentType: 'application/merge-patch+json',
+        body: {
+          status: successful ? 'solved' : 'failed',
+          completedAt: new Date().toISOString(),
+        },
+      });
+
+      return attempt;
+    },
+    onMutate: ({ cyclePuzzle, successful }) => {
+      if (successful) {
+        setSavedCyclePuzzleIris((current) => new Set(current).add(cyclePuzzle['@id']));
+        setFailedCyclePuzzleIris((current) => {
+          const next = new Set(current);
+          next.delete(cyclePuzzle['@id']);
+
+          return next;
+        });
+      } else {
+        setFailedCyclePuzzleIris((current) => new Set(current).add(cyclePuzzle['@id']));
+      }
+    },
+    onError: (_error, { cyclePuzzle, successful }) => {
+      if (successful) {
+        setSavedCyclePuzzleIris((current) => {
+          const next = new Set(current);
+          next.delete(cyclePuzzle['@id']);
+
+          return next;
+        });
+
+        return;
+      }
+
+      setFailedCyclePuzzleIris((current) => {
+        const next = new Set(current);
+        next.delete(cyclePuzzle['@id']);
+
+        return next;
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['cycle-puzzles', session.email, effectiveActiveCycleIri],
       });
     },
   });
@@ -336,6 +482,10 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   function openTraining(trainingIri: string, view: View = 'detail') {
     setSelectedTrainingIri(trainingIri);
     setSelectedTrainingPuzzleIri(null);
+    setActiveCycleIri(null);
+    setActiveTrainingSessionIri(null);
+    setSavedCyclePuzzleIris(new Set());
+    setFailedCyclePuzzleIris(new Set());
     setActiveView(view);
   }
 
@@ -459,8 +609,44 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
 
         {activeView === 'solver' && (
           <SolverView
+            attemptError={recordAttemptMutation.error?.message}
+            attemptIsError={recordAttemptMutation.isError}
+            attemptIsPending={recordAttemptMutation.isPending}
+            cyclePuzzles={cyclePuzzlesQuery.data ?? []}
+            currentCyclePuzzle={selectedCyclePuzzle}
+            hasActiveCycle={Boolean(effectiveActiveCycleIri && effectiveActiveTrainingSessionIri)}
             onBackToDetail={() => setActiveView('detail')}
+            onPuzzleCompleted={(result) => {
+              if (
+                !selectedCyclePuzzle ||
+                !effectiveActiveTrainingSessionIri ||
+                selectedCyclePuzzleIsSaved
+              ) {
+                return;
+              }
+
+              recordAttemptMutation.mutate({
+                cyclePuzzle: selectedCyclePuzzle,
+                result,
+                successful: true,
+                trainingSession: effectiveActiveTrainingSessionIri,
+              });
+            }}
+            onPuzzleFailed={(result) => {
+              if (!selectedCyclePuzzle || !effectiveActiveTrainingSessionIri || selectedCyclePuzzleIsSaved) {
+                return;
+              }
+
+              recordAttemptMutation.mutate({
+                cyclePuzzle: selectedCyclePuzzle,
+                result,
+                successful: false,
+                trainingSession: effectiveActiveTrainingSessionIri,
+              });
+            }}
             onPuzzleSelect={setSelectedTrainingPuzzleIri}
+            failedCyclePuzzleIris={failedCyclePuzzleIris}
+            savedCyclePuzzleIris={savedCyclePuzzleIris}
             selectedPuzzle={selectedPuzzle}
             selectedTraining={selectedTraining}
             selectedTrainingPuzzle={selectedTrainingPuzzle}
@@ -793,9 +979,9 @@ function DetailView({
               type="button"
               onClick={onStartCycle}
             >
-              {startCycleIsPending ? 'DÃ©marrage...' : 'DÃ©marrer le cycle'}
+              {startCycleIsPending ? 'Démarrage...' : 'Démarrer le cycle'}
             </button>
-            <p>CrÃ©e un cycle actif, prÃ©pare les puzzles du cycle, puis ouvre le solveur.</p>
+            <p>Crée un cycle actif, prépare les puzzles du cycle, puis ouvre le solveur.</p>
           </div>
 
           {startCycleIsError && <p className="alert error-alert">{startCycleError}</p>}
@@ -938,20 +1124,50 @@ function ImportView({
 }
 
 function SolverView({
+  attemptError,
+  attemptIsError,
+  attemptIsPending,
+  currentCyclePuzzle,
+  cyclePuzzles,
+  failedCyclePuzzleIris,
+  hasActiveCycle,
   onBackToDetail,
+  onPuzzleCompleted,
+  onPuzzleFailed,
   onPuzzleSelect,
+  savedCyclePuzzleIris,
   selectedPuzzle,
   selectedTraining,
   selectedTrainingPuzzle,
   trainingPuzzles,
 }: {
+  attemptError?: string;
+  attemptIsError: boolean;
+  attemptIsPending: boolean;
+  currentCyclePuzzle: CyclePuzzle | null;
+  cyclePuzzles: CyclePuzzle[];
+  failedCyclePuzzleIris: Set<string>;
+  hasActiveCycle: boolean;
   onBackToDetail: () => void;
+  onPuzzleCompleted: (result: PuzzleCompletionResult) => void;
+  onPuzzleFailed: (result: PuzzleCompletionResult) => void;
   onPuzzleSelect: (trainingPuzzleIri: string) => void;
+  savedCyclePuzzleIris: Set<string>;
   selectedPuzzle?: Puzzle;
   selectedTraining: Training | null;
   selectedTrainingPuzzle: TrainingPuzzle | null;
   trainingPuzzles: TrainingPuzzle[];
 }) {
+  const solvedCyclePuzzlesCount = cyclePuzzles.filter(
+    (cyclePuzzle) => cyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(cyclePuzzle['@id']),
+  ).length;
+  const currentCyclePuzzleIsSolved = currentCyclePuzzle
+    ? currentCyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(currentCyclePuzzle['@id'])
+    : false;
+  const currentCyclePuzzleIsFailed = currentCyclePuzzle
+    ? currentCyclePuzzle.status === 'failed' || failedCyclePuzzleIris.has(currentCyclePuzzle['@id'])
+    : false;
+
   return (
     <div className="wp-page solver-page">
       <PageHeader
@@ -970,27 +1186,82 @@ function SolverView({
         <div className="wp-solver-layout">
           <aside className="wp-solver-list">
             <p className="eyebrow">Puzzles</p>
-            {trainingPuzzles.map((trainingPuzzle) => (
-              <button
-                className={
-                  trainingPuzzle['@id'] === selectedTrainingPuzzle?.['@id']
-                    ? 'wp-solver-list-item active'
-                    : 'wp-solver-list-item'
-                }
-                key={trainingPuzzle['@id']}
-                type="button"
-                onClick={() => onPuzzleSelect(trainingPuzzle['@id'])}
-              >
-                Puzzle {trainingPuzzle.position + 1}
-              </button>
-            ))}
+            {trainingPuzzles.map((trainingPuzzle) => {
+              const cyclePuzzle = cyclePuzzles.find(
+                (item) => item.trainingPuzzle === trainingPuzzle['@id'],
+              );
+              const isSolved = cyclePuzzle
+                ? cyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(cyclePuzzle['@id'])
+                : false;
+              const isFailed = cyclePuzzle
+                ? cyclePuzzle.status === 'failed' || failedCyclePuzzleIris.has(cyclePuzzle['@id'])
+                : false;
+              const className = [
+                'wp-solver-list-item',
+                trainingPuzzle['@id'] === selectedTrainingPuzzle?.['@id'] ? 'active' : '',
+                isSolved ? 'solved' : '',
+                isFailed && !isSolved ? 'failed' : '',
+              ]
+                .filter(Boolean)
+                .join(' ');
+
+              return (
+                <button
+                  className={className}
+                  key={trainingPuzzle['@id']}
+                  type="button"
+                  onClick={() => onPuzzleSelect(trainingPuzzle['@id'])}
+                >
+                  <span>Puzzle {trainingPuzzle.position + 1}</span>
+                  {isSolved && <small>Résolu</small>}
+                  {isFailed && !isSolved && <small>À revoir</small>}
+                </button>
+              );
+            })}
           </aside>
 
           <section className="wp-solver-board-panel">
+            <div className={hasActiveCycle ? 'wp-cycle-status active' : 'wp-cycle-status'}>
+              <strong>{hasActiveCycle ? 'Cycle actif' : 'Mode libre'}</strong>
+              <span>
+                {hasActiveCycle
+                  ? `${solvedCyclePuzzlesCount} / ${cyclePuzzles.length} puzzle(s) sauvegardé(s)`
+                  : 'Démarre un cycle depuis le détail pour sauvegarder les tentatives.'}
+              </span>
+            </div>
+
+            {attemptIsPending && <p className="alert info-alert">Sauvegarde de la tentative...</p>}
+            {attemptIsError && <p className="alert error-alert">{attemptError}</p>}
+            {currentCyclePuzzleIsSolved && (
+              <p className="alert info-alert">
+                Ce puzzle est déjà sauvegardé comme résolu. Tu peux le rejouer, mais il ne créera pas de doublon.
+              </p>
+            )}
+            {currentCyclePuzzleIsFailed && !currentCyclePuzzleIsSolved && (
+              <p className="alert warning-alert">
+                Ce puzzle est marqué à revoir. Recommence-le pour tenter de le résoudre.
+              </p>
+            )}
+
             {selectedTrainingPuzzle && selectedPuzzle ? (
               <PuzzleSolver
                 key={selectedTrainingPuzzle['@id']}
                 fen={selectedPuzzle.fen}
+                onCompleted={
+                  currentCyclePuzzle &&
+                  hasActiveCycle &&
+                  !currentCyclePuzzleIsSolved
+                    ? onPuzzleCompleted
+                    : undefined
+                }
+                onFailed={
+                  currentCyclePuzzle &&
+                  hasActiveCycle &&
+                  !currentCyclePuzzleIsSolved &&
+                  !currentCyclePuzzleIsFailed
+                    ? onPuzzleFailed
+                    : undefined
+                }
                 solution={selectedPuzzle.solution}
               />
             ) : (

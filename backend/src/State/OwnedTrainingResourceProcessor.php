@@ -5,11 +5,14 @@ namespace App\State;
 use ApiPlatform\Metadata\DeleteOperationInterface;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use App\Entity\Attempt;
 use App\Entity\User;
+use App\Repository\AttemptRepository;
 use App\Security\TrainingOwnershipChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 final class OwnedTrainingResourceProcessor implements ProcessorInterface
 {
@@ -20,6 +23,7 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         private readonly ProcessorInterface $removeProcessor,
         private readonly Security $security,
         private readonly TrainingOwnershipChecker $ownershipChecker,
+        private readonly AttemptRepository $attemptRepository,
     ) {
     }
 
@@ -39,6 +43,25 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
             return $this->removeProcessor->process($data, $operation, $uriVariables, $context);
         }
 
+        $this->preventDuplicateSuccessfulAttempt($data);
+
         return $this->persistProcessor->process($data, $operation, $uriVariables, $context);
+    }
+
+    private function preventDuplicateSuccessfulAttempt(mixed $data): void
+    {
+        if (!$data instanceof Attempt || !$data->isSuccessful()) {
+            return;
+        }
+
+        $cyclePuzzle = $data->getCyclePuzzle();
+
+        if (null === $cyclePuzzle) {
+            return;
+        }
+
+        if ($this->attemptRepository->hasSuccessfulAttemptForCyclePuzzle($cyclePuzzle)) {
+            throw new ConflictHttpException('This cycle puzzle already has a successful attempt.');
+        }
     }
 }
