@@ -13,11 +13,14 @@ type TrainingsPanelProps = {
 
 type View = 'dashboard' | 'create' | 'detail' | 'import' | 'solver';
 
+const mistakeLimitOptions = [1, 3, 5];
+
 type Training = {
   '@id': string;
   id: number;
   name: string;
   description?: string | null;
+  mistakeLimit: number;
   status: string;
   createdAt: string;
 };
@@ -77,6 +80,14 @@ type Attempt = {
   durationMilliseconds: number;
 };
 
+type CycleStats = {
+  failed: number;
+  pending: number;
+  progressPercent: number;
+  solved: number;
+  total: number;
+};
+
 type ApiCollection<Item> = {
   member?: Item[];
   'hydra:member'?: Item[];
@@ -108,6 +119,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   const [activeTrainingSessionIri, setActiveTrainingSessionIri] = useState<string | null>(null);
   const [savedCyclePuzzleIris, setSavedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
   const [failedCyclePuzzleIris, setFailedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
+  const [mistakeLimitOverride, setMistakeLimitOverride] = useState<number | null>(null);
 
   const trainingsQuery = useQuery({
     queryKey: ['trainings', session.email],
@@ -117,6 +129,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   const effectiveSelectedTrainingIri = selectedTrainingIri ?? trainingsQuery.data?.[0]?.['@id'] ?? null;
   const selectedTraining =
     trainingsQuery.data?.find((training) => training['@id'] === effectiveSelectedTrainingIri) ?? null;
+  const effectiveMistakeLimit = mistakeLimitOverride ?? selectedTraining?.mistakeLimit ?? 3;
 
   const trainingPuzzlesQuery = useQuery({
     queryKey: ['training-puzzles', session.email, effectiveSelectedTrainingIri],
@@ -213,6 +226,12 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
   const selectedCyclePuzzleIsSaved = selectedCyclePuzzle
     ? selectedCyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(selectedCyclePuzzle['@id'])
     : false;
+  const cycleStats = buildCycleStats(
+    cyclePuzzlesQuery.data ?? [],
+    savedCyclePuzzleIris,
+    failedCyclePuzzleIris,
+    selectedPuzzleCount,
+  );
 
   const createTrainingMutation = useMutation({
     mutationFn: async () =>
@@ -229,7 +248,35 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       setDescription('');
       setSelectedTrainingIri(training['@id']);
       setSelectedTrainingPuzzleIri(null);
+      setMistakeLimitOverride(null);
       setActiveView('detail');
+      await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
+    },
+  });
+
+  const updateMistakeLimitMutation = useMutation({
+    mutationFn: async (nextMistakeLimit: number) => {
+      if (!effectiveSelectedTrainingIri) {
+        throw new Error('Sélectionne un entraînement avant de régler la tolérance.');
+      }
+
+      return apiRequest<Training>(apiPathFromIri(effectiveSelectedTrainingIri), {
+        method: 'PATCH',
+        token: session.token,
+        contentType: 'application/merge-patch+json',
+        body: {
+          mistakeLimit: nextMistakeLimit,
+        },
+      });
+    },
+    onMutate: (nextMistakeLimit) => {
+      setMistakeLimitOverride(nextMistakeLimit);
+    },
+    onError: () => {
+      setMistakeLimitOverride(null);
+    },
+    onSuccess: async (training) => {
+      setMistakeLimitOverride(training.mistakeLimit);
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
     },
   });
@@ -486,6 +533,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
     setActiveTrainingSessionIri(null);
     setSavedCyclePuzzleIris(new Set());
     setFailedCyclePuzzleIris(new Set());
+    setMistakeLimitOverride(null);
     setActiveView(view);
   }
 
@@ -555,6 +603,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         {activeView === 'detail' && (
           <DetailView
             createPuzzleMutation={createPuzzleMutation}
+            cycleStats={cycleStats}
             fen={fen}
             onFenChange={setFen}
             onImport={() => setActiveView('import')}
@@ -613,8 +662,14 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             attemptIsError={recordAttemptMutation.isError}
             attemptIsPending={recordAttemptMutation.isPending}
             cyclePuzzles={cyclePuzzlesQuery.data ?? []}
+            cycleStats={cycleStats}
             currentCyclePuzzle={selectedCyclePuzzle}
             hasActiveCycle={Boolean(effectiveActiveCycleIri && effectiveActiveTrainingSessionIri)}
+            mistakeLimit={effectiveMistakeLimit}
+            mistakeLimitError={updateMistakeLimitMutation.error?.message}
+            mistakeLimitIsError={updateMistakeLimitMutation.isError}
+            mistakeLimitIsPending={updateMistakeLimitMutation.isPending}
+            onMistakeLimitChange={(nextMistakeLimit) => updateMistakeLimitMutation.mutate(nextMistakeLimit)}
             onBackToDetail={() => setActiveView('detail')}
             onPuzzleCompleted={(result) => {
               if (
@@ -811,6 +866,7 @@ function CreateTrainingView({
 
 function DetailView({
   createPuzzleMutation,
+  cycleStats,
   fen,
   onFenChange,
   onImport,
@@ -836,6 +892,7 @@ function DetailView({
   startCycleIsPending,
 }: {
   createPuzzleMutation: ReturnType<typeof useMutation<Puzzle, Error, void, unknown>>;
+  cycleStats: CycleStats;
   fen: string;
   onFenChange: (value: string) => void;
   onImport: () => void;
@@ -883,9 +940,10 @@ function DetailView({
 
       <div className="wp-stats">
         <Stat label="Puzzles" value={String(puzzleCount)} />
-        <Stat label="Progression" value="0%" />
-        <Stat label="Statut" value={selectedTraining.status} />
-        <Stat label="Créé le" value={new Date(selectedTraining.createdAt).toLocaleDateString('fr-FR')} />
+        <Stat label="Progression" value={`${cycleStats.progressPercent}%`} />
+        <Stat label="Résolus" value={String(cycleStats.solved)} />
+        <Stat label="À revoir" value={String(cycleStats.failed)} />
+        <Stat label="Restants" value={String(cycleStats.pending)} />
       </div>
 
       <div className="wp-two-columns">
@@ -1127,10 +1185,16 @@ function SolverView({
   attemptError,
   attemptIsError,
   attemptIsPending,
+  cycleStats,
   currentCyclePuzzle,
   cyclePuzzles,
   failedCyclePuzzleIris,
   hasActiveCycle,
+  mistakeLimit,
+  mistakeLimitError,
+  mistakeLimitIsError,
+  mistakeLimitIsPending,
+  onMistakeLimitChange,
   onBackToDetail,
   onPuzzleCompleted,
   onPuzzleFailed,
@@ -1144,10 +1208,16 @@ function SolverView({
   attemptError?: string;
   attemptIsError: boolean;
   attemptIsPending: boolean;
+  cycleStats: CycleStats;
   currentCyclePuzzle: CyclePuzzle | null;
   cyclePuzzles: CyclePuzzle[];
   failedCyclePuzzleIris: Set<string>;
   hasActiveCycle: boolean;
+  mistakeLimit: number;
+  mistakeLimitError?: string;
+  mistakeLimitIsError: boolean;
+  mistakeLimitIsPending: boolean;
+  onMistakeLimitChange: (value: number) => void;
   onBackToDetail: () => void;
   onPuzzleCompleted: (result: PuzzleCompletionResult) => void;
   onPuzzleFailed: (result: PuzzleCompletionResult) => void;
@@ -1158,9 +1228,6 @@ function SolverView({
   selectedTrainingPuzzle: TrainingPuzzle | null;
   trainingPuzzles: TrainingPuzzle[];
 }) {
-  const solvedCyclePuzzlesCount = cyclePuzzles.filter(
-    (cyclePuzzle) => cyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(cyclePuzzle['@id']),
-  ).length;
   const currentCyclePuzzleIsSolved = currentCyclePuzzle
     ? currentCyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(currentCyclePuzzle['@id'])
     : false;
@@ -1225,11 +1292,29 @@ function SolverView({
               <strong>{hasActiveCycle ? 'Cycle actif' : 'Mode libre'}</strong>
               <span>
                 {hasActiveCycle
-                  ? `${solvedCyclePuzzlesCount} / ${cyclePuzzles.length} puzzle(s) sauvegardé(s)`
+                  ? `${cycleStats.solved} résolu(s), ${cycleStats.failed} à revoir, ${cycleStats.pending} restant(s)`
                   : 'Démarre un cycle depuis le détail pour sauvegarder les tentatives.'}
               </span>
             </div>
 
+            <div className="wp-solver-settings">
+              <span>Tolérance erreurs</span>
+              <div>
+                {mistakeLimitOptions.map((option) => (
+                  <button
+                    className={option === mistakeLimit ? 'active' : undefined}
+                    key={option}
+                    type="button"
+                    onClick={() => onMistakeLimitChange(option)}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {mistakeLimitIsPending && <p className="alert info-alert">Sauvegarde de la tolérance...</p>}
+            {mistakeLimitIsError && <p className="alert error-alert">{mistakeLimitError}</p>}
             {attemptIsPending && <p className="alert info-alert">Sauvegarde de la tentative...</p>}
             {attemptIsError && <p className="alert error-alert">{attemptError}</p>}
             {currentCyclePuzzleIsSolved && (
@@ -1247,6 +1332,7 @@ function SolverView({
               <PuzzleSolver
                 key={selectedTrainingPuzzle['@id']}
                 fen={selectedPuzzle.fen}
+                mistakeLimit={mistakeLimit}
                 onCompleted={
                   currentCyclePuzzle &&
                   hasActiveCycle &&
@@ -1304,6 +1390,34 @@ function Stat({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
     </div>
   );
+}
+
+function buildCycleStats(
+  cyclePuzzles: CyclePuzzle[],
+  savedCyclePuzzleIris: Set<string>,
+  failedCyclePuzzleIris: Set<string>,
+  fallbackTotal: number,
+): CycleStats {
+  const total = cyclePuzzles.length || fallbackTotal;
+  const solved = cyclePuzzles.filter(
+    (cyclePuzzle) => cyclePuzzle.status === 'solved' || savedCyclePuzzleIris.has(cyclePuzzle['@id']),
+  ).length;
+  const failed = cyclePuzzles.filter(
+    (cyclePuzzle) =>
+      cyclePuzzle.status !== 'solved' &&
+      !savedCyclePuzzleIris.has(cyclePuzzle['@id']) &&
+      (cyclePuzzle.status === 'failed' || failedCyclePuzzleIris.has(cyclePuzzle['@id'])),
+  ).length;
+  const pending = Math.max(total - solved - failed, 0);
+  const progressPercent = total > 0 ? Math.round((solved / total) * 100) : 0;
+
+  return {
+    failed,
+    pending,
+    progressPercent,
+    solved,
+    total,
+  };
 }
 
 async function fetchAllCollection<Item>(path: string, token: string): Promise<Item[]> {

@@ -4,6 +4,7 @@ import { Chessboard } from 'react-chessboard';
 
 type PuzzleSolverProps = {
   fen?: string | null;
+  mistakeLimit: number;
   onCompleted?: (result: PuzzleCompletionResult) => void;
   onFailed?: (result: PuzzleCompletionResult) => void;
   solution: string[];
@@ -14,8 +15,6 @@ export type PuzzleCompletionResult = {
   mistakesCount: number;
   playedMoves: string[];
 };
-
-const maxMistakesBeforeFailure = 3;
 
 type Feedback = {
   kind: 'info' | 'success' | 'error';
@@ -35,7 +34,7 @@ type SolverState = {
 
 type ChessSquare = Parameters<Chess['get']>[0];
 
-export function PuzzleSolver({ fen, onCompleted, onFailed, solution }: PuzzleSolverProps) {
+export function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: PuzzleSolverProps) {
   const initialFen = fen?.trim() || undefined;
   const normalizedSolution = useMemo(
     () => solution.map((move) => move.trim()).filter(Boolean),
@@ -99,7 +98,7 @@ export function PuzzleSolver({ fen, onCompleted, onFailed, solution }: PuzzleSol
 
     if (!isExpectedMove(attemptedMove, expectedMove)) {
       const nextMistakesCount = mistakesCount + 1;
-      const failedAt = nextMistakesCount >= maxMistakesBeforeFailure ? Date.now() : null;
+      const failedAt = nextMistakesCount >= mistakeLimit ? Date.now() : null;
 
       setSolverState({
         ...solverState,
@@ -276,7 +275,9 @@ export function PuzzleSolver({ fen, onCompleted, onFailed, solution }: PuzzleSol
           </div>
           <div className="solver-stat-card">
             <span>Erreurs</span>
-            <strong>{mistakesCount}</strong>
+            <strong>
+              {mistakesCount} / {mistakeLimit}
+            </strong>
           </div>
         </div>
 

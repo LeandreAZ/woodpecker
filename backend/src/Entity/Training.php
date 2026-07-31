@@ -42,6 +42,11 @@ class Training
     #[Groups(['training:read', 'training:write'])]
     private TrainingStatus $status = TrainingStatus::Draft;
 
+    #[ORM\Column(options: ['default' => 3])]
+    #[Assert\Range(min: 1, max: 20)]
+    #[Groups(['training:read', 'training:write'])]
+    private int $mistakeLimit = 3;
+
     #[ORM\Column]
     #[Groups(['training:read'])]
     private ?\DateTimeImmutable $createdAt = null;
@@ -123,6 +128,18 @@ class Training
     public function setStatus(TrainingStatus|string $status): self
     {
         $this->status = $status instanceof TrainingStatus ? $status : TrainingStatus::from($status);
+
+        return $this;
+    }
+
+    public function getMistakeLimit(): int
+    {
+        return $this->mistakeLimit;
+    }
+
+    public function setMistakeLimit(int $mistakeLimit): self
+    {
+        $this->mistakeLimit = $mistakeLimit;
 
         return $this;
     }
