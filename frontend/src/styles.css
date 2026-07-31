@@ -327,8 +327,12 @@ textarea {
   align-items: start;
 }
 
-.solver-board {
-  width: min(420px, 100%);
+.solver-board,
+.solver-board-shell {
+  width: min(520px, 100%);
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 14px;
 }
 
 .solver-info {
@@ -827,8 +831,12 @@ textarea:focus {
   align-items: stretch;
 }
 
-.solver-board {
+.solver-board,
+.solver-board-shell {
   width: min(520px, 100%);
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 14px;
 }
 
 .solver-info {
@@ -849,6 +857,20 @@ textarea:focus {
   padding: 12px;
 }
 
+.solver-compact-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.solver-compact-stats .solver-stat-card {
+  padding: 10px;
+}
+
+.solver-compact-stats .solver-stat-card strong {
+  font-size: 1.05rem;
+}
+
 .solver-stat-card span,
 .solver-meta-card span {
   color: #aab8c7;
@@ -866,6 +888,52 @@ textarea:focus {
   margin: 0;
   color: #dce8f5;
   line-height: 1.45;
+}
+
+.solver-reveal-button {
+  width: 100%;
+  border: 1px solid rgba(180, 199, 220, 0.16);
+  border-radius: 12px;
+  background: #182838;
+  color: #eef4fb;
+  padding: 13px 14px;
+  font-weight: 900;
+}
+
+.solver-reveal-button:hover {
+  border-color: rgba(87, 216, 141, 0.34);
+  background: rgba(87, 216, 141, 0.12);
+}
+
+.solver-solution-card {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(87, 216, 141, 0.26);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(87, 216, 141, 0.14), rgba(87, 216, 141, 0.05)),
+    #102319;
+  padding: 16px;
+}
+
+.solver-solution-card span {
+  color: #7ff0ad;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.solver-solution-card strong {
+  color: #f8fbff;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.1;
+}
+
+.solver-solution-card small {
+  color: #aab8c7;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .solver-feedback-info {
@@ -1356,7 +1424,8 @@ code {
 
   .wp-nav,
   .wp-stats,
-  .wp-stats.compact {
+  .wp-stats.compact,
+  .solver-compact-stats {
     grid-template-columns: 1fr;
   }
 }
