@@ -910,9 +910,22 @@ textarea:focus {
   line-height: 1.45;
 }
 
+.solver-info-spacer {
+  flex: 1 1 auto;
+  min-height: 18px;
+}
+
+.solver-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.solver-action-button,
 .solver-reveal-button {
   min-width: 0;
   width: 100%;
+  min-height: 52px;
   border: 1px solid rgba(180, 199, 220, 0.16);
   border-radius: 12px;
   background: #182838;
@@ -922,6 +935,7 @@ textarea:focus {
   white-space: normal;
 }
 
+.solver-action-button:hover,
 .solver-reveal-button:hover {
   border-color: rgba(87, 216, 141, 0.34);
   background: rgba(87, 216, 141, 0.12);
@@ -929,6 +943,7 @@ textarea:focus {
 
 .solver-solution-card {
   min-width: 0;
+  min-height: 52px;
   display: grid;
   gap: 7px;
   border: 1px solid rgba(87, 216, 141, 0.26);
@@ -1389,6 +1404,13 @@ code {
   gap: 8px;
 }
 
+.wp-puzzle-row-with-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .wp-puzzle-row {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
@@ -1406,6 +1428,42 @@ code {
   grid-column: 2;
   color: #8fa0b3;
   font-style: normal;
+}
+
+.wp-puzzle-actions {
+  display: grid;
+  grid-template-columns: 42px minmax(92px, auto);
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+}
+
+.wp-puzzle-actions .wp-danger {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.wp-icon-action {
+  min-width: 42px;
+  border-color: rgba(180, 199, 220, 0.16);
+  background: rgba(238, 244, 251, 0.06);
+  color: #dce8f5;
+  padding: 0;
+}
+
+.wp-icon-action:hover:not(:disabled) {
+  border-color: rgba(87, 216, 141, 0.34);
+  background: rgba(87, 216, 141, 0.12);
+}
+
+.wp-danger {
+  border-color: rgba(255, 117, 117, 0.28);
+  background: rgba(255, 117, 117, 0.09);
+  color: #ffb8b8;
+}
+
+.wp-danger:hover:not(:disabled) {
+  border-color: rgba(255, 117, 117, 0.48);
+  background: rgba(255, 117, 117, 0.16);
 }
 
 .wp-history-panel {

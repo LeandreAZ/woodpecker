@@ -43,13 +43,14 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
             throw new AccessDeniedHttpException('You cannot manage a resource linked to another user training.');
         }
 
+        $this->preventTrainingPuzzleChangeAfterFirstCycle($data);
+
         if ($operation instanceof DeleteOperationInterface) {
             return $this->removeProcessor->process($data, $operation, $uriVariables, $context);
         }
 
         $this->preventDuplicateSuccessfulAttempt($data);
         $this->preventDuplicateActiveCycle($data);
-        $this->preventTrainingPuzzleChangeAfterFirstCycle($data);
 
         return $this->persistProcessor->process($data, $operation, $uriVariables, $context);
     }

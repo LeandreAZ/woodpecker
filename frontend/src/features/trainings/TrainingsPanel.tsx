@@ -371,7 +371,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         body: {
           training: effectiveSelectedTrainingIri,
           puzzle: puzzle['@id'],
-          position: trainingPuzzlesQuery.data?.length ?? 0,
+          position: getNextTrainingPuzzlePosition(trainingPuzzlesQuery.data ?? []),
           personalNote: personalNote.trim() || null,
         },
       });
@@ -401,7 +401,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         throw new Error('Choisis un fichier CSV valide avant de lancer l’import.');
       }
 
-      let nextPosition = trainingPuzzlesQuery.data?.length ?? 0;
+      let nextPosition = getNextTrainingPuzzlePosition(trainingPuzzlesQuery.data ?? []);
 
       for (const row of csvRows) {
         const puzzle = await apiRequest<Puzzle>('/puzzles', {
@@ -436,6 +436,81 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       setCsvErrors([]);
       setCsvFileName('');
       setActiveView('solver');
+      await queryClient.invalidateQueries({
+        queryKey: ['training-puzzles', session.email, effectiveSelectedTrainingIri],
+      });
+    },
+  });
+
+  const deleteTrainingPuzzleMutation = useMutation({
+    mutationFn: async (trainingPuzzleIri: string) => {
+      if (puzzleListIsLocked) {
+        throw new Error('La liste de puzzles est verrouillée car un cycle existe déjà.');
+      }
+
+      await apiRequest<void>(apiPathFromIri(trainingPuzzleIri), {
+        method: 'DELETE',
+        token: session.token,
+      });
+
+      return trainingPuzzleIri;
+    },
+    onSuccess: async (deletedTrainingPuzzleIri) => {
+      if (selectedTrainingPuzzleIri === deletedTrainingPuzzleIri) {
+        setSelectedTrainingPuzzleIri(null);
+      }
+
+      const remainingTrainingPuzzles = (trainingPuzzlesQuery.data ?? [])
+        .filter((trainingPuzzle) => trainingPuzzle['@id'] !== deletedTrainingPuzzleIri)
+        .sort((left, right) => left.position - right.position);
+
+      for (const [position, trainingPuzzle] of remainingTrainingPuzzles.entries()) {
+        if (trainingPuzzle.position === position) {
+          continue;
+        }
+
+        await updateTrainingPuzzlePosition(trainingPuzzle['@id'], position, session.token);
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: ['training-puzzles', session.email, effectiveSelectedTrainingIri],
+      });
+    },
+  });
+
+  const moveTrainingPuzzleMutation = useMutation({
+    mutationFn: async ({
+      direction,
+      trainingPuzzleIri,
+    }: {
+      direction: 'down' | 'up';
+      trainingPuzzleIri: string;
+    }) => {
+      if (puzzleListIsLocked) {
+        throw new Error('La liste de puzzles est verrouillée car un cycle existe déjà.');
+      }
+
+      const sortedTrainingPuzzles = [...(trainingPuzzlesQuery.data ?? [])].sort(
+        (left, right) => left.position - right.position,
+      );
+      const currentIndex = sortedTrainingPuzzles.findIndex(
+        (trainingPuzzle) => trainingPuzzle['@id'] === trainingPuzzleIri,
+      );
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      const currentTrainingPuzzle = sortedTrainingPuzzles[currentIndex];
+      const targetTrainingPuzzle = sortedTrainingPuzzles[targetIndex];
+
+      if (!currentTrainingPuzzle || !targetTrainingPuzzle) {
+        return;
+      }
+
+      const temporaryPosition = getNextTrainingPuzzlePosition(sortedTrainingPuzzles);
+
+      await updateTrainingPuzzlePosition(currentTrainingPuzzle['@id'], temporaryPosition, session.token);
+      await updateTrainingPuzzlePosition(targetTrainingPuzzle['@id'], currentTrainingPuzzle.position, session.token);
+      await updateTrainingPuzzlePosition(currentTrainingPuzzle['@id'], targetTrainingPuzzle.position, session.token);
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['training-puzzles', session.email, effectiveSelectedTrainingIri],
       });
@@ -781,8 +856,14 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             cyclePuzzles={trainingCyclePuzzlesQuery.data ?? cyclePuzzlesQuery.data ?? []}
             cycleStats={cycleStats}
             cycleStatusLabel={currentCycleStatusLabel}
+            deletePuzzleError={deleteTrainingPuzzleMutation.error?.message}
+            deletePuzzleIsError={deleteTrainingPuzzleMutation.isError}
+            deletePuzzleIsPending={deleteTrainingPuzzleMutation.isPending}
             hasResumableCycle={hasResumableCycle}
             fen={fen}
+            movePuzzleError={moveTrainingPuzzleMutation.error?.message}
+            movePuzzleIsError={moveTrainingPuzzleMutation.isError}
+            movePuzzleIsPending={moveTrainingPuzzleMutation.isPending}
             puzzleListIsLocked={puzzleListIsLocked}
             onFenChange={setFen}
             onImport={() => setActiveView('import')}
@@ -793,6 +874,10 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
               setSelectedTrainingPuzzleIri(trainingPuzzleIri);
               setActiveView('solver');
             }}
+            onPuzzleDelete={(trainingPuzzleIri) => deleteTrainingPuzzleMutation.mutate(trainingPuzzleIri)}
+            onPuzzleMove={(trainingPuzzleIri, direction) =>
+              moveTrainingPuzzleMutation.mutate({ direction, trainingPuzzleIri })
+            }
             onRatingChange={setRating}
             onSolutionTextChange={setSolutionText}
             onThemesTextChange={setThemesText}
@@ -1055,13 +1140,21 @@ function DetailView({
   cyclePuzzles,
   cycleStats,
   cycleStatusLabel,
+  deletePuzzleError,
+  deletePuzzleIsError,
+  deletePuzzleIsPending,
   fen,
   hasResumableCycle,
+  movePuzzleError,
+  movePuzzleIsError,
+  movePuzzleIsPending,
   onFenChange,
   onImport,
   onOpenSolver,
   onStartCycle,
   onPersonalNoteChange,
+  onPuzzleDelete,
+  onPuzzleMove,
   onPuzzleSelect,
   onRatingChange,
   onSolutionTextChange,
@@ -1090,13 +1183,21 @@ function DetailView({
   cyclePuzzles: CyclePuzzle[];
   cycleStats: CycleStats;
   cycleStatusLabel: string;
+  deletePuzzleError?: string;
+  deletePuzzleIsError: boolean;
+  deletePuzzleIsPending: boolean;
   fen: string;
   hasResumableCycle: boolean;
+  movePuzzleError?: string;
+  movePuzzleIsError: boolean;
+  movePuzzleIsPending: boolean;
   onFenChange: (value: string) => void;
   onImport: () => void;
   onOpenSolver: () => void;
   onStartCycle: () => void;
   onPersonalNoteChange: (value: string) => void;
+  onPuzzleDelete: (trainingPuzzleIri: string) => void;
+  onPuzzleMove: (trainingPuzzleIri: string, direction: 'down' | 'up') => void;
   onPuzzleSelect: (trainingPuzzleIri: string) => void;
   onRatingChange: (value: string) => void;
   onSolutionTextChange: (value: string) => void;
@@ -1307,25 +1408,64 @@ function DetailView({
 
           {trainingPuzzlesIsLoading && <p className="wp-empty">Chargement des puzzles...</p>}
           {trainingPuzzlesIsError && <p className="alert error-alert">{trainingPuzzlesError}</p>}
+          {deletePuzzleIsError && <p className="alert error-alert">{deletePuzzleError}</p>}
+          {movePuzzleIsError && <p className="alert error-alert">{movePuzzleError}</p>}
           {!trainingPuzzlesIsLoading && trainingPuzzles.length === 0 && (
             <p className="wp-empty">Aucun puzzle ajouté pour l’instant.</p>
           )}
 
           <div className="wp-puzzle-table">
-            {trainingPuzzles.map((trainingPuzzle) => {
+            {trainingPuzzles.map((trainingPuzzle, index) => {
               const puzzle = typeof trainingPuzzle.puzzle === 'string' ? null : trainingPuzzle.puzzle;
 
               return (
-                <button
-                  className="wp-puzzle-row"
-                  key={trainingPuzzle['@id']}
-                  type="button"
-                  onClick={() => onPuzzleSelect(trainingPuzzle['@id'])}
-                >
-                  <span>#{trainingPuzzle.position + 1}</span>
-                  <strong>{puzzle?.solution.join(' ') ?? 'Puzzle à charger'}</strong>
-                  <em>{puzzle?.themes.join(', ') || trainingPuzzle.personalNote || 'Sans thème'}</em>
-                </button>
+                <div className="wp-puzzle-row-with-actions" key={trainingPuzzle['@id']}>
+                  <button
+                    className="wp-puzzle-row"
+                    type="button"
+                    onClick={() => onPuzzleSelect(trainingPuzzle['@id'])}
+                  >
+                    <span>#{trainingPuzzle.position + 1}</span>
+                    <strong>{puzzle?.solution.join(' ') ?? 'Puzzle à charger'}</strong>
+                    <em>{puzzle?.themes.join(', ') || trainingPuzzle.personalNote || 'Sans thème'}</em>
+                  </button>
+                  {!puzzleListIsLocked && (
+                    <div className="wp-puzzle-actions">
+                      <button
+                        className="wp-icon-action"
+                        disabled={movePuzzleIsPending || index === 0}
+                        type="button"
+                        onClick={() => onPuzzleMove(trainingPuzzle['@id'], 'up')}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className="wp-icon-action"
+                        disabled={movePuzzleIsPending || index === trainingPuzzles.length - 1}
+                        type="button"
+                        onClick={() => onPuzzleMove(trainingPuzzle['@id'], 'down')}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        className="wp-danger"
+                        disabled={deletePuzzleIsPending}
+                        type="button"
+                        onClick={() => {
+                          const shouldDelete = window.confirm(
+                            `Supprimer le puzzle ${trainingPuzzle.position + 1} de ce training ?`,
+                          );
+
+                          if (shouldDelete) {
+                            onPuzzleDelete(trainingPuzzle['@id']);
+                          }
+                        }}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -1787,6 +1927,29 @@ function buildCycleStats(
     solved,
     total,
   };
+}
+
+function getNextTrainingPuzzlePosition(trainingPuzzles: TrainingPuzzle[]): number {
+  if (trainingPuzzles.length === 0) {
+    return 0;
+  }
+
+  return Math.max(...trainingPuzzles.map((trainingPuzzle) => trainingPuzzle.position)) + 1;
+}
+
+function updateTrainingPuzzlePosition(
+  trainingPuzzleIri: string,
+  position: number,
+  token: string,
+): Promise<TrainingPuzzle> {
+  return apiRequest<TrainingPuzzle>(apiPathFromIri(trainingPuzzleIri), {
+    method: 'PATCH',
+    token,
+    contentType: 'application/merge-patch+json',
+    body: {
+      position,
+    },
+  });
 }
 
 function formatDuration(durationMilliseconds: number): string {

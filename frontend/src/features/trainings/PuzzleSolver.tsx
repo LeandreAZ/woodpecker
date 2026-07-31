@@ -47,7 +47,7 @@ export function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solutio
   const [isSolutionVisible, setIsSolutionVisible] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  const { game, currentFen, moveIndex, playedMoves, feedback, mistakesCount, startedAt, completedAt } =
+  const { game, currentFen, moveIndex, playedMoves, mistakesCount, startedAt, completedAt } =
     solverState;
   const boardOrientation = game.turn() === 'w' ? 'white' : 'black';
   const legalTargetSquares = selectedSquare ? getLegalTargetSquares(game, selectedSquare) : [];
@@ -281,28 +281,28 @@ export function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solutio
           </div>
         </div>
 
-        {feedback.message && (
-          <p className={`solver-feedback solver-feedback-${feedback.kind}`}>{feedback.message}</p>
-        )}
+        <div className="solver-info-spacer" />
 
-        {isSolutionVisible ? (
-          <div className="solver-solution-card">
-            <span>Solution</span>
-            <strong>{formatSolutionForDisplay(initialFen, normalizedSolution)}</strong>
-          </div>
-        ) : (
-          <button
-            className="solver-reveal-button"
-            type="button"
-            onClick={() => setIsSolutionVisible(true)}
-          >
-            Voir la solution
+        <div className="solver-actions">
+          {isSolutionVisible ? (
+            <div className="solver-solution-card">
+              <span>Solution</span>
+              <strong>{formatSolutionForDisplay(initialFen, normalizedSolution)}</strong>
+            </div>
+          ) : (
+            <button
+              className="solver-action-button"
+              type="button"
+              onClick={() => setIsSolutionVisible(true)}
+            >
+              Voir la solution
+            </button>
+          )}
+
+          <button className="solver-action-button" type="button" onClick={resetPuzzle}>
+            Recommencer
           </button>
-        )}
-
-        <button className="small-button" type="button" onClick={resetPuzzle}>
-          Recommencer
-        </button>
+        </div>
       </div>
     </div>
   );
