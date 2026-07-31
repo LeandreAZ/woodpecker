@@ -50,6 +50,7 @@ type Cycle = {
   number: number;
   status: string;
   startedAt?: string | null;
+  completedAt?: string | null;
 };
 
 type CyclePuzzle = {
@@ -78,6 +79,7 @@ type Attempt = {
   successful: boolean;
   mistakesCount: number;
   durationMilliseconds: number;
+  attemptedAt: string;
 };
 
 type CycleStats = {
@@ -177,9 +179,22 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
     },
   });
 
+  const trainingCyclePuzzlesQuery = useQuery({
+    queryKey: ['training-cycle-puzzles', session.email, effectiveSelectedTrainingIri],
+    enabled: Boolean(effectiveSelectedTrainingIri && cyclesQuery.data),
+    queryFn: async () => {
+      const cycleIris = new Set((cyclesQuery.data ?? []).map((cycle) => cycle['@id']));
+      const cyclePuzzles = await fetchAllCollection<CyclePuzzle>('/cycle_puzzles', session.token);
+
+      return cyclePuzzles
+        .filter((cyclePuzzle) => cycleIris.has(cyclePuzzle.cycle))
+        .sort((left, right) => left.position - right.position);
+    },
+  });
+
   const trainingSessionsQuery = useQuery({
-    queryKey: ['training-sessions', session.email, effectiveSelectedTrainingIri, effectiveActiveCycleIri],
-    enabled: Boolean(effectiveSelectedTrainingIri && effectiveActiveCycleIri),
+    queryKey: ['training-sessions', session.email, effectiveSelectedTrainingIri],
+    enabled: Boolean(effectiveSelectedTrainingIri),
     queryFn: async () => {
       const trainingSessions = await fetchAllCollection<TrainingSession>(
         '/training_sessions',
@@ -187,9 +202,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       );
 
       return trainingSessions.filter(
-        (trainingSession) =>
-          trainingSession.training === effectiveSelectedTrainingIri &&
-          trainingSession.cycle === effectiveActiveCycleIri,
+        (trainingSession) => trainingSession.training === effectiveSelectedTrainingIri,
       );
     },
   });
@@ -218,7 +231,28 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       : selectedPuzzleQuery.data;
   const selectedPuzzleCount = trainingPuzzlesQuery.data?.length ?? 0;
   const effectiveActiveTrainingSessionIri =
-    activeTrainingSessionIri ?? trainingSessionsQuery.data?.at(-1)?.['@id'] ?? null;
+    activeTrainingSessionIri ??
+    trainingSessionsQuery.data
+      ?.filter((trainingSession) => trainingSession.cycle === effectiveActiveCycleIri)
+      .at(-1)?.['@id'] ??
+    null;
+  const attemptsQuery = useQuery({
+    queryKey: ['attempts', session.email, effectiveSelectedTrainingIri],
+    enabled: Boolean(effectiveSelectedTrainingIri && trainingSessionsQuery.data),
+    queryFn: async () => {
+      const trainingSessionIris = new Set(
+        (trainingSessionsQuery.data ?? []).map((trainingSession) => trainingSession['@id']),
+      );
+      const attempts = await fetchAllCollection<Attempt>('/attempts', session.token);
+
+      return attempts
+        .filter((attempt) => trainingSessionIris.has(attempt.trainingSession))
+        .sort(
+          (left, right) =>
+            new Date(right.attemptedAt).getTime() - new Date(left.attemptedAt).getTime(),
+        );
+    },
+  });
   const selectedCyclePuzzle =
     cyclePuzzlesQuery.data?.find(
       (cyclePuzzle) => cyclePuzzle.trainingPuzzle === selectedTrainingPuzzle?.['@id'],
@@ -232,6 +266,14 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
     failedCyclePuzzleIris,
     selectedPuzzleCount,
   );
+  const currentCycle = cyclesQuery.data?.find((cycle) => cycle['@id'] === effectiveActiveCycleIri) ?? null;
+  const currentCycleIsFinished = cycleStats.total > 0 && cycleStats.pending === 0;
+  const currentCycleStatusLabel = currentCycleIsFinished
+    ? 'Terminé'
+    : currentCycle?.status === 'active'
+      ? 'Actif'
+      : 'Aucun';
+  const hasResumableCycle = currentCycle?.status === 'active' && !currentCycleIsFinished;
 
   const createTrainingMutation = useMutation({
     mutationFn: async () =>
@@ -393,6 +435,60 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         throw new Error('Ajoute au moins un puzzle avant de démarrer un cycle.');
       }
 
+      const existingActiveCycle = (cyclesQuery.data ?? [])
+        .filter((cycle) => cycle.status === 'active')
+        .at(-1);
+
+      if (existingActiveCycle) {
+        const existingCyclePuzzles = await fetchAllCollection<CyclePuzzle>(
+          '/cycle_puzzles',
+          session.token,
+        );
+        const activeCyclePuzzles = existingCyclePuzzles.filter(
+          (cyclePuzzle) => cyclePuzzle.cycle === existingActiveCycle['@id'],
+        );
+        const existingTrainingPuzzleIris = new Set(
+          activeCyclePuzzles.map((cyclePuzzle) => cyclePuzzle.trainingPuzzle),
+        );
+
+        for (const trainingPuzzle of trainingPuzzles) {
+          if (existingTrainingPuzzleIris.has(trainingPuzzle['@id'])) {
+            continue;
+          }
+
+          await apiRequest<CyclePuzzle>('/cycle_puzzles', {
+            method: 'POST',
+            token: session.token,
+            body: {
+              cycle: existingActiveCycle['@id'],
+              trainingPuzzle: trainingPuzzle['@id'],
+              position: trainingPuzzle.position,
+              status: 'pending',
+            },
+          });
+        }
+
+        const existingTrainingSession = (trainingSessionsQuery.data ?? [])
+          .filter((trainingSession) => trainingSession.cycle === existingActiveCycle['@id'])
+          .at(-1);
+
+        if (existingTrainingSession) {
+          return { cycle: existingActiveCycle, trainingSession: existingTrainingSession };
+        }
+
+        const trainingSession = await apiRequest<TrainingSession>('/training_sessions', {
+          method: 'POST',
+          token: session.token,
+          body: {
+            training: effectiveSelectedTrainingIri,
+            cycle: existingActiveCycle['@id'],
+            note: `Session du cycle ${existingActiveCycle.number}`,
+          },
+        });
+
+        return { cycle: existingActiveCycle, trainingSession };
+      }
+
       const nextCycleNumber =
         (cyclesQuery.data ?? []).reduce((highest, cycle) => Math.max(highest, cycle.number), 0) + 1;
 
@@ -435,6 +531,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
     onSuccess: async ({ cycle, trainingSession }) => {
       setActiveCycleIri(cycle['@id']);
       setActiveTrainingSessionIri(trainingSession['@id']);
+      setSelectedTrainingPuzzleIri(null);
       setSavedCyclePuzzleIris(new Set());
       setFailedCyclePuzzleIris(new Set());
       setActiveView('solver');
@@ -445,7 +542,10 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         queryKey: ['cycle-puzzles', session.email, cycle['@id']],
       });
       await queryClient.invalidateQueries({
-        queryKey: ['training-sessions', session.email, effectiveSelectedTrainingIri, cycle['@id']],
+        queryKey: ['training-cycle-puzzles', session.email, effectiveSelectedTrainingIri],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['training-sessions', session.email, effectiveSelectedTrainingIri],
       });
     },
   });
@@ -485,7 +585,41 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         },
       });
 
-      return attempt;
+      const updatedCyclePuzzles = (cyclePuzzlesQuery.data ?? []).map((item) => {
+        if (item['@id'] === cyclePuzzle['@id']) {
+          return { ...item, status: successful ? 'solved' : 'failed' };
+        }
+
+        if (savedCyclePuzzleIris.has(item['@id'])) {
+          return { ...item, status: 'solved' };
+        }
+
+        if (failedCyclePuzzleIris.has(item['@id'])) {
+          return { ...item, status: 'failed' };
+        }
+
+        return item;
+      });
+      const shouldCompleteCycle =
+        updatedCyclePuzzles.length > 0 &&
+        updatedCyclePuzzles.every((item) => item.status !== 'pending');
+
+      if (shouldCompleteCycle) {
+        await apiRequest<Cycle>(apiPathFromIri(cyclePuzzle.cycle), {
+          method: 'PATCH',
+          token: session.token,
+          contentType: 'application/merge-patch+json',
+          body: {
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+          },
+        });
+      }
+
+      return {
+        attempt,
+        completedCycle: shouldCompleteCycle,
+      };
     },
     onMutate: ({ cyclePuzzle, successful }) => {
       if (successful) {
@@ -519,10 +653,23 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         return next;
       });
     },
-    onSuccess: async () => {
+    onSuccess: async ({ completedCycle }) => {
       await queryClient.invalidateQueries({
         queryKey: ['cycle-puzzles', session.email, effectiveActiveCycleIri],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ['cycles', session.email, effectiveSelectedTrainingIri],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['training-cycle-puzzles', session.email, effectiveSelectedTrainingIri],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['attempts', session.email, effectiveSelectedTrainingIri],
+      });
+
+      if (completedCycle) {
+        setActiveView('detail');
+      }
     },
   });
 
@@ -603,7 +750,15 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         {activeView === 'detail' && (
           <DetailView
             createPuzzleMutation={createPuzzleMutation}
+            attempts={attemptsQuery.data ?? []}
+            attemptsError={attemptsQuery.error?.message}
+            attemptsIsError={attemptsQuery.isError}
+            attemptsIsLoading={attemptsQuery.isLoading}
+            cycles={cyclesQuery.data ?? []}
+            cyclePuzzles={trainingCyclePuzzlesQuery.data ?? cyclePuzzlesQuery.data ?? []}
             cycleStats={cycleStats}
+            cycleStatusLabel={currentCycleStatusLabel}
+            hasResumableCycle={hasResumableCycle}
             fen={fen}
             onFenChange={setFen}
             onImport={() => setActiveView('import')}
@@ -664,6 +819,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             cyclePuzzles={cyclePuzzlesQuery.data ?? []}
             cycleStats={cycleStats}
             currentCyclePuzzle={selectedCyclePuzzle}
+            cycleIsFinished={currentCycleIsFinished}
             hasActiveCycle={Boolean(effectiveActiveCycleIri && effectiveActiveTrainingSessionIri)}
             mistakeLimit={effectiveMistakeLimit}
             mistakeLimitError={updateMistakeLimitMutation.error?.message}
@@ -865,9 +1021,17 @@ function CreateTrainingView({
 }
 
 function DetailView({
+  attempts,
+  attemptsError,
+  attemptsIsError,
+  attemptsIsLoading,
   createPuzzleMutation,
+  cycles,
+  cyclePuzzles,
   cycleStats,
+  cycleStatusLabel,
   fen,
+  hasResumableCycle,
   onFenChange,
   onImport,
   onOpenSolver,
@@ -891,9 +1055,17 @@ function DetailView({
   startCycleIsError,
   startCycleIsPending,
 }: {
+  attempts: Attempt[];
+  attemptsError?: string;
+  attemptsIsError: boolean;
+  attemptsIsLoading: boolean;
   createPuzzleMutation: ReturnType<typeof useMutation<Puzzle, Error, void, unknown>>;
+  cycles: Cycle[];
+  cyclePuzzles: CyclePuzzle[];
   cycleStats: CycleStats;
+  cycleStatusLabel: string;
   fen: string;
+  hasResumableCycle: boolean;
   onFenChange: (value: string) => void;
   onImport: () => void;
   onOpenSolver: () => void;
@@ -929,6 +1101,13 @@ function DetailView({
     );
   }
 
+  const cycleByIri = new Map(cycles.map((cycle) => [cycle['@id'], cycle]));
+  const cyclePuzzleByIri = new Map(cyclePuzzles.map((cyclePuzzle) => [cyclePuzzle['@id'], cyclePuzzle]));
+  const trainingPuzzleByIri = new Map(
+    trainingPuzzles.map((trainingPuzzle) => [trainingPuzzle['@id'], trainingPuzzle]),
+  );
+  const latestAttempts = attempts.slice(0, 8);
+
   return (
     <div className="wp-page">
       <PageHeader
@@ -944,6 +1123,8 @@ function DetailView({
         <Stat label="Résolus" value={String(cycleStats.solved)} />
         <Stat label="À revoir" value={String(cycleStats.failed)} />
         <Stat label="Restants" value={String(cycleStats.pending)} />
+        <Stat label="Tentatives" value={String(attempts.length)} />
+        <Stat label="Cycle" value={cycleStatusLabel} />
       </div>
 
       <div className="wp-two-columns">
@@ -1037,9 +1218,19 @@ function DetailView({
               type="button"
               onClick={onStartCycle}
             >
-              {startCycleIsPending ? 'Démarrage...' : 'Démarrer le cycle'}
+              {startCycleIsPending
+                ? hasResumableCycle
+                  ? 'Reprise...'
+                  : 'Démarrage...'
+                : hasResumableCycle
+                  ? 'Reprendre le cycle'
+                  : 'Démarrer le cycle'}
             </button>
-            <p>Crée un cycle actif, prépare les puzzles du cycle, puis ouvre le solveur.</p>
+            <p>
+              {hasResumableCycle
+                ? 'Rouvre le cycle actif existant et continue la résolution sans créer de doublon.'
+                : 'Crée un cycle actif, prépare les puzzles du cycle, puis ouvre le solveur.'}
+            </p>
           </div>
 
           {startCycleIsError && <p className="alert error-alert">{startCycleError}</p>}
@@ -1070,6 +1261,51 @@ function DetailView({
           </div>
         </section>
       </div>
+
+      <section className="wp-panel wp-history-panel">
+        <div className="wp-panel-title">
+          <p className="eyebrow">Historique</p>
+          <h3>Dernières tentatives</h3>
+        </div>
+
+        {attemptsIsLoading && <p className="wp-empty">Chargement des tentatives...</p>}
+        {attemptsIsError && <p className="alert error-alert">{attemptsError}</p>}
+        {!attemptsIsLoading && latestAttempts.length === 0 && (
+          <p className="wp-empty">
+            Aucune tentative sauvegardée pour l’instant. Démarre un cycle puis résous un puzzle.
+          </p>
+        )}
+
+        {latestAttempts.length > 0 && (
+          <div className="wp-attempt-list">
+            {latestAttempts.map((attempt) => {
+              const cyclePuzzle = cyclePuzzleByIri.get(attempt.cyclePuzzle);
+              const cycle = cyclePuzzle ? cycleByIri.get(cyclePuzzle.cycle) : null;
+              const trainingPuzzle = cyclePuzzle
+                ? trainingPuzzleByIri.get(cyclePuzzle.trainingPuzzle)
+                : null;
+
+              return (
+                <article className="wp-attempt-row" key={attempt['@id']}>
+                  <div>
+                    <strong>{attempt.successful ? 'Réussi' : 'À revoir'}</strong>
+                    <span>
+                      {cycle ? `Cycle ${cycle.number}` : 'Cycle'}
+                      {' · '}
+                      {trainingPuzzle ? `Puzzle ${trainingPuzzle.position + 1}` : 'Puzzle'}
+                    </span>
+                  </div>
+                  <div className="wp-attempt-metrics">
+                    <span>{attempt.mistakesCount} erreur(s)</span>
+                    <span>{formatDuration(attempt.durationMilliseconds)}</span>
+                    <span>{formatDateTime(attempt.attemptedAt)}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -1185,6 +1421,7 @@ function SolverView({
   attemptError,
   attemptIsError,
   attemptIsPending,
+  cycleIsFinished,
   cycleStats,
   currentCyclePuzzle,
   cyclePuzzles,
@@ -1208,6 +1445,7 @@ function SolverView({
   attemptError?: string;
   attemptIsError: boolean;
   attemptIsPending: boolean;
+  cycleIsFinished: boolean;
   cycleStats: CycleStats;
   currentCyclePuzzle: CyclePuzzle | null;
   cyclePuzzles: CyclePuzzle[];
@@ -1289,9 +1527,13 @@ function SolverView({
 
           <section className="wp-solver-board-panel">
             <div className={hasActiveCycle ? 'wp-cycle-status active' : 'wp-cycle-status'}>
-              <strong>{hasActiveCycle ? 'Cycle actif' : 'Mode libre'}</strong>
+              <strong>
+                {cycleIsFinished ? 'Cycle terminé' : hasActiveCycle ? 'Cycle actif' : 'Mode libre'}
+              </strong>
               <span>
-                {hasActiveCycle
+                {cycleIsFinished
+                  ? `${cycleStats.solved} résolu(s), ${cycleStats.failed} à revoir. Retour au détail pour le bilan.`
+                  : hasActiveCycle
                   ? `${cycleStats.solved} résolu(s), ${cycleStats.failed} à revoir, ${cycleStats.pending} restant(s)`
                   : 'Démarre un cycle depuis le détail pour sauvegarder les tentatives.'}
               </span>
@@ -1418,6 +1660,27 @@ function buildCycleStats(
     solved,
     total,
   };
+}
+
+function formatDuration(durationMilliseconds: number): string {
+  const totalSeconds = Math.max(Math.round(durationMilliseconds / 1000), 0);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes === 0) {
+    return `${seconds}s`;
+  }
+
+  return `${minutes}min ${String(seconds).padStart(2, '0')}s`;
+}
+
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString('fr-FR', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+  });
 }
 
 async function fetchAllCollection<Item>(path: string, token: string): Promise<Item[]> {

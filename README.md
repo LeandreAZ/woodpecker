@@ -28,6 +28,7 @@ The repository currently contains the backend and frontend foundation:
 - Owner-based write guards for training-related child resources.
 
 Important project decisions, known issues and setup notes are documented in `docs/PROJECT_NOTES.md`.
+Manual and technical test instructions are documented in `docs/TEST_PLAN.md`.
 
 ## Run The Project
 
@@ -85,6 +86,12 @@ Run an npm command:
 
 ```bash
 docker compose exec frontend npm run lint
+```
+
+Run the local smoke test checklist:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke-test.ps1
 ```
 
 Frontend restart convention:

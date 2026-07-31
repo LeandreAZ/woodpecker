@@ -1408,6 +1408,55 @@ code {
   font-style: normal;
 }
 
+.wp-history-panel {
+  margin-top: 18px;
+}
+
+.wp-attempt-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-attempt-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid rgba(180, 199, 220, 0.1);
+  border-radius: 14px;
+  background: #162636;
+  padding: 14px;
+}
+
+.wp-attempt-row > div:first-child,
+.wp-attempt-metrics {
+  min-width: 0;
+}
+
+.wp-attempt-row strong {
+  display: block;
+  color: #eef4fb;
+}
+
+.wp-attempt-row span {
+  color: #8fa0b3;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.wp-attempt-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wp-attempt-metrics span {
+  border-radius: 999px;
+  background: rgba(238, 244, 251, 0.07);
+  padding: 6px 10px;
+}
+
 .wp-dropzone {
   min-height: 210px;
   display: grid;
