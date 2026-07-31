@@ -207,8 +207,26 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
     },
   });
 
+  const activeCyclePuzzles = cyclePuzzlesQuery.data ?? [];
+  const defaultCyclePuzzle =
+    activeCyclePuzzles.find(
+      (cyclePuzzle) =>
+        cyclePuzzle.status === 'pending' &&
+        !savedCyclePuzzleIris.has(cyclePuzzle['@id']) &&
+        !failedCyclePuzzleIris.has(cyclePuzzle['@id']),
+    ) ??
+    activeCyclePuzzles.find(
+      (cyclePuzzle) =>
+        cyclePuzzle.status !== 'solved' &&
+        !savedCyclePuzzleIris.has(cyclePuzzle['@id']) &&
+        (cyclePuzzle.status === 'failed' || failedCyclePuzzleIris.has(cyclePuzzle['@id'])),
+    ) ??
+    null;
   const effectiveSelectedTrainingPuzzleIri =
-    selectedTrainingPuzzleIri ?? trainingPuzzlesQuery.data?.[0]?.['@id'] ?? null;
+    selectedTrainingPuzzleIri ??
+    defaultCyclePuzzle?.trainingPuzzle ??
+    trainingPuzzlesQuery.data?.[0]?.['@id'] ??
+    null;
   const selectedTrainingPuzzle =
     trainingPuzzlesQuery.data?.find(
       (trainingPuzzle) => trainingPuzzle['@id'] === effectiveSelectedTrainingPuzzleIri,
@@ -274,6 +292,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       ? 'Actif'
       : 'Aucun';
   const hasResumableCycle = currentCycle?.status === 'active' && !currentCycleIsFinished;
+  const puzzleListIsLocked = (cyclesQuery.data?.length ?? 0) > 0;
 
   const createTrainingMutation = useMutation({
     mutationFn: async () =>
@@ -669,7 +688,11 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
 
       if (completedCycle) {
         setActiveView('detail');
+
+        return;
       }
+
+      setSelectedTrainingPuzzleIri(null);
     },
   });
 
@@ -760,6 +783,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             cycleStatusLabel={currentCycleStatusLabel}
             hasResumableCycle={hasResumableCycle}
             fen={fen}
+            puzzleListIsLocked={puzzleListIsLocked}
             onFenChange={setFen}
             onImport={() => setActiveView('import')}
             onOpenSolver={() => setActiveView('solver')}
@@ -807,6 +831,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
               setCsvErrors([]);
             }}
             onSubmit={() => importCsvMutation.mutate()}
+            puzzleListIsLocked={puzzleListIsLocked}
             selectedTraining={selectedTraining}
           />
         )}
@@ -1042,6 +1067,7 @@ function DetailView({
   onSolutionTextChange,
   onThemesTextChange,
   personalNote,
+  puzzleListIsLocked,
   puzzleCount,
   rating,
   selectedTraining,
@@ -1076,6 +1102,7 @@ function DetailView({
   onSolutionTextChange: (value: string) => void;
   onThemesTextChange: (value: string) => void;
   personalNote: string;
+  puzzleListIsLocked: boolean;
   puzzleCount: number;
   rating: string;
   selectedTraining: Training | null;
@@ -1106,6 +1133,34 @@ function DetailView({
   const trainingPuzzleByIri = new Map(
     trainingPuzzles.map((trainingPuzzle) => [trainingPuzzle['@id'], trainingPuzzle]),
   );
+  const cycleSummaries = [...cycles]
+    .sort((left, right) => right.number - left.number)
+    .map((cycle) => {
+      const relatedCyclePuzzles = cyclePuzzles.filter(
+        (cyclePuzzle) => cyclePuzzle.cycle === cycle['@id'],
+      );
+      const relatedCyclePuzzleIris = new Set(
+        relatedCyclePuzzles.map((cyclePuzzle) => cyclePuzzle['@id']),
+      );
+      const solved = relatedCyclePuzzles.filter((cyclePuzzle) => cyclePuzzle.status === 'solved').length;
+      const failed = relatedCyclePuzzles.filter((cyclePuzzle) => cyclePuzzle.status === 'failed').length;
+      const pending = relatedCyclePuzzles.filter((cyclePuzzle) => cyclePuzzle.status === 'pending').length;
+      const total = relatedCyclePuzzles.length;
+      const progressPercent = total > 0 ? Math.round((solved / total) * 100) : 0;
+      const attemptCount = attempts.filter((attempt) =>
+        relatedCyclePuzzleIris.has(attempt.cyclePuzzle),
+      ).length;
+
+      return {
+        attemptCount,
+        cycle,
+        failed,
+        pending,
+        progressPercent,
+        solved,
+        total,
+      };
+    });
   const latestAttempts = attempts.slice(0, 8);
 
   return (
@@ -1133,17 +1188,26 @@ function DetailView({
             <p className="eyebrow">Ajout manuel</p>
             <h3>Ajouter un puzzle</h3>
           </div>
+          {puzzleListIsLocked && (
+            <p className="alert info-alert">
+              La liste de puzzles est verrouillée car un cycle existe déjà. C’est voulu : un training
+              Woodpecker doit garder le même set pendant ses répétitions.
+            </p>
+          )}
           <form
             className="form-stack"
             onSubmit={(event) => {
               event.preventDefault();
-              createPuzzleMutation.mutate();
+              if (!puzzleListIsLocked) {
+                createPuzzleMutation.mutate();
+              }
             }}
           >
             <label>
               FEN Lichess optionnelle
               <textarea
                 onChange={(event) => onFenChange(event.target.value)}
+                disabled={puzzleListIsLocked}
                 placeholder="FEN Lichess si connue"
                 rows={2}
                 value={fen}
@@ -1154,6 +1218,7 @@ function DetailView({
               Moves Lichess
               <input
                 onChange={(event) => onSolutionTextChange(event.target.value)}
+                disabled={puzzleListIsLocked}
                 placeholder="ex: e2e4 e7e5 g1f3"
                 required
                 value={solutionText}
@@ -1165,6 +1230,7 @@ function DetailView({
                 Thèmes
                 <input
                   onChange={(event) => onThemesTextChange(event.target.value)}
+                  disabled={puzzleListIsLocked}
                   placeholder="fork, pin, mate"
                   value={themesText}
                 />
@@ -1175,6 +1241,7 @@ function DetailView({
                 <input
                   min={1}
                   onChange={(event) => onRatingChange(event.target.value)}
+                  disabled={puzzleListIsLocked}
                   placeholder="1500"
                   type="number"
                   value={rating}
@@ -1186,6 +1253,7 @@ function DetailView({
               Note perso
               <textarea
                 onChange={(event) => onPersonalNoteChange(event.target.value)}
+                disabled={puzzleListIsLocked}
                 placeholder="Pourquoi ce puzzle est intéressant ?"
                 rows={3}
                 value={personalNote}
@@ -1196,7 +1264,7 @@ function DetailView({
               <p className="alert error-alert">{createPuzzleMutation.error.message}</p>
             )}
 
-            <button className="wp-primary" disabled={createPuzzleMutation.isPending} type="submit">
+            <button className="wp-primary" disabled={createPuzzleMutation.isPending || puzzleListIsLocked} type="submit">
               {createPuzzleMutation.isPending ? 'Ajout...' : 'Ajouter le puzzle'}
             </button>
           </form>
@@ -1208,7 +1276,9 @@ function DetailView({
               <p className="eyebrow">Puzzles</p>
               <h3>Liste du training</h3>
             </div>
-            <button className="wp-secondary" type="button" onClick={onImport}>Importer CSV</button>
+            <button className="wp-secondary" disabled={puzzleListIsLocked} type="button" onClick={onImport}>
+              Importer CSV
+            </button>
           </div>
 
           <div className="wp-cycle-actions">
@@ -1261,6 +1331,49 @@ function DetailView({
           </div>
         </section>
       </div>
+
+      <section className="wp-panel wp-history-panel">
+        <div className="wp-panel-title">
+          <p className="eyebrow">Cycles</p>
+          <h3>Historique des cycles</h3>
+        </div>
+
+        {cycleSummaries.length === 0 && (
+          <p className="wp-empty">
+            Aucun cycle lancé pour l’instant. Démarre un cycle quand ta liste de puzzles est prête.
+          </p>
+        )}
+
+        {cycleSummaries.length > 0 && (
+          <div className="wp-cycle-list">
+            {cycleSummaries.map((summary) => (
+              <article className="wp-cycle-row" key={summary.cycle['@id']}>
+                <div>
+                  <strong>Cycle {summary.cycle.number}</strong>
+                  <span>{getCycleStatusLabel(summary.cycle.status)}</span>
+                </div>
+                <div className="wp-cycle-row-progress">
+                  <div className="wp-progress">
+                    <span style={{ width: `${summary.progressPercent}%` }} />
+                  </div>
+                  <small>
+                    {summary.solved} résolu(s), {summary.failed} à revoir, {summary.pending} restant(s)
+                  </small>
+                </div>
+                <div className="wp-cycle-row-meta">
+                  <span>{summary.attemptCount} tentative(s)</span>
+                  <span>
+                    {summary.cycle.startedAt ? `Début ${formatDateTime(summary.cycle.startedAt)}` : 'Pas démarré'}
+                  </span>
+                  {summary.cycle.completedAt && (
+                    <span>Fin {formatDateTime(summary.cycle.completedAt)}</span>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="wp-panel wp-history-panel">
         <div className="wp-panel-title">
@@ -1320,6 +1433,7 @@ function ImportView({
   onFileParsed,
   onResetFile,
   onSubmit,
+  puzzleListIsLocked,
   selectedTraining,
 }: {
   csvErrors: string[];
@@ -1331,6 +1445,7 @@ function ImportView({
   onFileParsed: (fileName: string, rows: PuzzleCsvRow[], errors: string[]) => void;
   onResetFile: () => void;
   onSubmit: () => void;
+  puzzleListIsLocked: boolean;
   selectedTraining: Training | null;
 }) {
   return (
@@ -1355,12 +1470,18 @@ function ImportView({
             Colonnes attendues : <code>PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags</code>.
             Seule <code>Moves</code> est obligatoire.
           </p>
+          {puzzleListIsLocked && (
+            <p className="alert info-alert">
+              Import désactivé : un cycle existe déjà, donc la liste de puzzles est verrouillée.
+            </p>
+          )}
 
           <label className="wp-dropzone">
             <span>Choisir un fichier CSV</span>
             <small>Les coups doivent être en notation UCI.</small>
             <input
               accept=".csv,text/csv"
+              disabled={puzzleListIsLocked}
               type="file"
               onChange={async (event) => {
                 const file = event.target.files?.[0];
@@ -1405,7 +1526,13 @@ function ImportView({
 
           <button
             className="wp-primary full"
-            disabled={!selectedTraining || isPending || csvRows.length === 0 || csvErrors.length > 0}
+            disabled={
+              !selectedTraining ||
+              puzzleListIsLocked ||
+              isPending ||
+              csvRows.length === 0 ||
+              csvErrors.length > 0
+            }
             type="button"
             onClick={onSubmit}
           >
@@ -1681,6 +1808,16 @@ function formatDateTime(value: string): string {
     minute: '2-digit',
     month: '2-digit',
   });
+}
+
+function getCycleStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    active: 'Actif',
+    completed: 'Terminé',
+    planned: 'Planifié',
+  };
+
+  return labels[status] ?? status;
 }
 
 async function fetchAllCollection<Item>(path: string, token: string): Promise<Item[]> {

@@ -1412,6 +1412,61 @@ code {
   margin-top: 18px;
 }
 
+.wp-cycle-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-cycle-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.6fr) minmax(220px, 1.2fr) minmax(180px, 1fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid rgba(180, 199, 220, 0.1);
+  border-radius: 14px;
+  background: #162636;
+  padding: 14px;
+}
+
+.wp-cycle-row > div,
+.wp-cycle-row-progress {
+  min-width: 0;
+}
+
+.wp-cycle-row strong {
+  display: block;
+  color: #eef4fb;
+}
+
+.wp-cycle-row span,
+.wp-cycle-row small {
+  color: #8fa0b3;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.wp-cycle-row-progress {
+  display: grid;
+  gap: 8px;
+}
+
+.wp-cycle-row-progress .wp-progress {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wp-cycle-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wp-cycle-row-meta span {
+  border-radius: 999px;
+  background: rgba(238, 244, 251, 0.07);
+  padding: 6px 10px;
+}
+
 .wp-attempt-list {
   display: grid;
   gap: 10px;

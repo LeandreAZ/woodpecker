@@ -6,8 +6,11 @@ use ApiPlatform\Metadata\DeleteOperationInterface;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\Attempt;
+use App\Entity\Cycle;
+use App\Entity\TrainingPuzzle;
 use App\Entity\User;
 use App\Repository\AttemptRepository;
+use App\Repository\CycleRepository;
 use App\Security\TrainingOwnershipChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -24,6 +27,7 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly TrainingOwnershipChecker $ownershipChecker,
         private readonly AttemptRepository $attemptRepository,
+        private readonly CycleRepository $cycleRepository,
     ) {
     }
 
@@ -44,6 +48,8 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         }
 
         $this->preventDuplicateSuccessfulAttempt($data);
+        $this->preventDuplicateActiveCycle($data);
+        $this->preventTrainingPuzzleChangeAfterFirstCycle($data);
 
         return $this->persistProcessor->process($data, $operation, $uriVariables, $context);
     }
@@ -62,6 +68,40 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
 
         if ($this->attemptRepository->hasSuccessfulAttemptForCyclePuzzle($cyclePuzzle)) {
             throw new ConflictHttpException('This cycle puzzle already has a successful attempt.');
+        }
+    }
+
+    private function preventDuplicateActiveCycle(mixed $data): void
+    {
+        if (!$data instanceof Cycle || 'active' !== $data->getStatus()) {
+            return;
+        }
+
+        $training = $data->getTraining();
+
+        if (null === $training) {
+            return;
+        }
+
+        if ($this->cycleRepository->hasActiveCycleForTraining($training, $data)) {
+            throw new ConflictHttpException('This training already has an active cycle.');
+        }
+    }
+
+    private function preventTrainingPuzzleChangeAfterFirstCycle(mixed $data): void
+    {
+        if (!$data instanceof TrainingPuzzle) {
+            return;
+        }
+
+        $training = $data->getTraining();
+
+        if (null === $training) {
+            return;
+        }
+
+        if ($this->cycleRepository->hasCycleForTraining($training)) {
+            throw new ConflictHttpException('This training puzzle list is locked because a cycle already exists.');
         }
     }
 }
