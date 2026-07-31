@@ -827,8 +827,12 @@ textarea:focus {
 }
 
 .solver-panel {
-  grid-template-columns: minmax(230px, 520px) minmax(210px, 0.75fr);
+  display: grid;
+  grid-template-columns: minmax(320px, 520px) minmax(0, 1fr);
   align-items: stretch;
+  gap: 18px;
+  min-width: 0;
+  width: 100%;
 }
 
 .solver-board,
@@ -840,15 +844,21 @@ textarea:focus {
 }
 
 .solver-info {
-  align-content: start;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   border: 1px solid rgba(184, 202, 224, 0.1);
   border-radius: 14px;
   background: rgba(11, 18, 27, 0.42);
-  padding: 14px;
+  padding: 16px;
 }
 
 .solver-stat-card,
 .solver-meta-card {
+  min-width: 0;
   display: grid;
   gap: 6px;
   border: 1px solid rgba(184, 202, 224, 0.1);
@@ -859,16 +869,23 @@ textarea:focus {
 
 .solver-compact-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .solver-compact-stats .solver-stat-card {
-  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 12px 14px;
 }
 
 .solver-compact-stats .solver-stat-card strong {
-  font-size: 1.05rem;
+  flex: 0 0 auto;
+  font-size: clamp(1.05rem, 1.8vw, 1.28rem);
+  overflow-wrap: anywhere;
 }
 
 .solver-stat-card span,
@@ -891,6 +908,7 @@ textarea:focus {
 }
 
 .solver-reveal-button {
+  min-width: 0;
   width: 100%;
   border: 1px solid rgba(180, 199, 220, 0.16);
   border-radius: 12px;
@@ -898,6 +916,7 @@ textarea:focus {
   color: #eef4fb;
   padding: 13px 14px;
   font-weight: 900;
+  white-space: normal;
 }
 
 .solver-reveal-button:hover {
@@ -906,6 +925,7 @@ textarea:focus {
 }
 
 .solver-solution-card {
+  min-width: 0;
   display: grid;
   gap: 7px;
   border: 1px solid rgba(87, 216, 141, 0.26);
@@ -928,12 +948,25 @@ textarea:focus {
   color: #f8fbff;
   font-size: clamp(1.5rem, 3vw, 2rem);
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .solver-solution-card small {
   color: #aab8c7;
   font-size: 0.82rem;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.solver-info > .small-button {
+  width: 100%;
+  margin-top: auto;
+  white-space: normal;
+}
+
+.solver-feedback {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .solver-feedback-info {
@@ -1281,6 +1314,23 @@ code {
   gap: 14px;
 }
 
+.wp-cycle-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid rgba(87, 216, 141, 0.16);
+  border-radius: 14px;
+  background: rgba(87, 216, 141, 0.08);
+}
+
+.wp-cycle-actions p {
+  margin: 0;
+  color: #aab8c7;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .wp-form-card {
   display: grid;
   gap: 16px;
@@ -1290,6 +1340,15 @@ code {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.solver-info > *,
+.solver-feedback,
+.solver-meta-card p,
+.solver-reveal-button,
+.solver-info > .small-button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .wp-stats.compact {
@@ -1370,12 +1429,14 @@ code {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   gap: 18px;
+  min-width: 0;
 }
 
 .wp-solver-list {
   display: grid;
   align-content: start;
   gap: 8px;
+  min-width: 0;
 }
 
 .wp-solver-list-item {
@@ -1384,7 +1445,15 @@ code {
 }
 
 .wp-solver-board-panel .solver-panel {
-  grid-template-columns: minmax(300px, 520px) minmax(240px, 1fr);
+  grid-template-columns: minmax(320px, min(48vw, 560px)) minmax(0, 1fr);
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+}
+
+.wp-solver-board-panel {
+  min-width: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 980px) {

@@ -10,45 +10,59 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CycleRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Index(name: 'idx_cycle_training', columns: ['training_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cycle_training_number', columns: ['training_id', 'number'])]
-#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
+#[ApiResource(
+    normalizationContext: ['groups' => ['cycle:read']],
+    denormalizationContext: ['groups' => ['cycle:write']],
+    processor: OwnedTrainingResourceProcessor::class,
+)]
 class Cycle
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['cycle:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'cycles')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['cycle:read', 'cycle:write'])]
     private ?Training $training = null;
 
     #[ORM\Column]
     #[Assert\Positive]
+    #[Groups(['cycle:read', 'cycle:write'])]
     private ?int $number = null;
 
     #[ORM\Column(length: 20, enumType: CycleStatus::class)]
+    #[Groups(['cycle:read', 'cycle:write'])]
     private CycleStatus $status = CycleStatus::Planned;
 
     #[ORM\Column(nullable: true)]
     #[Assert\Positive]
+    #[Groups(['cycle:read', 'cycle:write'])]
     private ?int $targetDurationSeconds = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['cycle:read', 'cycle:write'])]
     private ?\DateTimeImmutable $startedAt = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['cycle:read', 'cycle:write'])]
     private ?\DateTimeImmutable $completedAt = null;
 
     #[ORM\Column]
+    #[Groups(['cycle:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
+    #[Groups(['cycle:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
 
     /**

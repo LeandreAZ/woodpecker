@@ -40,6 +40,32 @@ type TrainingPuzzle = {
   personalNote?: string | null;
 };
 
+type Cycle = {
+  '@id': string;
+  id: number;
+  training: string;
+  number: number;
+  status: string;
+  startedAt?: string | null;
+};
+
+type CyclePuzzle = {
+  '@id': string;
+  id: number;
+  cycle: string;
+  trainingPuzzle: string;
+  position: number;
+  status: string;
+};
+
+type TrainingSession = {
+  '@id': string;
+  id: number;
+  training: string;
+  cycle?: string | null;
+  startedAt: string;
+};
+
 type ApiCollection<Item> = {
   member?: Item[];
   'hydra:member'?: Item[];
@@ -89,6 +115,18 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
       return trainingPuzzles
         .filter((trainingPuzzle) => trainingPuzzle.training === effectiveSelectedTrainingIri)
         .sort((left, right) => left.position - right.position);
+    },
+  });
+
+  const cyclesQuery = useQuery({
+    queryKey: ['cycles', session.email, effectiveSelectedTrainingIri],
+    enabled: Boolean(effectiveSelectedTrainingIri),
+    queryFn: async () => {
+      const cycles = await fetchAllCollection<Cycle>('/cycles', session.token);
+
+      return cycles
+        .filter((cycle) => cycle.training === effectiveSelectedTrainingIri)
+        .sort((left, right) => left.number - right.number);
     },
   });
 
@@ -236,6 +274,65 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
     },
   });
 
+  const startCycleMutation = useMutation({
+    mutationFn: async () => {
+      if (!effectiveSelectedTrainingIri) {
+        throw new Error('Sélectionne un entraînement avant de démarrer un cycle.');
+      }
+
+      const trainingPuzzles = trainingPuzzlesQuery.data ?? [];
+
+      if (trainingPuzzles.length === 0) {
+        throw new Error('Ajoute au moins un puzzle avant de démarrer un cycle.');
+      }
+
+      const nextCycleNumber =
+        (cyclesQuery.data ?? []).reduce((highest, cycle) => Math.max(highest, cycle.number), 0) + 1;
+
+      const cycle = await apiRequest<Cycle>('/cycles', {
+        method: 'POST',
+        token: session.token,
+        body: {
+          training: effectiveSelectedTrainingIri,
+          number: nextCycleNumber,
+          status: 'active',
+          startedAt: new Date().toISOString(),
+        },
+      });
+
+      for (const trainingPuzzle of trainingPuzzles) {
+        await apiRequest<CyclePuzzle>('/cycle_puzzles', {
+          method: 'POST',
+          token: session.token,
+          body: {
+            cycle: cycle['@id'],
+            trainingPuzzle: trainingPuzzle['@id'],
+            position: trainingPuzzle.position,
+            status: 'pending',
+          },
+        });
+      }
+
+      await apiRequest<TrainingSession>('/training_sessions', {
+        method: 'POST',
+        token: session.token,
+        body: {
+          training: effectiveSelectedTrainingIri,
+          cycle: cycle['@id'],
+          note: `Session du cycle ${nextCycleNumber}`,
+        },
+      });
+
+      return cycle;
+    },
+    onSuccess: async () => {
+      setActiveView('solver');
+      await queryClient.invalidateQueries({
+        queryKey: ['cycles', session.email, effectiveSelectedTrainingIri],
+      });
+    },
+  });
+
   function openTraining(trainingIri: string, view: View = 'detail') {
     setSelectedTrainingIri(trainingIri);
     setSelectedTrainingPuzzleIri(null);
@@ -312,6 +409,7 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             onFenChange={setFen}
             onImport={() => setActiveView('import')}
             onOpenSolver={() => setActiveView('solver')}
+            onStartCycle={() => startCycleMutation.mutate()}
             onPersonalNoteChange={setPersonalNote}
             onPuzzleSelect={(trainingPuzzleIri) => {
               setSelectedTrainingPuzzleIri(trainingPuzzleIri);
@@ -330,6 +428,9 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
             trainingPuzzlesError={trainingPuzzlesQuery.error?.message}
             trainingPuzzlesIsError={trainingPuzzlesQuery.isError}
             trainingPuzzlesIsLoading={trainingPuzzlesQuery.isLoading}
+            startCycleError={startCycleMutation.error?.message}
+            startCycleIsError={startCycleMutation.isError}
+            startCycleIsPending={startCycleMutation.isPending}
           />
         )}
 
@@ -528,6 +629,7 @@ function DetailView({
   onFenChange,
   onImport,
   onOpenSolver,
+  onStartCycle,
   onPersonalNoteChange,
   onPuzzleSelect,
   onRatingChange,
@@ -543,12 +645,16 @@ function DetailView({
   trainingPuzzlesError,
   trainingPuzzlesIsError,
   trainingPuzzlesIsLoading,
+  startCycleError,
+  startCycleIsError,
+  startCycleIsPending,
 }: {
   createPuzzleMutation: ReturnType<typeof useMutation<Puzzle, Error, void, unknown>>;
   fen: string;
   onFenChange: (value: string) => void;
   onImport: () => void;
   onOpenSolver: () => void;
+  onStartCycle: () => void;
   onPersonalNoteChange: (value: string) => void;
   onPuzzleSelect: (trainingPuzzleIri: string) => void;
   onRatingChange: (value: string) => void;
@@ -564,6 +670,9 @@ function DetailView({
   trainingPuzzlesError?: string;
   trainingPuzzlesIsError: boolean;
   trainingPuzzlesIsLoading: boolean;
+  startCycleError?: string;
+  startCycleIsError: boolean;
+  startCycleIsPending: boolean;
 }) {
   if (!selectedTraining) {
     return (
@@ -583,7 +692,7 @@ function DetailView({
         eyebrow="Détail entraînement"
         title={selectedTraining.name}
         description={selectedTraining.description || 'Ajoute des puzzles, importe un CSV ou commence la résolution.'}
-        action={<button className="wp-secondary" type="button" onClick={onOpenSolver}>Commencer</button>}
+        action={<button className="wp-secondary" type="button" onClick={onOpenSolver}>Ouvrir le solveur</button>}
       />
 
       <div className="wp-stats">
@@ -676,6 +785,20 @@ function DetailView({
             </div>
             <button className="wp-secondary" type="button" onClick={onImport}>Importer CSV</button>
           </div>
+
+          <div className="wp-cycle-actions">
+            <button
+              className="wp-primary full"
+              disabled={startCycleIsPending || trainingPuzzles.length === 0}
+              type="button"
+              onClick={onStartCycle}
+            >
+              {startCycleIsPending ? 'DÃ©marrage...' : 'DÃ©marrer le cycle'}
+            </button>
+            <p>CrÃ©e un cycle actif, prÃ©pare les puzzles du cycle, puis ouvre le solveur.</p>
+          </div>
+
+          {startCycleIsError && <p className="alert error-alert">{startCycleError}</p>}
 
           {trainingPuzzlesIsLoading && <p className="wp-empty">Chargement des puzzles...</p>}
           {trainingPuzzlesIsError && <p className="alert error-alert">{trainingPuzzlesError}</p>}

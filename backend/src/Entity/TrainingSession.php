@@ -9,33 +9,45 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: TrainingSessionRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 #[ORM\Index(name: 'idx_training_session_training', columns: ['training_id'])]
 #[ORM\Index(name: 'idx_training_session_cycle', columns: ['cycle_id'])]
-#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
+#[ApiResource(
+    normalizationContext: ['groups' => ['training_session:read']],
+    denormalizationContext: ['groups' => ['training_session:write']],
+    processor: OwnedTrainingResourceProcessor::class,
+)]
 class TrainingSession
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['training_session:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'trainingSessions')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['training_session:read', 'training_session:write'])]
     private ?Training $training = null;
 
     #[ORM\ManyToOne(inversedBy: 'trainingSessions')]
     #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['training_session:read', 'training_session:write'])]
     private ?Cycle $cycle = null;
 
     #[ORM\Column]
+    #[Groups(['training_session:read'])]
     private ?\DateTimeImmutable $startedAt = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['training_session:read', 'training_session:write'])]
     private ?\DateTimeImmutable $endedAt = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['training_session:read', 'training_session:write'])]
     private ?string $note = null;
 
     /**
@@ -141,5 +153,11 @@ class TrainingSession
         }
 
         return $this;
+    }
+
+    #[ORM\PrePersist]
+    public function initializeStartedAt(): void
+    {
+        $this->startedAt ??= new \DateTimeImmutable();
     }
 }

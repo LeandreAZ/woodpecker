@@ -9,6 +9,7 @@ use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CyclePuzzleRepository::class)]
@@ -16,30 +17,40 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'idx_cycle_puzzle_training_puzzle', columns: ['training_puzzle_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cycle_puzzle_cycle_training_puzzle', columns: ['cycle_id', 'training_puzzle_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cycle_puzzle_cycle_position', columns: ['cycle_id', 'position'])]
-#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
+#[ApiResource(
+    normalizationContext: ['groups' => ['cycle_puzzle:read']],
+    denormalizationContext: ['groups' => ['cycle_puzzle:write']],
+    processor: OwnedTrainingResourceProcessor::class,
+)]
 class CyclePuzzle
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['cycle_puzzle:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'cyclePuzzles')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private ?Cycle $cycle = null;
 
     #[ORM\ManyToOne(inversedBy: 'cyclePuzzles')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private ?TrainingPuzzle $trainingPuzzle = null;
 
     #[ORM\Column]
     #[Assert\PositiveOrZero]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private ?int $position = null;
 
     #[ORM\Column(length: 20, enumType: CyclePuzzleStatus::class)]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private CyclePuzzleStatus $status = CyclePuzzleStatus::Pending;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private ?\DateTimeImmutable $completedAt = null;
 
     /**

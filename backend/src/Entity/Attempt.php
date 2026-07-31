@@ -6,42 +6,56 @@ use ApiPlatform\Metadata\ApiResource;
 use App\Repository\AttemptRepository;
 use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: AttemptRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 #[ORM\Index(name: 'idx_attempt_cycle_puzzle', columns: ['cycle_puzzle_id'])]
 #[ORM\Index(name: 'idx_attempt_training_session', columns: ['training_session_id'])]
-#[ApiResource(processor: OwnedTrainingResourceProcessor::class)]
+#[ApiResource(
+    normalizationContext: ['groups' => ['attempt:read']],
+    denormalizationContext: ['groups' => ['attempt:write']],
+    processor: OwnedTrainingResourceProcessor::class,
+)]
 class Attempt
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['attempt:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'attempts')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['attempt:read', 'attempt:write'])]
     private ?CyclePuzzle $cyclePuzzle = null;
 
     #[ORM\ManyToOne(inversedBy: 'attempts')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['attempt:read', 'attempt:write'])]
     private ?TrainingSession $trainingSession = null;
 
     #[ORM\Column]
+    #[Groups(['attempt:read', 'attempt:write'])]
     private array $playedMoves = [];
 
     #[ORM\Column]
+    #[Groups(['attempt:read', 'attempt:write'])]
     private bool $successful = false;
 
     #[ORM\Column]
     #[Assert\PositiveOrZero]
+    #[Groups(['attempt:read', 'attempt:write'])]
     private int $mistakesCount = 0;
 
     #[ORM\Column]
     #[Assert\PositiveOrZero]
+    #[Groups(['attempt:read', 'attempt:write'])]
     private int $durationMilliseconds = 0;
 
     #[ORM\Column]
+    #[Groups(['attempt:read'])]
     private ?\DateTimeImmutable $attemptedAt = null;
 
     public function getId(): ?int
@@ -131,5 +145,11 @@ class Attempt
         $this->attemptedAt = $attemptedAt;
 
         return $this;
+    }
+
+    #[ORM\PrePersist]
+    public function initializeAttemptedAt(): void
+    {
+        $this->attemptedAt ??= new \DateTimeImmutable();
     }
 }
