@@ -17,6 +17,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
+COPY docker/php/entrypoint.sh /usr/local/bin/woodpecker-php-entrypoint
+
+RUN chmod +x /usr/local/bin/woodpecker-php-entrypoint
 
 WORKDIR /var/www/html
+
+CMD ["woodpecker-php-entrypoint"]
 

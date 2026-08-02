@@ -32,11 +32,20 @@ Manual and technical test instructions are documented in `docs/TEST_PLAN.md`.
 
 ## Run The Project
 
-Start the containers:
+Start the project on a new machine:
 
 ```bash
 docker compose up -d --wait
 ```
+
+On the first launch, the Docker services now bootstrap themselves:
+
+- the PHP container installs Composer dependencies;
+- the PHP container generates the JWT keypair if missing;
+- the PHP container runs Doctrine migrations;
+- the frontend container installs npm dependencies if missing.
+
+So on a fresh machine, `docker compose up -d --build` is the main setup command.
 
 Open the API:
 

@@ -675,7 +675,6 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
         contentType: 'application/merge-patch+json',
         body: {
           status: successful ? 'solved' : 'failed',
-          completedAt: new Date().toISOString(),
         },
       });
 
@@ -694,25 +693,12 @@ export function TrainingsPanel({ session, onLogout }: TrainingsPanelProps) {
 
         return item;
       });
-      const shouldCompleteCycle =
-        updatedCyclePuzzles.length > 0 &&
-        updatedCyclePuzzles.every((item) => item.status !== 'pending');
-
-      if (shouldCompleteCycle) {
-        await apiRequest<Cycle>(apiPathFromIri(cyclePuzzle.cycle), {
-          method: 'PATCH',
-          token: session.token,
-          contentType: 'application/merge-patch+json',
-          body: {
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-          },
-        });
-      }
 
       return {
         attempt,
-        completedCycle: shouldCompleteCycle,
+        completedCycle:
+          updatedCyclePuzzles.length > 0 &&
+          updatedCyclePuzzles.every((item) => item.status !== 'pending'),
       };
     },
     onMutate: ({ cyclePuzzle, successful }) => {

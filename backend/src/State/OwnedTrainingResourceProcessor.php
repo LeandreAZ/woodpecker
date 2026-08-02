@@ -7,11 +7,13 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\Attempt;
 use App\Entity\Cycle;
+use App\Entity\CyclePuzzle;
 use App\Entity\TrainingPuzzle;
 use App\Entity\User;
 use App\Repository\AttemptRepository;
 use App\Repository\CycleRepository;
 use App\Security\TrainingOwnershipChecker;
+use App\Service\CycleCompletionService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -28,6 +30,7 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         private readonly TrainingOwnershipChecker $ownershipChecker,
         private readonly AttemptRepository $attemptRepository,
         private readonly CycleRepository $cycleRepository,
+        private readonly CycleCompletionService $cycleCompletionService,
     ) {
     }
 
@@ -52,7 +55,11 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         $this->preventDuplicateSuccessfulAttempt($data);
         $this->preventDuplicateActiveCycle($data);
 
-        return $this->persistProcessor->process($data, $operation, $uriVariables, $context);
+        $result = $this->persistProcessor->process($data, $operation, $uriVariables, $context);
+
+        $this->completeCycleIfReady($data);
+
+        return $result;
     }
 
     private function preventDuplicateSuccessfulAttempt(mixed $data): void
@@ -104,5 +111,14 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         if ($this->cycleRepository->hasCycleForTraining($training)) {
             throw new ConflictHttpException('This training puzzle list is locked because a cycle already exists.');
         }
+    }
+
+    private function completeCycleIfReady(mixed $data): void
+    {
+        if (!$data instanceof CyclePuzzle) {
+            return;
+        }
+
+        $this->cycleCompletionService->synchronizeCyclePuzzleState($data);
     }
 }
