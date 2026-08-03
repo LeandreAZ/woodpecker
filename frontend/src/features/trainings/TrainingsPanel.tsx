@@ -1,17 +1,10 @@
-import { useEffect, useLayoutEffect } from 'react';
-import type { AuthSession } from '../auth/authStorage';
-import {
-  CreateTrainingView,
-  DashboardView,
-  DetailView,
-  ImportView,
-  NavButton,
-  SolverView,
-} from './TrainingsPanelViews';
 import type { AppRoute } from '../../shared/routing/appRouter';
-import { routesEqual } from '../../shared/routing/appRouter';
+import { TrainingsPanelContent } from './TrainingsPanelContent';
+import { TrainingsSidebar } from './TrainingsSidebar';
+import type { AuthSession } from '../auth/authStorage';
 import { useTrainingsPanelState } from './useTrainingsPanelState';
-import type { Training, View } from './trainingsTypes';
+import { useTrainingsPanelRouting } from './useTrainingsPanelRouting';
+import type { View } from './trainingsTypes';
 
 type TrainingsPanelProps = {
   session: AuthSession;
@@ -20,358 +13,46 @@ type TrainingsPanelProps = {
   route: AppRoute;
 };
 
-const emptyTrainings: Training[] = [];
-
 export function TrainingsPanel({ session, onLogout, onNavigate, route }: TrainingsPanelProps) {
-  const initialView = viewFromRoute(route);
-  const state = useTrainingsPanelState(session, initialView);
-  const {
-    activeView,
-    attemptsQuery,
-    createPuzzleMutation,
-    createTrainingMutation,
-    csvErrors,
-    csvFileName,
-    csvRows,
-    currentCycleIsFinished,
-    currentCycleStatusLabel,
-    cyclePuzzlesQuery,
-    cycleStats,
-    cyclesQuery,
-    deleteTrainingPuzzleMutation,
-    description,
-    effectiveActiveCycleIri,
-    effectiveActiveTrainingSessionIri,
-    effectiveMistakeLimit,
-    effectiveSelectedTrainingIri,
-    failedCyclePuzzleIris,
-    fen,
-    hasResumableCycle,
-    importCsvMutation,
-    moveTrainingPuzzleMutation,
-    name,
-    openTraining,
-    personalNote,
-    puzzleListIsLocked,
-    rating,
-    recordAttemptMutation,
-    savedCyclePuzzleIris,
-    selectedCyclePuzzle,
-    selectedCyclePuzzleIsSaved,
-    selectedPuzzle,
-    selectedPuzzleCount,
-    selectedTraining,
-    selectedTrainingPuzzle,
-    setActiveCycleIri,
-    setActiveTrainingSessionIri,
-    setActiveView,
-    setCsvErrors,
-    setCsvFileName,
-    setCsvRows,
-    setDescription,
-    setFailedCyclePuzzleIris,
-    setFen,
-    setMistakeLimitOverride,
-    setName,
-    setPersonalNote,
-    setRating,
-    setSavedCyclePuzzleIris,
-    setSelectedTrainingIri,
-    setSelectedTrainingPuzzleIri,
-    setSolutionText,
-    setThemesText,
-    solutionText,
-    startCycleMutation,
-    themesText,
-    trainingCyclePuzzlesQuery,
-    trainingPuzzlesQuery,
-    trainingsQuery,
-    updateMistakeLimitMutation,
-  } = state;
-
-  const trainings = trainingsQuery.data ?? emptyTrainings;
-  const targetView = viewFromRoute(route);
-  const desiredRoute = buildRouteFromState(activeView, selectedTraining);
-
-  useLayoutEffect(() => {
-    const routeTrainingId = getRouteTrainingId(route);
-
-    if (activeView !== targetView) {
-      setActiveView(targetView);
-    }
-
-    if (!routeTrainingId) {
-      return;
-    }
-
-    const matchingTraining = trainings.find((training) => training.id === routeTrainingId);
-
-    if (!matchingTraining) {
-      return;
-    }
-
-    if (matchingTraining['@id'] === effectiveSelectedTrainingIri) {
-      return;
-    }
-
-    setSelectedTrainingIri(matchingTraining['@id']);
-    setSelectedTrainingPuzzleIri(null);
-    setActiveCycleIri(null);
-    setActiveTrainingSessionIri(null);
-    setSavedCyclePuzzleIris(new Set());
-    setFailedCyclePuzzleIris(new Set());
-    setMistakeLimitOverride(null);
-  }, [
-    activeView,
-    effectiveSelectedTrainingIri,
+  const state = useTrainingsPanelState(session, viewFromRoute(route));
+  const trainings = state.trainingsQuery.data ?? [];
+  const { navigateToPuzzleSolver, navigateToTraining, navigateToView } = useTrainingsPanelRouting({
+    activeView: state.activeView,
+    effectiveSelectedTrainingIri: state.effectiveSelectedTrainingIri,
+    onNavigate,
     route,
-    setActiveCycleIri,
-    setActiveTrainingSessionIri,
-    setActiveView,
-    setFailedCyclePuzzleIris,
-    setMistakeLimitOverride,
-    setSavedCyclePuzzleIris,
-    setSelectedTrainingIri,
-    setSelectedTrainingPuzzleIri,
-    targetView,
+    selectedTraining: state.selectedTraining,
+    setActiveCycleIri: state.setActiveCycleIri,
+    setActiveTrainingSessionIri: state.setActiveTrainingSessionIri,
+    setActiveView: state.setActiveView,
+    setFailedCyclePuzzleIris: state.setFailedCyclePuzzleIris,
+    setMistakeLimitOverride: state.setMistakeLimitOverride,
+    setSavedCyclePuzzleIris: state.setSavedCyclePuzzleIris,
+    setSelectedTrainingIri: state.setSelectedTrainingIri,
+    setSelectedTrainingPuzzleIri: state.setSelectedTrainingPuzzleIri,
     trainings,
-  ]);
-
-  useEffect(() => {
-    const routeTrainingId = getRouteTrainingId(route);
-
-    if (routeTrainingId && !selectedTraining && (trainingsQuery.isLoading || trainingsQuery.isFetching)) {
-      return;
-    }
-
-    if (routeTrainingId && selectedTraining && selectedTraining.id !== routeTrainingId) {
-      return;
-    }
-
-    if (!routesEqual(route, desiredRoute)) {
-      onNavigate(desiredRoute, { replace: true });
-    }
-  }, [desiredRoute, onNavigate, route, selectedTraining, trainingsQuery.isFetching, trainingsQuery.isLoading]);
-
-  function navigateToView(nextView: View) {
-    setActiveView(nextView);
-    onNavigate(buildRouteFromState(nextView, selectedTraining));
-  }
-
-  function navigateToTraining(trainingIri: string, view: View = 'detail') {
-    openTraining(trainingIri, view);
-
-    const training = trainings.find((item) => item['@id'] === trainingIri) ?? null;
-    onNavigate(buildRouteFromState(view, training));
-  }
-
-  function navigateToPuzzleSolver(trainingPuzzleIri: string) {
-    setSelectedTrainingPuzzleIri(trainingPuzzleIri);
-    setActiveView('solver');
-    onNavigate(buildRouteFromState('solver', selectedTraining));
-  }
+    trainingsArePending: state.trainingsQuery.isLoading || state.trainingsQuery.isFetching,
+  });
 
   return (
     <main className="wp-layout">
-      <aside className="wp-sidebar">
-        <div className="wp-logo">
-          <span className="wp-logo-icon">WP</span>
-          <div>
-            <strong>Woodpecker</strong>
-            <span>Trainer</span>
-          </div>
-        </div>
+      <TrainingsSidebar
+        activeView={state.activeView}
+        currentCycleStatusLabel={state.currentCycleStatusLabel}
+        cycleStats={state.cycleStats}
+        onLogout={onLogout}
+        onNavigateToView={navigateToView}
+        selectedPuzzleCount={state.selectedPuzzleCount}
+        selectedTraining={state.selectedTraining}
+        session={session}
+      />
 
-        <nav className="wp-nav" aria-label="Navigation principale">
-          <NavButton active={activeView === 'dashboard'} onClick={() => navigateToView('dashboard')}>
-            Tableau de bord
-          </NavButton>
-          <NavButton active={activeView === 'detail'} onClick={() => navigateToView('detail')}>
-            Mes entrainements
-          </NavButton>
-          <NavButton active={activeView === 'create'} onClick={() => navigateToView('create')}>
-            Creer
-          </NavButton>
-          <NavButton active={activeView === 'import'} onClick={() => navigateToView('import')}>
-            Import CSV
-          </NavButton>
-          <NavButton active={activeView === 'solver'} onClick={() => navigateToView('solver')}>
-            Solveur
-          </NavButton>
-        </nav>
-
-        <div className="wp-sidebar-summary">
-          <p className="wp-sidebar-label">Session active</p>
-          <strong>{selectedTraining ? selectedTraining.name : 'Aucun entrainement ouvert'}</strong>
-          <p>
-            {selectedTraining
-              ? selectedTraining.description || 'Set pret a etre travaille dans le detail ou le solveur.'
-              : 'Ouvre un training pour retrouver ici son contexte rapide.'}
-          </p>
-          <div className="wp-sidebar-metrics">
-            <span>{selectedTraining ? `${selectedPuzzleCount} puzzle(s)` : '0 puzzle'}</span>
-            <span>{selectedTraining ? `${cycleStats.progressPercent}% progression` : '0% progression'}</span>
-            <span>{selectedTraining ? currentCycleStatusLabel : 'Cycle inactif'}</span>
-          </div>
-        </div>
-
-        <div className="wp-sidebar-footer">
-          <span>{session.email}</span>
-          <button type="button" onClick={onLogout}>
-            Deconnexion
-          </button>
-        </div>
-      </aside>
-
-      <section className="wp-main">
-        {activeView === 'dashboard' && (
-          <DashboardView
-            errorMessage={trainingsQuery.error?.message}
-            isError={trainingsQuery.isError}
-            isLoading={trainingsQuery.isLoading}
-            onCreate={() => navigateToView('create')}
-            onOpenTraining={navigateToTraining}
-            selectedTrainingIri={effectiveSelectedTrainingIri}
-            trainings={trainings}
-          />
-        )}
-
-        {activeView === 'create' && (
-          <CreateTrainingView
-            description={description}
-            errorMessage={createTrainingMutation.error?.message}
-            isError={createTrainingMutation.isError}
-            isPending={createTrainingMutation.isPending}
-            name={name}
-            onDescriptionChange={setDescription}
-            onNameChange={setName}
-            onSubmit={() => createTrainingMutation.mutate()}
-          />
-        )}
-
-        {activeView === 'detail' && (
-          <DetailView
-            attempts={attemptsQuery.data ?? []}
-            attemptsError={attemptsQuery.error?.message}
-            attemptsIsError={attemptsQuery.isError}
-            attemptsIsLoading={attemptsQuery.isLoading}
-            createPuzzleMutation={createPuzzleMutation}
-            cycles={cyclesQuery.data ?? []}
-            cyclePuzzles={trainingCyclePuzzlesQuery.data ?? cyclePuzzlesQuery.data ?? []}
-            cycleStats={cycleStats}
-            cycleStatusLabel={currentCycleStatusLabel}
-            deletePuzzleError={deleteTrainingPuzzleMutation.error?.message}
-            deletePuzzleIsError={deleteTrainingPuzzleMutation.isError}
-            deletePuzzleIsPending={deleteTrainingPuzzleMutation.isPending}
-            fen={fen}
-            hasResumableCycle={hasResumableCycle}
-            movePuzzleError={moveTrainingPuzzleMutation.error?.message}
-            movePuzzleIsError={moveTrainingPuzzleMutation.isError}
-            movePuzzleIsPending={moveTrainingPuzzleMutation.isPending}
-            onFenChange={setFen}
-            onImport={() => navigateToView('import')}
-            onOpenSolver={() => navigateToView('solver')}
-            onPersonalNoteChange={setPersonalNote}
-            onPuzzleDelete={(trainingPuzzleIri) => deleteTrainingPuzzleMutation.mutate(trainingPuzzleIri)}
-            onPuzzleMove={(trainingPuzzleIri, direction) =>
-              moveTrainingPuzzleMutation.mutate({ direction, trainingPuzzleIri })
-            }
-            onPuzzleSelect={navigateToPuzzleSolver}
-            onRatingChange={setRating}
-            onSolutionTextChange={setSolutionText}
-            onStartCycle={() => startCycleMutation.mutate()}
-            onThemesTextChange={setThemesText}
-            personalNote={personalNote}
-            puzzleCount={selectedPuzzleCount}
-            puzzleListIsLocked={puzzleListIsLocked}
-            rating={rating}
-            selectedTraining={selectedTraining}
-            solutionText={solutionText}
-            startCycleError={startCycleMutation.error?.message}
-            startCycleIsError={startCycleMutation.isError}
-            startCycleIsPending={startCycleMutation.isPending}
-            themesText={themesText}
-            trainingPuzzles={trainingPuzzlesQuery.data ?? []}
-            trainingPuzzlesError={trainingPuzzlesQuery.error?.message}
-            trainingPuzzlesIsError={trainingPuzzlesQuery.isError}
-            trainingPuzzlesIsLoading={trainingPuzzlesQuery.isLoading}
-          />
-        )}
-
-        {activeView === 'import' && (
-          <ImportView
-            csvErrors={csvErrors}
-            csvFileName={csvFileName}
-            csvRows={csvRows}
-            errorMessage={importCsvMutation.error?.message}
-            isError={importCsvMutation.isError}
-            isPending={importCsvMutation.isPending}
-            onFileParsed={(fileName, rows, errors) => {
-              setCsvFileName(fileName);
-              setCsvRows(rows);
-              setCsvErrors(errors);
-            }}
-            onResetFile={() => {
-              setCsvFileName('');
-              setCsvRows([]);
-              setCsvErrors([]);
-            }}
-            onSubmit={() => importCsvMutation.mutate()}
-            puzzleListIsLocked={puzzleListIsLocked}
-            selectedTraining={selectedTraining}
-          />
-        )}
-
-        {activeView === 'solver' && (
-          <SolverView
-            attemptError={recordAttemptMutation.error?.message}
-            attemptIsError={recordAttemptMutation.isError}
-            attemptIsPending={recordAttemptMutation.isPending}
-            currentCyclePuzzle={selectedCyclePuzzle}
-            cycleIsFinished={currentCycleIsFinished}
-            cyclePuzzles={cyclePuzzlesQuery.data ?? []}
-            cycleStats={cycleStats}
-            failedCyclePuzzleIris={failedCyclePuzzleIris}
-            hasActiveCycle={Boolean(effectiveActiveCycleIri && effectiveActiveTrainingSessionIri)}
-            mistakeLimit={effectiveMistakeLimit}
-            mistakeLimitError={updateMistakeLimitMutation.error?.message}
-            mistakeLimitIsError={updateMistakeLimitMutation.isError}
-            mistakeLimitIsPending={updateMistakeLimitMutation.isPending}
-            onBackToDetail={() => navigateToView('detail')}
-            onMistakeLimitChange={(nextMistakeLimit) => updateMistakeLimitMutation.mutate(nextMistakeLimit)}
-            onPuzzleCompleted={(result) => {
-              if (!selectedCyclePuzzle || !effectiveActiveTrainingSessionIri || selectedCyclePuzzleIsSaved) {
-                return;
-              }
-
-              recordAttemptMutation.mutate({
-                cyclePuzzle: selectedCyclePuzzle,
-                result,
-                successful: true,
-                trainingSession: effectiveActiveTrainingSessionIri,
-              });
-            }}
-            onPuzzleFailed={(result) => {
-              if (!selectedCyclePuzzle || !effectiveActiveTrainingSessionIri || selectedCyclePuzzleIsSaved) {
-                return;
-              }
-
-              recordAttemptMutation.mutate({
-                cyclePuzzle: selectedCyclePuzzle,
-                result,
-                successful: false,
-                trainingSession: effectiveActiveTrainingSessionIri,
-              });
-            }}
-            onPuzzleSelect={setSelectedTrainingPuzzleIri}
-            savedCyclePuzzleIris={savedCyclePuzzleIris}
-            selectedPuzzle={selectedPuzzle}
-            selectedTraining={selectedTraining}
-            selectedTrainingPuzzle={selectedTrainingPuzzle}
-            trainingPuzzles={trainingPuzzlesQuery.data ?? []}
-          />
-        )}
-      </section>
+      <TrainingsPanelContent
+        navigateToPuzzleSolver={navigateToPuzzleSolver}
+        navigateToTraining={(trainingIri, view) => navigateToTraining(trainingIri, state.openTraining, view)}
+        navigateToView={navigateToView}
+        state={state}
+      />
     </main>
   );
 }
@@ -392,29 +73,3 @@ function viewFromRoute(route: AppRoute): View {
       return 'dashboard';
   }
 }
-
-function buildRouteFromState(activeView: View, selectedTraining: Training | null): AppRoute {
-  const trainingId = selectedTraining?.id;
-
-  switch (activeView) {
-    case 'dashboard':
-      return { name: 'dashboard' };
-    case 'create':
-      return { name: 'create-training' };
-    case 'import':
-      return { name: 'training-import', trainingId };
-    case 'solver':
-      return { name: 'training-solver', trainingId };
-    case 'detail':
-      return { name: 'training-detail', trainingId };
-  }
-}
-
-function getRouteTrainingId(route: AppRoute): number | undefined {
-  if ('trainingId' in route) {
-    return route.trainingId;
-  }
-
-  return undefined;
-}
-
