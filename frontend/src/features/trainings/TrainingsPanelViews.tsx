@@ -51,6 +51,9 @@ export function DashboardView({
   selectedTrainingIri: string | null;
   trainings: Training[];
 }) {
+  const selectedTraining = trainings.find((training) => training['@id'] === selectedTrainingIri) ?? null;
+  const trainingsWithDescription = trainings.filter((training) => training.description?.trim().length).length;
+
   return (
     <div className="wp-page">
       <PageHeader
@@ -59,6 +62,17 @@ export function DashboardView({
         description="Reprends un cycle, crée un nouvel entraînement ou ouvre directement le solveur."
         action={<button className="wp-primary" type="button" onClick={onCreate}>+ Créer un entraînement</button>}
       />
+
+      {trainings.length > 0 && (
+        <section className="wp-dashboard-overview">
+          <Stat label="Entrainements" value={String(trainings.length)} />
+          <Stat
+            label="Selection active"
+            value={selectedTraining ? selectedTraining.name : 'Aucune'}
+          />
+          <Stat label="Descriptifs remplis" value={String(trainingsWithDescription)} />
+        </section>
+      )}
 
       {isLoading && <p className="wp-empty">Chargement des entraînements...</p>}
       {isError && <p className="alert error-alert">{errorMessage}</p>}
@@ -79,13 +93,17 @@ export function DashboardView({
               className={training['@id'] === selectedTrainingIri ? 'wp-training-card selected' : 'wp-training-card'}
               key={training['@id']}
             >
-              <div>
+              <div className="wp-card-copy">
+                <div className="wp-card-status">
+                  <span>{training.status}</span>
+                  <small>{new Date(training.createdAt).toLocaleDateString('fr-FR')}</small>
+                </div>
                 <h3>{training.name}</h3>
                 <p>{training.description || 'Aucune description pour le moment.'}</p>
               </div>
               <div className="wp-card-meta">
-                <span>{training.status}</span>
-                <span>{new Date(training.createdAt).toLocaleDateString('fr-FR')}</span>
+                <span>{training['@id'] === selectedTrainingIri ? 'Ouvert dans la session' : 'Pret a reprendre'}</span>
+                <span>{training.description?.trim().length ? 'Description OK' : 'Description vide'}</span>
               </div>
               <div className="wp-progress"><span /></div>
               <div className="wp-card-actions">
@@ -217,7 +235,7 @@ export function DetailView({
   attemptsError?: string;
   attemptsIsError: boolean;
   attemptsIsLoading: boolean;
-  createPuzzleMutation: ReturnType<typeof useMutation<Puzzle, Error, void, unknown>>;
+  createPuzzleMutation: ReturnType<typeof useMutation<TrainingPuzzle, Error, void, unknown>>;
   cycles: Cycle[];
   cyclePuzzles: CyclePuzzle[];
   cycleStats: CycleStats;
@@ -302,6 +320,11 @@ export function DetailView({
       };
     });
   const latestAttempts = attempts.slice(0, 8);
+  const latestCycleSummary = cycleSummaries[0] ?? null;
+  const solvedAttempts = attempts.filter((attempt) => attempt.successful).length;
+  const averageMistakes = attempts.length > 0
+    ? (attempts.reduce((total, attempt) => total + attempt.mistakesCount, 0) / attempts.length).toFixed(1)
+    : '0.0';
 
   return (
     <div className="wp-page">
@@ -321,6 +344,43 @@ export function DetailView({
         <Stat label="Tentatives" value={String(attempts.length)} />
         <Stat label="Cycle" value={cycleStatusLabel} />
       </div>
+
+      <div className="wp-detail-overview-grid">
+        <section className="wp-panel wp-detail-highlight">
+          <div className="wp-panel-title">
+            <p className="eyebrow">Focus cycle</p>
+            <h3>{latestCycleSummary ? `Cycle ${latestCycleSummary.cycle.number}` : 'Cycle non lance'}</h3>
+          </div>
+          <p className="wp-detail-highlight-copy">
+            {latestCycleSummary
+              ? `${latestCycleSummary.solved} resolu(s), ${latestCycleSummary.failed} a revoir et ${latestCycleSummary.pending} restant(s).`
+              : 'Prepare la liste de puzzles, puis demarre un cycle pour suivre les repetitions Woodpecker.'}
+          </p>
+          <div className="wp-inline-metrics">
+            <span>{hasResumableCycle ? 'Cycle reprenable' : 'Nouveau cycle possible'}</span>
+            <span>{solvedAttempts} tentative(s) reussie(s)</span>
+            <span>{averageMistakes} erreur(s) / tentative</span>
+          </div>
+        </section>
+
+        <section className="wp-panel wp-detail-highlight subdued">
+          <div className="wp-panel-title">
+            <p className="eyebrow">Collection</p>
+            <h3>Set de travail</h3>
+          </div>
+          <p className="wp-detail-highlight-copy">
+            {puzzleListIsLocked
+              ? 'La liste est figee pour conserver un set stable pendant les repetitions en cours.'
+              : 'Tu peux encore enrichir, reordonner et nettoyer la liste avant de verrouiller un cycle.'}
+          </p>
+          <div className="wp-inline-metrics">
+            <span>{trainingPuzzles.filter((item) => typeof item.puzzle !== 'string' && item.puzzle?.rating).length} puzzle(s) notes</span>
+            <span>{trainingPuzzles.filter((item) => item.personalNote?.trim().length).length} note(s) perso</span>
+            <span>{puzzleListIsLocked ? 'Edition verrouillee' : 'Edition ouverte'}</span>
+          </div>
+        </section>
+      </div>
+
 
       <div className="wp-two-columns">
         <section className="wp-panel">
@@ -421,6 +481,12 @@ export function DetailView({
             </button>
           </div>
 
+          <div className="wp-inline-metrics wp-inline-metrics-spaced">
+            <span>{trainingPuzzles.length} puzzle(s)</span>
+            <span>{trainingPuzzles.filter((item) => typeof item.puzzle !== 'string' && item.puzzle?.themes.length).length} avec themes</span>
+            <span>{puzzleListIsLocked ? 'Liste verrouillee' : 'Liste editable'}</span>
+          </div>
+
           <div className="wp-cycle-actions">
             <button
               className="wp-primary full"
@@ -467,27 +533,32 @@ export function DetailView({
                     <span>#{trainingPuzzle.position + 1}</span>
                     <strong>{puzzle?.solution.join(' ') ?? 'Puzzle à charger'}</strong>
                     <em>{puzzle?.themes.join(', ') || trainingPuzzle.personalNote || 'Sans thème'}</em>
+                    <small>
+                      {puzzle?.rating ? `Rating ${puzzle.rating}` : 'Rating libre'}
+                      {' - '}
+                      {trainingPuzzle.personalNote?.trim().length ? 'Note perso' : 'Sans note'}
+                    </small>
                   </button>
                   {!puzzleListIsLocked && (
                     <div className="wp-puzzle-actions">
                       <button
-                        className="wp-icon-action"
+                        className="wp-secondary wp-puzzle-action"
                         disabled={movePuzzleIsPending || index === 0}
                         type="button"
                         onClick={() => onPuzzleMove(trainingPuzzle['@id'], 'up')}
                       >
-                        ↑
+                        Monter
                       </button>
                       <button
-                        className="wp-icon-action"
+                        className="wp-secondary wp-puzzle-action"
                         disabled={movePuzzleIsPending || index === trainingPuzzles.length - 1}
                         type="button"
                         onClick={() => onPuzzleMove(trainingPuzzle['@id'], 'down')}
                       >
-                        ↓
+                        Descendre
                       </button>
                       <button
-                        className="wp-danger"
+                        className="wp-danger wp-puzzle-action"
                         disabled={deletePuzzleIsPending}
                         type="button"
                         onClick={() => {
@@ -627,6 +698,9 @@ export function ImportView({
   puzzleListIsLocked: boolean;
   selectedTraining: Training | null;
 }) {
+  const previewRows = csvRows.slice(0, 5);
+  const hasImportReadyRows = csvRows.length > 0 && csvErrors.length === 0;
+
   return (
     <div className="wp-page">
       <PageHeader
@@ -639,6 +713,38 @@ export function ImportView({
         }
       />
 
+      <div className="wp-detail-overview-grid">
+        <section className="wp-panel wp-detail-highlight">
+          <div className="wp-panel-title">
+            <p className="eyebrow">Controle</p>
+            <h3>{hasImportReadyRows ? 'Import pret' : 'Verification en cours'}</h3>
+          </div>
+          <p className="wp-detail-highlight-copy">
+            {hasImportReadyRows
+              ? 'Le fichier semble coherent. Tu peux importer ce lot dans le training selectionne.'
+              : 'Charge un CSV puis corrige les erreurs detectees avant import definitif.'}
+          </p>
+          <div className="wp-inline-metrics">
+            <span>{csvRows.length} puzzle(s) valides</span>
+            <span>{csvErrors.length} erreur(s)</span>
+            <span>{selectedTraining ? selectedTraining.name : 'Aucun training cible'}</span>
+          </div>
+        </section>
+
+        <section className="wp-panel wp-detail-highlight subdued">
+          <div className="wp-panel-title">
+            <p className="eyebrow">Format attendu</p>
+            <h3>Points verifies</h3>
+          </div>
+          <div className="wp-inline-metrics">
+            <span>Moves ou solution obligatoire</span>
+            <span>FEN valide si fournie</span>
+            <span>Coups UCI legaux</span>
+            <span>Doublons detectes</span>
+          </div>
+        </section>
+      </div>
+
       <div className="wp-two-columns">
         <section className="wp-panel">
           <div className="wp-panel-title">
@@ -649,6 +755,11 @@ export function ImportView({
             Colonnes attendues : <code>PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags</code>.
             Seule <code>Moves</code> est obligatoire.
           </p>
+          <div className="wp-inline-metrics wp-inline-metrics-spaced">
+            <span>Separateur virgule ou point-virgule</span>
+            <span>Notation UCI uniquement</span>
+            <span>Les lignes dupliquees sont refusees</span>
+          </div>
           {puzzleListIsLocked && (
             <p className="alert info-alert">
               Import désactivé : un cycle existe déjà, donc la liste de puzzles est verrouillée.
@@ -698,6 +809,26 @@ export function ImportView({
                   <li key={error}>{error}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {csvErrors.length === 0 && csvRows.length > 0 && (
+            <p className="alert info-alert">Le fichier est valide et pret a etre importe.</p>
+          )}
+
+          {previewRows.length > 0 && (
+            <div className="wp-import-preview-list">
+              {previewRows.map((row, index) => (
+                <article className="wp-import-preview-row" key={`${row.fen ?? 'initial'}-${row.solution.join('-')}-${index}`}>
+                  <strong>Puzzle {index + 1}</strong>
+                  <span>{row.solution.join(' ')}</span>
+                  <small>
+                    {row.themes.length > 0 ? row.themes.join(', ') : 'Sans theme'}
+                    {' - '}
+                    {row.rating ? `Rating ${row.rating}` : 'Rating libre'}
+                  </small>
+                </article>
+              ))}
             </div>
           )}
 
@@ -778,6 +909,8 @@ export function SolverView({
   const currentCyclePuzzleIsFailed = currentCyclePuzzle
     ? currentCyclePuzzle.status === 'failed' || failedCyclePuzzleIris.has(currentCyclePuzzle['@id'])
     : false;
+  const currentPuzzleThemes = selectedPuzzle?.themes ?? [];
+  const currentPuzzleRating = selectedPuzzle?.rating ?? null;
 
   return (
     <div className="wp-page solver-page">
@@ -796,7 +929,14 @@ export function SolverView({
       {selectedTraining && trainingPuzzles.length > 0 && (
         <div className="wp-solver-layout">
           <aside className="wp-solver-list">
-            <p className="eyebrow">Puzzles</p>
+            <div className="wp-solver-list-header">
+              <p className="eyebrow">Puzzles</p>
+              <div className="wp-solver-list-summary">
+                <Stat label="Total" value={String(trainingPuzzles.length)} />
+                <Stat label="Resolus" value={String(cycleStats.solved)} />
+                <Stat label="A revoir" value={String(cycleStats.failed)} />
+              </div>
+            </div>
             {trainingPuzzles.map((trainingPuzzle) => {
               const cyclePuzzle = cyclePuzzles.find(
                 (item) => item.trainingPuzzle === trainingPuzzle['@id'],
@@ -858,6 +998,22 @@ export function SolverView({
                     {option}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="wp-solver-focus-card">
+              <div>
+                <p className="eyebrow">Puzzle actif</p>
+                <h3>
+                  {selectedTrainingPuzzle
+                    ? `Puzzle ${selectedTrainingPuzzle.position + 1}`
+                    : 'Puzzle en chargement'}
+                </h3>
+              </div>
+              <div className="wp-inline-metrics">
+                <span>{currentPuzzleRating ? `Rating ${currentPuzzleRating}` : 'Rating libre'}</span>
+                <span>{currentPuzzleThemes.length > 0 ? currentPuzzleThemes.join(', ') : 'Sans theme'}</span>
+                <span>{hasActiveCycle ? 'Tentative suivie' : 'Mode libre'}</span>
               </div>
             </div>
 
@@ -939,6 +1095,15 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 

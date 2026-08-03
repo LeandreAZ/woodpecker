@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import type { AuthSession } from '../auth/authStorage';
 import {
   CreateTrainingView,
@@ -22,9 +22,9 @@ type TrainingsPanelProps = {
 
 const emptyTrainings: Training[] = [];
 
-
 export function TrainingsPanel({ session, onLogout, onNavigate, route }: TrainingsPanelProps) {
-  const state = useTrainingsPanelState(session);
+  const initialView = viewFromRoute(route);
+  const state = useTrainingsPanelState(session, initialView);
   const {
     activeView,
     attemptsQuery,
@@ -62,15 +62,21 @@ export function TrainingsPanel({ session, onLogout, onNavigate, route }: Trainin
     selectedPuzzleCount,
     selectedTraining,
     selectedTrainingPuzzle,
+    setActiveCycleIri,
+    setActiveTrainingSessionIri,
     setActiveView,
     setCsvErrors,
     setCsvFileName,
     setCsvRows,
     setDescription,
+    setFailedCyclePuzzleIris,
     setFen,
+    setMistakeLimitOverride,
     setName,
     setPersonalNote,
     setRating,
+    setSavedCyclePuzzleIris,
+    setSelectedTrainingIri,
     setSelectedTrainingPuzzleIri,
     setSolutionText,
     setThemesText,
@@ -84,34 +90,52 @@ export function TrainingsPanel({ session, onLogout, onNavigate, route }: Trainin
   } = state;
 
   const trainings = trainingsQuery.data ?? emptyTrainings;
+  const targetView = viewFromRoute(route);
   const desiredRoute = buildRouteFromState(activeView, selectedTraining);
 
-  useEffect(() => {
-    const targetView = viewFromRoute(route);
+  useLayoutEffect(() => {
     const routeTrainingId = getRouteTrainingId(route);
-
-    if (routeTrainingId) {
-      const matchingTraining = trainings.find((training: Training) => training.id === routeTrainingId);
-
-      if (!matchingTraining) {
-        return;
-      }
-
-      if (matchingTraining['@id'] !== effectiveSelectedTrainingIri || activeView !== targetView) {
-        openTraining(matchingTraining['@id'], targetView);
-      }
-
-      return;
-    }
-
-    if (!routesEqual(route, desiredRoute) && route.name === 'dashboard') {
-      return;
-    }
 
     if (activeView !== targetView) {
       setActiveView(targetView);
     }
-  }, [activeView, desiredRoute, effectiveSelectedTrainingIri, openTraining, route, setActiveView, trainings]);
+
+    if (!routeTrainingId) {
+      return;
+    }
+
+    const matchingTraining = trainings.find((training) => training.id === routeTrainingId);
+
+    if (!matchingTraining) {
+      return;
+    }
+
+    if (matchingTraining['@id'] === effectiveSelectedTrainingIri) {
+      return;
+    }
+
+    setSelectedTrainingIri(matchingTraining['@id']);
+    setSelectedTrainingPuzzleIri(null);
+    setActiveCycleIri(null);
+    setActiveTrainingSessionIri(null);
+    setSavedCyclePuzzleIris(new Set());
+    setFailedCyclePuzzleIris(new Set());
+    setMistakeLimitOverride(null);
+  }, [
+    activeView,
+    effectiveSelectedTrainingIri,
+    route,
+    setActiveCycleIri,
+    setActiveTrainingSessionIri,
+    setActiveView,
+    setFailedCyclePuzzleIris,
+    setMistakeLimitOverride,
+    setSavedCyclePuzzleIris,
+    setSelectedTrainingIri,
+    setSelectedTrainingPuzzleIri,
+    targetView,
+    trainings,
+  ]);
 
   useEffect(() => {
     const routeTrainingId = getRouteTrainingId(route);
@@ -137,8 +161,14 @@ export function TrainingsPanel({ session, onLogout, onNavigate, route }: Trainin
   function navigateToTraining(trainingIri: string, view: View = 'detail') {
     openTraining(trainingIri, view);
 
-    const training = trainings.find((item: Training) => item['@id'] === trainingIri) ?? null;
+    const training = trainings.find((item) => item['@id'] === trainingIri) ?? null;
     onNavigate(buildRouteFromState(view, training));
+  }
+
+  function navigateToPuzzleSolver(trainingPuzzleIri: string) {
+    setSelectedTrainingPuzzleIri(trainingPuzzleIri);
+    setActiveView('solver');
+    onNavigate(buildRouteFromState('solver', selectedTraining));
   }
 
   return (
@@ -169,6 +199,21 @@ export function TrainingsPanel({ session, onLogout, onNavigate, route }: Trainin
             Solveur
           </NavButton>
         </nav>
+
+        <div className="wp-sidebar-summary">
+          <p className="wp-sidebar-label">Session active</p>
+          <strong>{selectedTraining ? selectedTraining.name : 'Aucun entrainement ouvert'}</strong>
+          <p>
+            {selectedTraining
+              ? selectedTraining.description || 'Set pret a etre travaille dans le detail ou le solveur.'
+              : 'Ouvre un training pour retrouver ici son contexte rapide.'}
+          </p>
+          <div className="wp-sidebar-metrics">
+            <span>{selectedTraining ? `${selectedPuzzleCount} puzzle(s)` : '0 puzzle'}</span>
+            <span>{selectedTraining ? `${cycleStats.progressPercent}% progression` : '0% progression'}</span>
+            <span>{selectedTraining ? currentCycleStatusLabel : 'Cycle inactif'}</span>
+          </div>
+        </div>
 
         <div className="wp-sidebar-footer">
           <span>{session.email}</span>
@@ -231,10 +276,7 @@ export function TrainingsPanel({ session, onLogout, onNavigate, route }: Trainin
             onPuzzleMove={(trainingPuzzleIri, direction) =>
               moveTrainingPuzzleMutation.mutate({ direction, trainingPuzzleIri })
             }
-            onPuzzleSelect={(trainingPuzzleIri) => {
-              setSelectedTrainingPuzzleIri(trainingPuzzleIri);
-              navigateToView('solver');
-            }}
+            onPuzzleSelect={navigateToPuzzleSolver}
             onRatingChange={setRating}
             onSolutionTextChange={setSolutionText}
             onStartCycle={() => startCycleMutation.mutate()}
@@ -375,6 +417,4 @@ function getRouteTrainingId(route: AppRoute): number | undefined {
 
   return undefined;
 }
-
-
 

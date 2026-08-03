@@ -479,6 +479,46 @@ h3 {
   font-size: 0.85rem;
 }
 
+.brand-panel-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 36px;
+  border: 1px solid rgba(184, 202, 224, 0.1);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(88, 214, 141, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(21, 34, 48, 0.96), rgba(14, 24, 36, 0.98));
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.28);
+}
+
+.brand-points {
+  display: grid;
+  gap: 10px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #d7e3ef;
+}
+
+.brand-points li {
+  padding: 12px 14px;
+  border: 1px solid rgba(184, 202, 224, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.brand-footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  color: #728196;
+  font-size: 0.84rem;
+}
+
 .auth-card,
 .card {
   border: 1px solid rgba(184, 202, 224, 0.12);
@@ -491,6 +531,49 @@ h3 {
   width: min(720px, 100%);
   justify-self: center;
   padding: 30px;
+}
+
+.auth-card-header {
+  margin-bottom: 18px;
+}
+
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.auth-mode-switch button {
+  border: 1px solid rgba(184, 202, 224, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d7e3ef;
+  padding: 12px 14px;
+  font-weight: 900;
+}
+
+.auth-mode-switch button.active {
+  border-color: rgba(88, 214, 141, 0.36);
+  background: linear-gradient(135deg, rgba(88, 214, 141, 0.2), rgba(88, 214, 141, 0.08));
+  color: #f8fbff;
+}
+
+.auth-help-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #91a2b6;
+  font-size: 0.84rem;
+}
+
+.auth-inline-toggle {
+  border: 0;
+  background: transparent;
+  color: #58d68d;
+  font-weight: 800;
 }
 
 .eyebrow {
@@ -1092,9 +1175,11 @@ code {
 .wp-layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: 268px minmax(0, 1fr);
   background:
-    linear-gradient(90deg, rgba(9, 16, 24, 0.96), rgba(14, 26, 38, 0.98)),
+    radial-gradient(circle at top left, rgba(87, 216, 141, 0.08), transparent 20%),
+    radial-gradient(circle at bottom right, rgba(240, 195, 106, 0.08), transparent 24%),
+    linear-gradient(90deg, rgba(9, 16, 24, 0.98), rgba(14, 26, 38, 0.98)),
     #0d1721;
   color: #eef4fb;
 }
@@ -1105,27 +1190,34 @@ code {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 22px;
   border-right: 1px solid rgba(180, 199, 220, 0.1);
-  background: #0b141e;
-  padding: 24px 18px;
+  background:
+    linear-gradient(180deg, rgba(15, 25, 37, 0.98), rgba(10, 19, 29, 0.98)),
+    #0b141e;
+  padding: 28px 18px 22px;
 }
 
 .wp-logo {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(180, 199, 220, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
   color: #f8fbff;
   text-transform: uppercase;
 }
 
 .wp-logo-icon {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #57d88d, #2fb866);
+  box-shadow: 0 14px 28px rgba(47, 184, 102, 0.3);
   color: #08120d;
   font-size: 1.55rem;
   font-weight: 900;
@@ -1145,7 +1237,7 @@ code {
 
 .wp-nav {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .wp-nav button,
@@ -1154,10 +1246,10 @@ code {
 .wp-solver-list-item {
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: #aab8c7;
-  padding: 11px 12px;
+  padding: 12px 13px;
   text-align: left;
   font-weight: 800;
 }
@@ -1167,8 +1259,55 @@ code {
 .wp-solver-list-item:hover,
 .wp-solver-list-item.active {
   border-color: rgba(87, 216, 141, 0.24);
-  background: rgba(87, 216, 141, 0.12);
+  background: linear-gradient(90deg, rgba(87, 216, 141, 0.18), rgba(87, 216, 141, 0.06));
+  box-shadow: inset 3px 0 0 #57d88d;
   color: #f8fbff;
+}
+
+.wp-sidebar-summary {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(180, 199, 220, 0.1);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(87, 216, 141, 0.14), transparent 34%),
+    rgba(255, 255, 255, 0.035);
+  padding: 16px;
+}
+
+.wp-sidebar-label {
+  margin: 0;
+  color: #57d88d;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.wp-sidebar-summary strong {
+  color: #f8fbff;
+  font-size: 1rem;
+}
+
+.wp-sidebar-summary p:last-of-type {
+  margin: 0;
+  color: #aab8c7;
+  line-height: 1.5;
+}
+
+.wp-sidebar-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wp-sidebar-metrics span {
+  border-radius: 999px;
+  background: rgba(238, 244, 251, 0.08);
+  color: #d5e0ea;
+  padding: 6px 10px;
+  font-size: 0.77rem;
+  font-weight: 800;
 }
 
 .wp-sidebar-footer {
@@ -1186,13 +1325,16 @@ code {
 
 .wp-main {
   min-width: 0;
-  padding: 28px;
+  padding: 32px 30px;
+  background:
+    radial-gradient(circle at top, rgba(87, 216, 141, 0.06), transparent 22%),
+    linear-gradient(180deg, rgba(12, 21, 31, 0.76), rgba(12, 21, 31, 0.2));
 }
 
 .wp-page {
   display: grid;
-  gap: 20px;
-  max-width: 1220px;
+  gap: 22px;
+  max-width: 1240px;
   margin: 0 auto;
 }
 
@@ -1201,14 +1343,19 @@ code {
 }
 
 .wp-page-header {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  overflow: hidden;
   border: 1px solid rgba(180, 199, 220, 0.1);
-  border-radius: 16px;
-  background: #111f2d;
-  padding: 26px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(87, 216, 141, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(69, 200, 120, 0.08), transparent 42%),
+    #111f2d;
+  padding: 28px;
 }
 
 .wp-page-header p:last-child {
@@ -1216,6 +1363,12 @@ code {
   margin: 12px 0 0;
   color: #aab8c7;
   line-height: 1.55;
+}
+
+.wp-dashboard-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .wp-primary,
@@ -1247,6 +1400,10 @@ code {
   gap: 14px;
 }
 
+.wp-training-grid.dashboard-list {
+  grid-template-columns: 1fr;
+}
+
 .wp-training-card,
 .wp-panel,
 .wp-form-card,
@@ -1254,18 +1411,51 @@ code {
 .wp-solver-board-panel,
 .wp-solver-list {
   border: 1px solid rgba(180, 199, 220, 0.1);
-  border-radius: 16px;
-  background: #111f2d;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(18, 31, 45, 0.98), rgba(16, 27, 39, 0.98));
+  box-shadow: 0 18px 42px rgba(5, 11, 18, 0.18);
   padding: 20px;
 }
 
 .wp-training-card {
+  position: relative;
   display: grid;
   gap: 16px;
+  overflow: hidden;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.wp-training-grid.dashboard-list .wp-training-card {
+  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.9fr) minmax(220px, 0.8fr);
+  align-items: center;
+}
+
+.wp-training-grid.dashboard-list .wp-progress {
+  grid-column: 2;
+}
+
+.wp-training-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #45c878, #f0c36a);
+  opacity: 0.9;
+}
+
+.wp-training-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(87, 216, 141, 0.28);
+  box-shadow: 0 18px 44px rgba(7, 19, 12, 0.22);
 }
 
 .wp-training-card.selected {
   border-color: rgba(87, 216, 141, 0.45);
+  box-shadow: 0 18px 44px rgba(18, 44, 29, 0.28);
 }
 
 .wp-training-card h3,
@@ -1283,13 +1473,60 @@ code {
   line-height: 1.5;
 }
 
+.wp-card-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-row-copy {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+}
+
+.dashboard-inline-status {
+  justify-items: end;
+}
+
+.wp-card-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wp-card-status span,
+.wp-card-status small {
+  border-radius: 999px;
+  background: rgba(238, 244, 251, 0.07);
+  color: #c8d4e0;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.wp-card-status small {
+  color: #8fa0b3;
+}
+
 .wp-card-meta {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   color: #8fa0b3;
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.wp-card-meta span {
+  border-radius: 999px;
+  background: rgba(238, 244, 251, 0.05);
+  padding: 6px 10px;
+}
+
+.dashboard-card-meta {
+  justify-content: flex-start;
 }
 
 .wp-progress {
@@ -1311,6 +1548,11 @@ code {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.dashboard-row-actions {
+  grid-template-columns: repeat(2, minmax(120px, 160px));
+  justify-content: end;
 }
 
 .wp-card-actions button {
@@ -1379,6 +1621,78 @@ code {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.wp-detail-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.wp-detail-highlight {
+  background:
+    radial-gradient(circle at top right, rgba(87, 216, 141, 0.14), transparent 30%),
+    #111f2d;
+}
+
+.wp-detail-highlight.subdued {
+  background:
+    radial-gradient(circle at top right, rgba(240, 195, 106, 0.12), transparent 30%),
+    #111f2d;
+}
+
+.wp-detail-highlight-copy {
+  margin: 0 0 14px;
+  color: #c8d4e0;
+  line-height: 1.6;
+}
+
+.wp-inline-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wp-inline-metrics span {
+  border-radius: 999px;
+  background: rgba(238, 244, 251, 0.07);
+  color: #c8d4e0;
+  padding: 7px 11px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.wp-inline-metrics-spaced {
+  margin: 0 0 14px;
+}
+
+.wp-import-preview-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.wp-import-preview-row {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(180, 199, 220, 0.1);
+  border-radius: 14px;
+  background: #162636;
+  padding: 14px;
+}
+
+.wp-import-preview-row strong {
+  color: #eef4fb;
+}
+
+.wp-import-preview-row span {
+  color: #c8d4e0;
+  overflow-wrap: anywhere;
+}
+
+.wp-import-preview-row small {
+  color: #7ff0ad;
+  overflow-wrap: anywhere;
+}
+
 .wp-stat {
   display: grid;
   gap: 4px;
@@ -1406,22 +1720,22 @@ code {
 
 .wp-puzzle-row-with-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 10px;
   align-items: stretch;
 }
 
 .wp-puzzle-row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  gap: 8px 12px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 8px 14px;
   width: 100%;
   border: 1px solid rgba(180, 199, 220, 0.1);
-  border-radius: 12px;
-  background: #162636;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(24, 40, 56, 0.94), rgba(19, 34, 48, 0.98));
   color: #eef4fb;
-  padding: 12px;
+  padding: 14px;
   text-align: left;
+  transition: border-color 160ms ease, transform 160ms ease;
 }
 
 .wp-puzzle-row em {
@@ -1430,29 +1744,43 @@ code {
   font-style: normal;
 }
 
-.wp-puzzle-actions {
-  display: grid;
-  grid-template-columns: 42px minmax(92px, auto);
-  grid-template-rows: 1fr 1fr;
-  gap: 6px;
-}
-
-.wp-puzzle-actions .wp-danger {
+.wp-puzzle-row small {
   grid-column: 2;
-  grid-row: 1 / span 2;
+  color: #6fdd9d;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
-.wp-icon-action {
-  min-width: 42px;
-  border-color: rgba(180, 199, 220, 0.16);
-  background: rgba(238, 244, 251, 0.06);
-  color: #dce8f5;
-  padding: 0;
+.wp-puzzle-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(87, 216, 141, 0.22);
 }
 
-.wp-icon-action:hover:not(:disabled) {
-  border-color: rgba(87, 216, 141, 0.34);
+.wp-puzzle-row span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: 12px;
   background: rgba(87, 216, 141, 0.12);
+  color: #7ff0ad;
+  font-weight: 900;
+}
+
+.wp-puzzle-row strong {
+  font-size: 0.98rem;
+}
+
+.wp-puzzle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.wp-puzzle-action {
+  min-width: 108px;
+  text-align: center;
 }
 
 .wp-danger {
@@ -1604,10 +1932,26 @@ code {
 }
 
 .wp-solver-list {
+  position: sticky;
+  top: 18px;
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
+}
+
+.wp-solver-list-header {
+  display: grid;
+  gap: 12px;
+}
+
+.wp-solver-list-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.wp-solver-list-summary .wp-stat {
+  padding: 14px;
 }
 
 .wp-solver-list-item {
@@ -1617,6 +1961,9 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .wp-solver-list-item small {
@@ -1636,6 +1983,13 @@ code {
 
 .wp-solver-list-item.failed small {
   color: #ffd980;
+}
+
+.wp-solver-list-item:hover,
+.wp-solver-list-item.active {
+  transform: translateX(2px);
+  border-color: rgba(87, 216, 141, 0.26);
+  background: linear-gradient(180deg, rgba(30, 50, 69, 0.98), rgba(22, 38, 54, 0.98));
 }
 
 .wp-solver-board-panel .solver-panel {
@@ -1720,6 +2074,25 @@ code {
   color: #7ff0ad;
 }
 
+.wp-solver-focus-card {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(180, 199, 220, 0.12);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(23, 39, 54, 0.96), rgba(17, 31, 45, 0.98));
+  padding: 14px;
+}
+
+.wp-solver-focus-card h3 {
+  color: #f8fbff;
+}
+
+.wp-solver-focus-card .wp-inline-metrics span {
+  background: rgba(87, 216, 141, 0.1);
+  color: #bff4d3;
+}
+
 @media (max-width: 980px) {
   .wp-layout {
     grid-template-columns: 1fr;
@@ -1734,10 +2107,16 @@ code {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
+  .wp-dashboard-overview,
+  .wp-detail-overview-grid,
   .wp-two-columns,
   .wp-solver-layout,
   .wp-solver-board-panel .solver-panel {
     grid-template-columns: 1fr;
+  }
+
+  .wp-solver-list {
+    position: static;
   }
 
   .wp-stats {
@@ -1758,7 +2137,20 @@ code {
   .wp-nav,
   .wp-stats,
   .wp-stats.compact,
-  .solver-compact-stats {
+  .solver-compact-stats,
+  .auth-mode-switch {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-row-copy,
+  .wp-training-grid.dashboard-list .wp-training-card,
+  .dashboard-row-actions {
     grid-template-columns: 1fr;
   }
 }
+
+
+
+
+
+

@@ -53,17 +53,27 @@ export function AuthPanel({ sessionMessage, onAuthenticated }: AuthPanelProps) {
 
   return (
     <section className="auth-card" aria-labelledby="auth-title">
-      <div className="card-header">
+      <div className="card-header auth-card-header">
         <div>
           <p className="eyebrow">Compte</p>
           <h2 id="auth-title">{title}</h2>
         </div>
+      </div>
+
+      <div className="auth-mode-switch" role="tablist" aria-label="Mode d'authentification">
         <button
-          className="ghost-button"
+          className={mode === 'login' ? 'active' : undefined}
           type="button"
-          onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+          onClick={() => setMode('login')}
         >
-          {mode === 'login' ? 'Créer un compte' : 'Déjà un compte ?'}
+          Se connecter
+        </button>
+        <button
+          className={mode === 'register' ? 'active' : undefined}
+          type="button"
+          onClick={() => setMode('register')}
+        >
+          Créer un compte
         </button>
       </div>
 
@@ -101,6 +111,17 @@ export function AuthPanel({ sessionMessage, onAuthenticated }: AuthPanelProps) {
           />
         </label>
 
+        <div className="auth-help-row">
+          <span>{mode === 'login' ? 'Connexion securisee' : 'Minimum 8 caracteres'}</span>
+          <button
+            className="auth-inline-toggle"
+            type="button"
+            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+          >
+            {mode === 'login' ? 'Pas encore de compte ?' : 'Deja un compte ?'}
+          </button>
+        </div>
+
         {sessionMessage && <p className="alert info-alert">{sessionMessage}</p>}
 
         {authMutation.isError && (
@@ -114,3 +135,4 @@ export function AuthPanel({ sessionMessage, onAuthenticated }: AuthPanelProps) {
     </section>
   );
 }
+

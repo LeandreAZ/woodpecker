@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Attempt;
 use App\Entity\CyclePuzzle;
+use App\Entity\Training;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -27,5 +28,21 @@ class AttemptRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * @return list<Attempt>
+     */
+    public function findByTrainingOrdered(Training $training): array
+    {
+        return $this->createQueryBuilder('attempt')
+            ->innerJoin('attempt.trainingSession', 'trainingSession')
+            ->addSelect('trainingSession')
+            ->andWhere('trainingSession.training = :training')
+            ->setParameter('training', $training)
+            ->orderBy('attempt.attemptedAt', 'DESC')
+            ->addOrderBy('attempt.id', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 }

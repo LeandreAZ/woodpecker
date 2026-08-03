@@ -65,19 +65,31 @@ export function App() {
   return (
     <main className="auth-shell">
       <section className="brand-panel">
-        <div className="brand-mark" aria-hidden="true">
-          WP
+        <div className="brand-panel-shell">
+          <div className="brand-mark" aria-hidden="true">
+            WP
+          </div>
+          <p className="brand-title">Woodpecker Trainer</p>
+          <h1>Entraine-toi. Repete. Progresse.</h1>
+          <p className="lead">
+            Cree tes entrainements tactiques, importe des puzzles compatibles Lichess et travaille
+            chaque cycle avec un echiquier interactif.
+          </p>
+          <ul className="brand-points">
+            <li>Cycles Woodpecker clairs</li>
+            <li>Import CSV compatible Lichess</li>
+            <li>Solveur interactif et suivi des erreurs</li>
+          </ul>
         </div>
-        <p className="brand-title">Woodpecker Trainer</p>
-        <h1>Entraine-toi. Repete. Progresse.</h1>
-        <p className="lead">
-          Cree tes entrainements tactiques, importe des puzzles compatibles Lichess et travaille
-          chaque cycle avec un echiquier interactif.
-        </p>
-        <p className="footer-note">© 2026 Woodpecker Trainer</p>
+        <div className="brand-footer-row">
+          <span>© 2026 Woodpecker Trainer</span>
+          <span>A propos</span>
+          <span>Contact</span>
+        </div>
       </section>
 
       <AuthPanel sessionMessage={sessionMessage} onAuthenticated={handleAuthenticated} />
     </main>
   );
 }
+

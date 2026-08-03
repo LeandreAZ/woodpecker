@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { PuzzleCsvRow } from './csvImport';
 import type { View } from './trainingsTypes';
 
-export function useTrainingsPanelUiState() {
-  const [activeView, setActiveView] = useState<View>('dashboard');
+export function useTrainingsPanelUiState(initialView: View) {
+  const [activeView, setActiveView] = useState<View>(initialView);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTrainingIri, setSelectedTrainingIri] = useState<string | null>(null);

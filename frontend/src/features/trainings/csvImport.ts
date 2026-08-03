@@ -1,3 +1,5 @@
+import { parseOptionalRating, validatePuzzleInput } from './puzzleValidation';
+
 export type PuzzleCsvRow = {
   fen: string | null;
   solution: string[];
@@ -10,6 +12,8 @@ type CsvParseResult = {
   rows: PuzzleCsvRow[];
   errors: string[];
 };
+const duplicateRowMessage = 'Ce puzzle apparait plusieurs fois dans le fichier.';
+
 
 const knownHeaders = new Set([
   'game_url',
@@ -36,58 +40,87 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
   if (lines.length === 0) {
     return {
       rows: [],
-      errors: ['CSV file is empty.'],
+      errors: ['Le fichier CSV est vide.'],
     };
   }
 
-  const headers = parseCsvLine(lines[0]).map(normalizeHeader);
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = parseCsvLine(lines[0], delimiter).map(normalizeHeader);
   const errors: string[] = [];
+  const seenHeaders = new Set<string>();
 
   if (!headers.includes('moves') && !headers.includes('solution')) {
-    errors.push('Missing required column: Moves or solution');
+    errors.push('Colonne obligatoire manquante : Moves ou solution.');
   }
 
   headers.forEach((header) => {
+    if (seenHeaders.has(header)) {
+      errors.push(`Colonne dupliquee : ${header}`);
+      return;
+    }
+
+    seenHeaders.add(header);
+
     if (!knownHeaders.has(header)) {
-      errors.push(`Unknown column: ${header}`);
+      errors.push(`Colonne inconnue : ${header}`);
     }
   });
 
   if (errors.length > 0) {
     return {
       rows: [],
-      errors,
+      errors: dedupeErrors(errors),
     };
   }
 
   const rows: PuzzleCsvRow[] = [];
+  const seenPuzzleKeys = new Set<string>();
 
   lines.slice(1).forEach((line, index) => {
     const rowNumber = index + 2;
-    const values = parseCsvLine(line);
-    const record = Object.fromEntries(headers.map((header, valueIndex) => [header, values[valueIndex] ?? '']));
-    const solution = splitList(record.moves || record.solution || '');
+    const values = parseCsvLine(line, delimiter);
 
-    if (solution.length === 0) {
-      errors.push(`Line ${rowNumber}: Moves/solution is required.`);
-
+    if (values.length !== headers.length) {
+      errors.push(
+        `Ligne ${rowNumber} : nombre de colonnes invalide (${values.length} au lieu de ${headers.length}).`,
+      );
       return;
     }
 
-    const rating = parseRating(record.rating ?? '', rowNumber, errors);
+    const record = Object.fromEntries(headers.map((header, valueIndex) => [header, values[valueIndex] ?? '']));
+    const solution = splitList(record.moves || record.solution || '');
+    const fen = cleanNullable(record.fen);
 
-    rows.push({
-      fen: cleanNullable(record.fen),
-      solution,
-      themes: splitList(record.themes ?? ''),
-      rating,
-      personalNote: cleanNullable(record.personalnote ?? record.personal_note),
-    });
+    try {
+      const rating = parseOptionalRating(record.rating ?? '');
+      const validatedPuzzle = validatePuzzleInput({ fen, solution });
+      const normalizedThemes = splitList(record.themes ?? '');
+      const normalizedPersonalNote = cleanNullable(record.personalnote ?? record.personal_note);
+      const duplicateKey = `${validatedPuzzle.normalizedFen ?? 'initial'}|${validatedPuzzle.normalizedSolution.join(' ')}`;
+
+      if (seenPuzzleKeys.has(duplicateKey)) {
+        errors.push(`Ligne ${rowNumber} : ${duplicateRowMessage}`);
+        return;
+      }
+
+      seenPuzzleKeys.add(duplicateKey);
+
+      rows.push({
+        fen: validatedPuzzle.normalizedFen,
+        solution: validatedPuzzle.normalizedSolution,
+        themes: normalizedThemes,
+        rating,
+        personalNote: normalizedPersonalNote,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erreur de validation inconnue.';
+      errors.push(`Ligne ${rowNumber} : ${message}`);
+    }
   });
 
   return {
     rows,
-    errors,
+    errors: dedupeErrors(errors),
   };
 }
 
@@ -101,32 +134,25 @@ function cleanNullable(value: string | undefined): string | null {
   return cleanedValue.length > 0 ? cleanedValue : null;
 }
 
-function parseRating(value: string, rowNumber: number, errors: string[]): number | null {
-  const cleanedValue = value.trim();
-
-  if (cleanedValue.length === 0) {
-    return null;
-  }
-
-  const rating = Number(cleanedValue);
-
-  if (!Number.isInteger(rating) || rating <= 0) {
-    errors.push(`Line ${rowNumber}: rating must be a positive integer.`);
-
-    return null;
-  }
-
-  return rating;
-}
-
 function splitList(value: string): string[] {
   return value
-    .split(/[,\s]+/)
+    .split(/[;,\s]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }
 
-function parseCsvLine(line: string): string[] {
+function detectDelimiter(headerLine: string): ',' | ';' {
+  const commaCount = (headerLine.match(/,/g) ?? []).length;
+  const semicolonCount = (headerLine.match(/;/g) ?? []).length;
+
+  return semicolonCount > commaCount ? ';' : ',';
+}
+
+function dedupeErrors(errors: string[]): string[] {
+  return [...new Set(errors)];
+}
+
+function parseCsvLine(line: string, delimiter: ',' | ';' = ','): string[] {
   const values: string[] = [];
   let currentValue = '';
   let isInsideQuotes = false;
@@ -148,7 +174,7 @@ function parseCsvLine(line: string): string[] {
       continue;
     }
 
-    if (character === ',' && !isInsideQuotes) {
+    if (character === delimiter && !isInsideQuotes) {
       values.push(currentValue.trim());
       currentValue = '';
 
@@ -162,3 +188,6 @@ function parseCsvLine(line: string): string[] {
 
   return values;
 }
+
+
+

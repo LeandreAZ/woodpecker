@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\CyclePuzzle;
+use App\Entity\Training;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -26,5 +27,21 @@ class CyclePuzzleRepository extends ServiceEntityRepository
             ->setParameter('status', 'pending')
             ->getQuery()
             ->getSingleScalarResult() > 0;
+    }
+
+    /**
+     * @return list<CyclePuzzle>
+     */
+    public function findByTrainingOrdered(Training $training): array
+    {
+        return $this->createQueryBuilder('cyclePuzzle')
+            ->innerJoin('cyclePuzzle.cycle', 'cycle')
+            ->addSelect('cycle')
+            ->andWhere('cycle.training = :training')
+            ->setParameter('training', $training)
+            ->orderBy('cycle.number', 'ASC')
+            ->addOrderBy('cyclePuzzle.position', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }

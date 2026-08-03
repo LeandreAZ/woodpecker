@@ -2,15 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import { apiPathFromIri, buildCycleStats, fetchAllCollection } from './trainingsUtils';
-import type {
-  Attempt,
-  Cycle,
-  CyclePuzzle,
-  Puzzle,
-  Training,
-  TrainingPuzzle,
-  TrainingSession,
-} from './trainingsTypes';
+import type { Puzzle, Training, TrainingOverview } from './trainingsTypes';
 import type { useTrainingsPanelUiState } from './useTrainingsPanelUiState';
 
 type UiState = ReturnType<typeof useTrainingsPanelUiState>;
@@ -27,79 +19,28 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     trainingsQuery.data?.find((training) => training['@id'] === effectiveSelectedTrainingIri) ?? null;
   const effectiveMistakeLimit = uiState.mistakeLimitOverride ?? selectedTraining?.mistakeLimit ?? 3;
 
-  const trainingPuzzlesQuery = useQuery({
-    queryKey: ['training-puzzles', session.email, effectiveSelectedTrainingIri],
+  const trainingOverviewQuery = useQuery({
+    queryKey: ['training-overview', session.email, effectiveSelectedTrainingIri],
     enabled: Boolean(effectiveSelectedTrainingIri),
-    queryFn: async () => {
-      const trainingPuzzles = await fetchAllCollection<TrainingPuzzle>(
-        '/training_puzzles',
-        session.token,
-      );
-
-      return trainingPuzzles
-        .filter((trainingPuzzle) => trainingPuzzle.training === effectiveSelectedTrainingIri)
-        .sort((left, right) => left.position - right.position);
-    },
+    queryFn: () =>
+      apiRequest<TrainingOverview>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/overview`, {
+        token: session.token,
+      }),
   });
 
-  const cyclesQuery = useQuery({
-    queryKey: ['cycles', session.email, effectiveSelectedTrainingIri],
-    enabled: Boolean(effectiveSelectedTrainingIri),
-    queryFn: async () => {
-      const cycles = await fetchAllCollection<Cycle>('/cycles', session.token);
-
-      return cycles
-        .filter((cycle) => cycle.training === effectiveSelectedTrainingIri)
-        .sort((left, right) => left.number - right.number);
-    },
-  });
+  const trainingPuzzles = trainingOverviewQuery.data?.trainingPuzzles ?? [];
+  const cycles = trainingOverviewQuery.data?.cycles ?? [];
+  const trainingCyclePuzzles = trainingOverviewQuery.data?.cyclePuzzles ?? [];
+  const trainingSessions = trainingOverviewQuery.data?.trainingSessions ?? [];
+  const attempts = trainingOverviewQuery.data?.attempts ?? [];
 
   const effectiveActiveCycleIri =
-    uiState.activeCycleIri ??
-    cyclesQuery.data?.filter((cycle) => cycle.status === 'active').at(-1)?.['@id'] ??
-    null;
+    uiState.activeCycleIri ?? cycles.filter((cycle) => cycle.status === 'active').at(-1)?.['@id'] ?? null;
 
-  const cyclePuzzlesQuery = useQuery({
-    queryKey: ['cycle-puzzles', session.email, effectiveActiveCycleIri],
-    enabled: Boolean(effectiveActiveCycleIri),
-    queryFn: async () => {
-      const cyclePuzzles = await fetchAllCollection<CyclePuzzle>('/cycle_puzzles', session.token);
+  const activeCyclePuzzles = trainingCyclePuzzles.filter(
+    (cyclePuzzle) => cyclePuzzle.cycle === effectiveActiveCycleIri,
+  );
 
-      return cyclePuzzles
-        .filter((cyclePuzzle) => cyclePuzzle.cycle === effectiveActiveCycleIri)
-        .sort((left, right) => left.position - right.position);
-    },
-  });
-
-  const trainingCyclePuzzlesQuery = useQuery({
-    queryKey: ['training-cycle-puzzles', session.email, effectiveSelectedTrainingIri],
-    enabled: Boolean(effectiveSelectedTrainingIri && cyclesQuery.data),
-    queryFn: async () => {
-      const cycleIris = new Set((cyclesQuery.data ?? []).map((cycle) => cycle['@id']));
-      const cyclePuzzles = await fetchAllCollection<CyclePuzzle>('/cycle_puzzles', session.token);
-
-      return cyclePuzzles
-        .filter((cyclePuzzle) => cycleIris.has(cyclePuzzle.cycle))
-        .sort((left, right) => left.position - right.position);
-    },
-  });
-
-  const trainingSessionsQuery = useQuery({
-    queryKey: ['training-sessions', session.email, effectiveSelectedTrainingIri],
-    enabled: Boolean(effectiveSelectedTrainingIri),
-    queryFn: async () => {
-      const trainingSessions = await fetchAllCollection<TrainingSession>(
-        '/training_sessions',
-        session.token,
-      );
-
-      return trainingSessions.filter(
-        (trainingSession) => trainingSession.training === effectiveSelectedTrainingIri,
-      );
-    },
-  });
-
-  const activeCyclePuzzles = cyclePuzzlesQuery.data ?? [];
   const defaultCyclePuzzle =
     activeCyclePuzzles.find(
       (cyclePuzzle) =>
@@ -116,15 +57,10 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     null;
 
   const effectiveSelectedTrainingPuzzleIri =
-    uiState.selectedTrainingPuzzleIri ??
-    defaultCyclePuzzle?.trainingPuzzle ??
-    trainingPuzzlesQuery.data?.[0]?.['@id'] ??
-    null;
+    uiState.selectedTrainingPuzzleIri ?? defaultCyclePuzzle?.trainingPuzzle ?? trainingPuzzles[0]?.['@id'] ?? null;
 
   const selectedTrainingPuzzle =
-    trainingPuzzlesQuery.data?.find(
-      (trainingPuzzle) => trainingPuzzle['@id'] === effectiveSelectedTrainingPuzzleIri,
-    ) ?? null;
+    trainingPuzzles.find((trainingPuzzle) => trainingPuzzle['@id'] === effectiveSelectedTrainingPuzzleIri) ?? null;
 
   const selectedTrainingPuzzleLinkedPuzzle =
     selectedTrainingPuzzle && typeof selectedTrainingPuzzle.puzzle === 'string'
@@ -141,38 +77,18 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
   });
 
   const selectedPuzzle =
-    selectedTrainingPuzzle && typeof selectedTrainingPuzzle.puzzle !== 'string'
+    selectedTrainingPuzzle && selectedTrainingPuzzle.puzzle && typeof selectedTrainingPuzzle.puzzle !== 'string'
       ? selectedTrainingPuzzle.puzzle
       : selectedPuzzleQuery.data;
-  const selectedPuzzleCount = trainingPuzzlesQuery.data?.length ?? 0;
+  const selectedPuzzleCount = trainingPuzzles.length;
 
   const effectiveActiveTrainingSessionIri =
     uiState.activeTrainingSessionIri ??
-    trainingSessionsQuery.data
-      ?.filter((trainingSession) => trainingSession.cycle === effectiveActiveCycleIri)
-      .at(-1)?.['@id'] ??
+    trainingSessions.filter((trainingSession) => trainingSession.cycle === effectiveActiveCycleIri).at(-1)?.['@id'] ??
     null;
 
-  const attemptsQuery = useQuery({
-    queryKey: ['attempts', session.email, effectiveSelectedTrainingIri],
-    enabled: Boolean(effectiveSelectedTrainingIri && trainingSessionsQuery.data),
-    queryFn: async () => {
-      const trainingSessionIris = new Set(
-        (trainingSessionsQuery.data ?? []).map((trainingSession) => trainingSession['@id']),
-      );
-      const attempts = await fetchAllCollection<Attempt>('/attempts', session.token);
-
-      return attempts
-        .filter((attempt) => trainingSessionIris.has(attempt.trainingSession))
-        .sort(
-          (left, right) =>
-            new Date(right.attemptedAt).getTime() - new Date(left.attemptedAt).getTime(),
-        );
-    },
-  });
-
   const selectedCyclePuzzle =
-    cyclePuzzlesQuery.data?.find(
+    activeCyclePuzzles.find(
       (cyclePuzzle) => cyclePuzzle.trainingPuzzle === selectedTrainingPuzzle?.['@id'],
     ) ?? null;
   const selectedCyclePuzzleIsSaved = selectedCyclePuzzle
@@ -180,12 +96,12 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     : false;
 
   const cycleStats = buildCycleStats(
-    cyclePuzzlesQuery.data ?? [],
+    activeCyclePuzzles,
     uiState.savedCyclePuzzleIris,
     uiState.failedCyclePuzzleIris,
     selectedPuzzleCount,
   );
-  const currentCycle = cyclesQuery.data?.find((cycle) => cycle['@id'] === effectiveActiveCycleIri) ?? null;
+  const currentCycle = cycles.find((cycle) => cycle['@id'] === effectiveActiveCycleIri) ?? null;
   const currentCycleIsFinished = cycleStats.total > 0 && cycleStats.pending === 0;
   const currentCycleStatusLabel = currentCycleIsFinished
     ? 'Termine'
@@ -193,7 +109,14 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
       ? 'Actif'
       : 'Aucun';
   const hasResumableCycle = currentCycle?.status === 'active' && !currentCycleIsFinished;
-  const puzzleListIsLocked = (cyclesQuery.data?.length ?? 0) > 0;
+  const puzzleListIsLocked = cycles.length > 0;
+
+  const trainingPuzzlesQuery = { ...trainingOverviewQuery, data: trainingPuzzles };
+  const cyclesQuery = { ...trainingOverviewQuery, data: cycles };
+  const cyclePuzzlesQuery = { ...trainingOverviewQuery, data: activeCyclePuzzles };
+  const trainingCyclePuzzlesQuery = { ...trainingOverviewQuery, data: trainingCyclePuzzles };
+  const trainingSessionsQuery = { ...trainingOverviewQuery, data: trainingSessions };
+  const attemptsQuery = { ...trainingOverviewQuery, data: attempts };
 
   return {
     attemptsQuery,
@@ -216,6 +139,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     selectedTraining,
     selectedTrainingPuzzle,
     trainingCyclePuzzlesQuery,
+    trainingOverviewQuery,
     trainingPuzzlesQuery,
     trainingSessionsQuery,
     trainingsQuery,

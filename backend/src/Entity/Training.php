@@ -3,6 +3,12 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
+use App\Controller\TrainingOverviewAction;
 use App\Enum\TrainingStatus;
 use App\Repository\TrainingRepository;
 use App\State\TrainingOwnerProcessor;
@@ -16,9 +22,21 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: TrainingRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Post(processor: TrainingOwnerProcessor::class),
+        new Patch(processor: TrainingOwnerProcessor::class),
+        new Delete(),
+        new Get(
+            uriTemplate: '/trainings/{id}/overview',
+            controller: TrainingOverviewAction::class,
+            read: false,
+            name: 'training_overview',
+        ),
+    ],
     normalizationContext: ['groups' => ['training:read']],
     denormalizationContext: ['groups' => ['training:write']],
-    processor: TrainingOwnerProcessor::class,
 )]
 class Training
 {

@@ -44,4 +44,17 @@ class CycleRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult() > 0;
     }
+
+    /**
+     * @return list<Cycle>
+     */
+    public function findByTrainingOrdered(Training $training): array
+    {
+        return $this->createQueryBuilder('cycle')
+            ->andWhere('cycle.training = :training')
+            ->setParameter('training', $training)
+            ->orderBy('cycle.number', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

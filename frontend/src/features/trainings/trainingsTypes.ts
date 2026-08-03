@@ -27,7 +27,7 @@ export type TrainingPuzzle = {
   '@id': string;
   id: number;
   training: string;
-  puzzle: Puzzle | string;
+  puzzle: Puzzle | string | null;
   position: number;
   personalNote?: string | null;
 };
@@ -69,6 +69,14 @@ export type Attempt = {
   mistakesCount: number;
   durationMilliseconds: number;
   attemptedAt: string;
+};
+
+export type TrainingOverview = {
+  trainingPuzzles: TrainingPuzzle[];
+  cycles: Cycle[];
+  cyclePuzzles: CyclePuzzle[];
+  trainingSessions: TrainingSession[];
+  attempts: Attempt[];
 };
 
 export type CycleStats = {

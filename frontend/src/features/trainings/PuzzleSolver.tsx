@@ -22,6 +22,7 @@ type Feedback = {
 };
 
 type SolverState = {
+  countedMistakeKeys: Set<string>;
   game: Chess;
   currentFen: string;
   moveIndex: number;
@@ -47,7 +48,7 @@ export function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solutio
   const [isSolutionVisible, setIsSolutionVisible] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  const { game, currentFen, moveIndex, playedMoves, mistakesCount, startedAt, completedAt } =
+  const { countedMistakeKeys, game, currentFen, moveIndex, playedMoves, mistakesCount, startedAt, completedAt } =
     solverState;
   const boardOrientation = game.turn() === 'w' ? 'white' : 'black';
   const legalTargetSquares = selectedSquare ? getLegalTargetSquares(game, selectedSquare) : [];
@@ -97,18 +98,35 @@ export function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solutio
     const attemptedMove = `${sourceSquare}${targetSquare}`;
 
     if (!isExpectedMove(attemptedMove, expectedMove)) {
+      const mistakeKey = `${moveIndex}:${attemptedMove.toLowerCase()}`;
+
+      if (countedMistakeKeys.has(mistakeKey)) {
+        setSolverState({
+          ...solverState,
+          feedback: {
+            kind: 'info',
+            message: 'Cette erreur a deja ete comptee. Essaie autre chose.',
+          },
+        });
+
+        return false;
+      }
+
+      const nextCountedMistakeKeys = new Set(countedMistakeKeys);
+      nextCountedMistakeKeys.add(mistakeKey);
       const nextMistakesCount = mistakesCount + 1;
       const failedAt = nextMistakesCount >= mistakeLimit ? Date.now() : null;
 
       setSolverState({
         ...solverState,
+        countedMistakeKeys: nextCountedMistakeKeys,
         mistakesCount: nextMistakesCount,
         completedAt: failedAt,
         feedback: {
           kind: 'error',
           message: failedAt
-            ? 'Tentative échouée. Tu peux recommencer.'
-            : 'Mauvais coup. Continue à chercher.',
+            ? 'Tentative echouee. Tu peux recommencer.'
+            : 'Mauvais coup. Continue a chercher.',
         },
       });
 
@@ -131,7 +149,7 @@ export function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solutio
         mistakesCount: mistakesCount + 1,
         feedback: {
           kind: 'error',
-          message: "Le coup attendu n'est pas légal depuis cette position.",
+          message: "Le coup attendu n'est pas legal depuis cette position.",
         },
       });
 
@@ -153,7 +171,7 @@ export function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solutio
           playedMoves: nextPlayedMoves,
           feedback: {
             kind: 'error',
-            message: "La réponse automatique n'est pas légale depuis cette position.",
+            message: "La reponse automatique n'est pas legale depuis cette position.",
           },
         });
 
@@ -325,17 +343,18 @@ function createInitialSolverState(fen: string | undefined, solution: string[]): 
       moveIndex = 1;
       feedback = {
         kind: 'info',
-        message: 'Le premier coup Lichess a été joué. À toi de trouver la suite.',
+        message: 'Le premier coup Lichess a ete joue. A toi de trouver la suite.',
       };
     } else {
       feedback = {
         kind: 'error',
-        message: "Le premier coup Lichess n'est pas légal depuis cette FEN.",
+        message: "Le premier coup Lichess n'est pas legal depuis cette FEN.",
       };
     }
   }
 
   return {
+    countedMistakeKeys: new Set(),
     game,
     currentFen: game.fen(),
     moveIndex,
@@ -420,11 +439,15 @@ function playMove(game: Chess, uciMove: string): Move | null {
   const to = uciMove.slice(2, 4);
   const promotion = uciMove.slice(4, 5) || undefined;
 
-  return game.move({
-    from,
-    to,
-    promotion,
-  });
+  try {
+    return game.move({
+      from,
+      to,
+      promotion,
+    });
+  } catch {
+    return null;
+  }
 }
 
 function moveToUci(move: Move): string {

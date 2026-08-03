@@ -2,9 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import type { PuzzleCompletionResult } from './PuzzleSolver';
+import { parseOptionalRating, validatePuzzleInput } from './puzzleValidation';
 import {
   apiPathFromIri,
-  fetchAllCollection,
   getNextTrainingPuzzlePosition,
   splitList,
   updateTrainingPuzzlePosition,
@@ -32,6 +32,12 @@ export function useTrainingsPanelActions(
 ) {
   const queryClient = useQueryClient();
 
+  async function invalidateTrainingOverview(trainingIri = queries.effectiveSelectedTrainingIri) {
+    await queryClient.invalidateQueries({
+      queryKey: ['training-overview', session.email, trainingIri],
+    });
+  }
+
   const createTrainingMutation = useMutation({
     mutationFn: async () =>
       apiRequest<Training>('/trainings', {
@@ -50,6 +56,7 @@ export function useTrainingsPanelActions(
       uiState.setMistakeLimitOverride(null);
       uiState.setActiveView('detail');
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
+      await invalidateTrainingOverview(training['@id']);
     },
   });
 
@@ -77,33 +84,33 @@ export function useTrainingsPanelActions(
     onSuccess: async (training) => {
       uiState.setMistakeLimitOverride(training.mistakeLimit);
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
+      await invalidateTrainingOverview(training['@id']);
     },
   });
 
   const createPuzzleMutation = useMutation({
     mutationFn: async () => {
       if (!queries.effectiveSelectedTrainingIri) {
-        throw new Error('Selectionne un entrainement avant d’ajouter un puzzle.');
+        throw new Error('Selectionne un entrainement avant d ajouter un puzzle.');
       }
 
-      const solution = splitList(uiState.solutionText);
-
-      if (solution.length === 0) {
-        throw new Error('Ajoute au moins un coup dans Moves.');
-      }
+      const validatedPuzzle = validatePuzzleInput({
+        fen: uiState.fen,
+        solution: splitList(uiState.solutionText),
+      });
 
       const puzzle = await apiRequest<Puzzle>('/puzzles', {
         method: 'POST',
         token: session.token,
         body: {
-          fen: uiState.fen.trim() || null,
-          solution,
+          fen: validatedPuzzle.normalizedFen,
+          solution: validatedPuzzle.normalizedSolution,
           themes: splitList(uiState.themesText),
-          rating: uiState.rating.trim() ? Number(uiState.rating) : null,
+          rating: parseOptionalRating(uiState.rating),
         },
       });
 
-      await apiRequest<TrainingPuzzle>('/training_puzzles', {
+      const trainingPuzzle = await apiRequest<TrainingPuzzle>('/training_puzzles', {
         method: 'POST',
         token: session.token,
         body: {
@@ -114,29 +121,28 @@ export function useTrainingsPanelActions(
         },
       });
 
-      return puzzle;
+      return trainingPuzzle;
     },
-    onSuccess: async () => {
+    onSuccess: async (trainingPuzzle) => {
       uiState.setFen('');
       uiState.setSolutionText('');
       uiState.setThemesText('');
       uiState.setRating('');
       uiState.setPersonalNote('');
-      uiState.setActiveView('solver');
-      await queryClient.invalidateQueries({
-        queryKey: ['training-puzzles', session.email, queries.effectiveSelectedTrainingIri],
-      });
+      uiState.setSelectedTrainingPuzzleIri(trainingPuzzle['@id']);
+      uiState.setActiveView('detail');
+      await invalidateTrainingOverview();
     },
   });
 
   const importCsvMutation = useMutation({
     mutationFn: async () => {
       if (!queries.effectiveSelectedTrainingIri) {
-        throw new Error('Selectionne un entrainement avant d’importer des puzzles.');
+        throw new Error('Selectionne un entrainement avant d importer des puzzles.');
       }
 
       if (uiState.csvRows.length === 0) {
-        throw new Error('Choisis un fichier CSV valide avant de lancer l’import.');
+        throw new Error('Choisis un fichier CSV valide avant de lancer l import.');
       }
 
       let nextPosition = getNextTrainingPuzzlePosition(queries.trainingPuzzlesQuery.data ?? []);
@@ -174,9 +180,7 @@ export function useTrainingsPanelActions(
       uiState.setCsvErrors([]);
       uiState.setCsvFileName('');
       uiState.setActiveView('solver');
-      await queryClient.invalidateQueries({
-        queryKey: ['training-puzzles', session.email, queries.effectiveSelectedTrainingIri],
-      });
+      await invalidateTrainingOverview();
     },
   });
 
@@ -210,9 +214,7 @@ export function useTrainingsPanelActions(
         await updateTrainingPuzzlePosition(trainingPuzzle['@id'], position, session.token);
       }
 
-      await queryClient.invalidateQueries({
-        queryKey: ['training-puzzles', session.email, queries.effectiveSelectedTrainingIri],
-      });
+      await invalidateTrainingOverview();
     },
   });
 
@@ -249,9 +251,7 @@ export function useTrainingsPanelActions(
       await updateTrainingPuzzlePosition(currentTrainingPuzzle['@id'], targetTrainingPuzzle.position, session.token);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ['training-puzzles', session.email, queries.effectiveSelectedTrainingIri],
-      });
+      await invalidateTrainingOverview();
     },
   });
 
@@ -272,11 +272,7 @@ export function useTrainingsPanelActions(
         .at(-1);
 
       if (existingActiveCycle) {
-        const existingCyclePuzzles = await fetchAllCollection<CyclePuzzle>(
-          '/cycle_puzzles',
-          session.token,
-        );
-        const activeCyclePuzzles = existingCyclePuzzles.filter(
+        const activeCyclePuzzles = (queries.trainingCyclePuzzlesQuery.data ?? []).filter(
           (cyclePuzzle) => cyclePuzzle.cycle === existingActiveCycle['@id'],
         );
         const existingTrainingPuzzleIris = new Set(
@@ -367,18 +363,7 @@ export function useTrainingsPanelActions(
       uiState.setSavedCyclePuzzleIris(new Set());
       uiState.setFailedCyclePuzzleIris(new Set());
       uiState.setActiveView('solver');
-      await queryClient.invalidateQueries({
-        queryKey: ['cycles', session.email, queries.effectiveSelectedTrainingIri],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['cycle-puzzles', session.email, cycle['@id']],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['training-cycle-puzzles', session.email, queries.effectiveSelectedTrainingIri],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['training-sessions', session.email, queries.effectiveSelectedTrainingIri],
-      });
+      await invalidateTrainingOverview();
     },
   });
 
@@ -472,18 +457,7 @@ export function useTrainingsPanelActions(
       });
     },
     onSuccess: async ({ completedCycle }) => {
-      await queryClient.invalidateQueries({
-        queryKey: ['cycle-puzzles', session.email, queries.effectiveActiveCycleIri],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['cycles', session.email, queries.effectiveSelectedTrainingIri],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['training-cycle-puzzles', session.email, queries.effectiveSelectedTrainingIri],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['attempts', session.email, queries.effectiveSelectedTrainingIri],
-      });
+      await invalidateTrainingOverview();
 
       if (completedCycle) {
         uiState.setActiveView('detail');
@@ -518,3 +492,4 @@ export function useTrainingsPanelActions(
     updateMistakeLimitMutation,
   };
 }
+
