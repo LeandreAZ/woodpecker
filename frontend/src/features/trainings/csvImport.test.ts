@@ -17,6 +17,19 @@ describe('parsePuzzleCsv', () => {
     ]);
   });
 
+  it('normalise les themes et la note perso importes', () => {
+    const result = parsePuzzleCsv('Moves,Themes,PersonalNote\ne2e4,"Fork; fork ; Mate","  Note test  "');
+
+    expect(result.errors).toEqual([]);
+    expect(result.rows[0]).toEqual({
+      fen: null,
+      solution: ['e2e4'],
+      themes: ['fork', 'mate'],
+      rating: null,
+      personalNote: 'Note test',
+    });
+  });
+
   it('signale les puzzles dupliques', () => {
     const result = parsePuzzleCsv(['Moves', 'e2e4', 'e2e4'].join('\n'));
 
@@ -29,5 +42,12 @@ describe('parsePuzzleCsv', () => {
 
     expect(result.rows).toEqual([]);
     expect(result.errors).toEqual(['Colonne obligatoire manquante : Moves ou solution.']);
+  });
+
+  it('signale les guillemets csv non fermes', () => {
+    const result = parsePuzzleCsv('Moves,Themes\n"e2e4,fork');
+
+    expect(result.rows).toEqual([]);
+    expect(result.errors).toEqual(['Ligne 2 : guillemets CSV non fermes.']);
   });
 });

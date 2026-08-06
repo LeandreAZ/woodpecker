@@ -65,6 +65,27 @@ export function routesEqual(left: AppRoute, right: AppRoute): boolean {
   return buildPath(left) === buildPath(right);
 }
 
+export function getRouteLabel(route: AppRoute): string {
+  switch (route.name) {
+    case 'auth':
+      return 'Connexion';
+    case 'dashboard':
+      return 'Tableau de bord';
+    case 'create-training':
+      return 'Creer un entrainement';
+    case 'training-detail':
+      return 'Detail training';
+    case 'training-import':
+      return 'Import CSV';
+    case 'training-solver':
+      return 'Solveur';
+  }
+}
+
+export function getRouteDocumentTitle(route: AppRoute): string {
+  return `${getRouteLabel(route)} | Woodpecker Trainer`;
+}
+
 function parseRoute(pathname: string): AppRoute {
   const path = normalizePath(pathname);
   const segments = path.split('/').filter(Boolean);

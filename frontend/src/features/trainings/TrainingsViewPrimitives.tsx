@@ -3,14 +3,16 @@ import type { ReactNode } from 'react';
 export function NavButton({
   active,
   children,
+  disabled = false,
   onClick,
 }: {
   active: boolean;
   children: string;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button className={active ? 'active' : undefined} type="button" onClick={onClick}>
+    <button aria-current={active ? 'page' : undefined} className={active ? 'active' : undefined} disabled={disabled} type="button" onClick={onClick}>
       {children}
     </button>
   );

@@ -1,5 +1,6 @@
 import type { AppRoute } from '../../shared/routing/appRouter';
 import { TrainingsPanelContent } from './TrainingsPanelContent';
+import { TrainingsRouteBar } from './TrainingsRouteBar';
 import { TrainingsSidebar } from './TrainingsSidebar';
 import type { AuthSession } from '../auth/authStorage';
 import { useTrainingsPanelState } from './useTrainingsPanelState';
@@ -47,12 +48,20 @@ export function TrainingsPanel({ session, onLogout, onNavigate, route }: Trainin
         session={session}
       />
 
-      <TrainingsPanelContent
-        navigateToPuzzleSolver={navigateToPuzzleSolver}
-        navigateToTraining={(trainingIri, view) => navigateToTraining(trainingIri, state.openTraining, view)}
-        navigateToView={navigateToView}
-        state={state}
-      />
+      <section className="wp-main-shell">
+        <TrainingsRouteBar
+          activeView={state.activeView}
+          currentCycleStatusLabel={state.currentCycleStatusLabel}
+          route={route}
+          selectedTraining={state.selectedTraining}
+        />
+        <TrainingsPanelContent
+          navigateToPuzzleSolver={navigateToPuzzleSolver}
+          navigateToTraining={(trainingIri, view) => navigateToTraining(trainingIri, state.openTraining, view)}
+          navigateToView={navigateToView}
+          state={state}
+        />
+      </section>
     </main>
   );
 }

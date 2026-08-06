@@ -129,7 +129,7 @@ export function apiPathFromIri(iri: string): string {
 
 export function splitList(value: string): string[] {
   return value
-    .split(/[,\s]+/)
+    .split(/[;,\s]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }

@@ -1,4 +1,4 @@
-import { parseOptionalRating, validatePuzzleInput } from './puzzleValidation';
+import { normalizePersonalNote, parseOptionalRating, validatePuzzleInput } from './puzzleValidation';
 
 export type PuzzleCsvRow = {
   fen: string | null;
@@ -12,9 +12,8 @@ type CsvParseResult = {
   rows: PuzzleCsvRow[];
   errors: string[];
 };
+
 const duplicateRowMessage = 'Ce puzzle apparait plusieurs fois dans le fichier.';
-
-
 const knownHeaders = new Set([
   'game_url',
   'moves',
@@ -32,21 +31,21 @@ const knownHeaders = new Set([
 ]);
 
 export function parsePuzzleCsv(csvText: string): CsvParseResult {
-  const lines = csvText
-    .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
+  const lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim().length > 0);
 
   if (lines.length === 0) {
-    return {
-      rows: [],
-      errors: ['Le fichier CSV est vide.'],
-    };
+    return { rows: [], errors: ['Le fichier CSV est vide.'] };
   }
 
   const delimiter = detectDelimiter(lines[0]);
-  const headers = parseCsvLine(lines[0], delimiter).map(normalizeHeader);
+  const headerParseResult = parseCsvLine(lines[0], delimiter);
   const errors: string[] = [];
+
+  if (headerParseResult.error) {
+    return { rows: [], errors: [headerParseResult.error] };
+  }
+
+  const headers = headerParseResult.values.map(normalizeHeader);
   const seenHeaders = new Set<string>();
 
   if (!headers.includes('moves') && !headers.includes('solution')) {
@@ -67,10 +66,7 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
   });
 
   if (errors.length > 0) {
-    return {
-      rows: [],
-      errors: dedupeErrors(errors),
-    };
+    return { rows: [], errors: dedupeErrors(errors) };
   }
 
   const rows: PuzzleCsvRow[] = [];
@@ -78,12 +74,17 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
 
   lines.slice(1).forEach((line, index) => {
     const rowNumber = index + 2;
-    const values = parseCsvLine(line, delimiter);
+    const parsedRow = parseCsvLine(line, delimiter);
+
+    if (parsedRow.error) {
+      errors.push(`Ligne ${rowNumber} : ${parsedRow.error}`);
+      return;
+    }
+
+    const values = parsedRow.values;
 
     if (values.length !== headers.length) {
-      errors.push(
-        `Ligne ${rowNumber} : nombre de colonnes invalide (${values.length} au lieu de ${headers.length}).`,
-      );
+      errors.push(`Ligne ${rowNumber} : nombre de colonnes invalide (${values.length} au lieu de ${headers.length}).`);
       return;
     }
 
@@ -92,10 +93,13 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
     const fen = cleanNullable(record.fen);
 
     try {
+      const validatedPuzzle = validatePuzzleInput({
+        fen,
+        personalNote: record.personalnote ?? record.personal_note,
+        solution,
+        themes: splitList(record.themes ?? ''),
+      });
       const rating = parseOptionalRating(record.rating ?? '');
-      const validatedPuzzle = validatePuzzleInput({ fen, solution });
-      const normalizedThemes = splitList(record.themes ?? '');
-      const normalizedPersonalNote = cleanNullable(record.personalnote ?? record.personal_note);
       const duplicateKey = `${validatedPuzzle.normalizedFen ?? 'initial'}|${validatedPuzzle.normalizedSolution.join(' ')}`;
 
       if (seenPuzzleKeys.has(duplicateKey)) {
@@ -108,9 +112,9 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
       rows.push({
         fen: validatedPuzzle.normalizedFen,
         solution: validatedPuzzle.normalizedSolution,
-        themes: normalizedThemes,
+        themes: validatedPuzzle.normalizedThemes,
         rating,
-        personalNote: normalizedPersonalNote,
+        personalNote: normalizePersonalNote(record.personalnote ?? record.personal_note),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erreur de validation inconnue.';
@@ -118,10 +122,7 @@ export function parsePuzzleCsv(csvText: string): CsvParseResult {
     }
   });
 
-  return {
-    rows,
-    errors: dedupeErrors(errors),
-  };
+  return { rows, errors: dedupeErrors(errors) };
 }
 
 function normalizeHeader(header: string): string {
@@ -130,21 +131,16 @@ function normalizeHeader(header: string): string {
 
 function cleanNullable(value: string | undefined): string | null {
   const cleanedValue = value?.trim() ?? '';
-
   return cleanedValue.length > 0 ? cleanedValue : null;
 }
 
 function splitList(value: string): string[] {
-  return value
-    .split(/[;,\s]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return value.split(/[;,\s]+/).map((item) => item.trim()).filter(Boolean);
 }
 
 function detectDelimiter(headerLine: string): ',' | ';' {
   const commaCount = (headerLine.match(/,/g) ?? []).length;
   const semicolonCount = (headerLine.match(/;/g) ?? []).length;
-
   return semicolonCount > commaCount ? ';' : ',';
 }
 
@@ -152,7 +148,7 @@ function dedupeErrors(errors: string[]): string[] {
   return [...new Set(errors)];
 }
 
-function parseCsvLine(line: string, delimiter: ',' | ';' = ','): string[] {
+function parseCsvLine(line: string, delimiter: ',' | ';' = ','): { error?: string; values: string[] } {
   const values: string[] = [];
   let currentValue = '';
   let isInsideQuotes = false;
@@ -164,30 +160,27 @@ function parseCsvLine(line: string, delimiter: ',' | ';' = ','): string[] {
     if (character === '"' && nextCharacter === '"') {
       currentValue += '"';
       index += 1;
-
       continue;
     }
 
     if (character === '"') {
       isInsideQuotes = !isInsideQuotes;
-
       continue;
     }
 
     if (character === delimiter && !isInsideQuotes) {
       values.push(currentValue.trim());
       currentValue = '';
-
       continue;
     }
 
     currentValue += character;
   }
 
+  if (isInsideQuotes) {
+    return { error: 'guillemets CSV non fermes.', values: [] };
+  }
+
   values.push(currentValue.trim());
-
-  return values;
+  return { values };
 }
-
-
-

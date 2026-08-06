@@ -96,7 +96,9 @@ export function useTrainingsPanelActions(
 
       const validatedPuzzle = validatePuzzleInput({
         fen: uiState.fen,
+        personalNote: uiState.personalNote,
         solution: splitList(uiState.solutionText),
+        themes: splitList(uiState.themesText),
       });
 
       const puzzle = await apiRequest<Puzzle>('/puzzles', {
@@ -105,7 +107,7 @@ export function useTrainingsPanelActions(
         body: {
           fen: validatedPuzzle.normalizedFen,
           solution: validatedPuzzle.normalizedSolution,
-          themes: splitList(uiState.themesText),
+          themes: validatedPuzzle.normalizedThemes,
           rating: parseOptionalRating(uiState.rating),
         },
       });
@@ -117,7 +119,7 @@ export function useTrainingsPanelActions(
           training: queries.effectiveSelectedTrainingIri,
           puzzle: puzzle['@id'],
           position: getNextTrainingPuzzlePosition(queries.trainingPuzzlesQuery.data ?? []),
-          personalNote: uiState.personalNote.trim() || null,
+          personalNote: validatedPuzzle.normalizedPersonalNote,
         },
       });
 
@@ -492,4 +494,5 @@ export function useTrainingsPanelActions(
     updateMistakeLimitMutation,
   };
 }
+
 

@@ -2,30 +2,36 @@ import { Chess } from 'chess.js';
 
 type PuzzleValidationInput = {
   fen?: string | null;
+  personalNote?: string | null;
   solution: string[];
+  themes?: string[] | null;
 };
 
 type PuzzleValidationResult = {
   normalizedFen: string | null;
+  normalizedPersonalNote: string | null;
   normalizedSolution: string[];
+  normalizedThemes: string[];
 };
 
+const maxPersonalNoteLength = 500;
 const uciMovePattern = /^[a-h][1-8][a-h][1-8][qrbn]?$/i;
 
 export function validatePuzzleInput(input: PuzzleValidationInput): PuzzleValidationResult {
-  const normalizedFen = normalizeOptionalText(input.fen);
-  const normalizedSolution = input.solution.map((move) => move.trim().toLowerCase()).filter(Boolean);
+  const normalizedFen = normalizeFen(input.fen);
+  const normalizedSolution = normalizeSolution(input.solution);
 
   if (normalizedSolution.length === 0) {
     throw new Error('Ajoute au moins un coup dans Moves.');
   }
 
-  validateFen(normalizedFen);
   validateUciSequence(normalizedFen, normalizedSolution);
 
   return {
     normalizedFen,
+    normalizedPersonalNote: normalizePersonalNote(input.personalNote),
     normalizedSolution,
+    normalizedThemes: normalizeThemes(input.themes ?? []),
   };
 }
 
@@ -65,6 +71,8 @@ export function validateUciSequence(fen: string | null, solution: string[]): voi
       throw new Error(`Le coup ${index + 1} (${move}) n'est pas au format UCI valide.`);
     }
 
+    validatePromotionMove(move, index);
+
     const playedMove = game.move({
       from: move.slice(0, 2),
       to: move.slice(2, 4),
@@ -77,12 +85,71 @@ export function validateUciSequence(fen: string | null, solution: string[]): voi
   });
 }
 
+export function normalizeThemes(themes: string[] | string): string[] {
+  const sourceThemes = Array.isArray(themes) ? themes : [themes];
+  const seenThemes = new Set<string>();
+  const normalizedThemes: string[] = [];
+
+  sourceThemes
+    .flatMap((theme) => theme.split(/[;,]+/))
+    .map((theme) => theme.trim().toLowerCase())
+    .filter(Boolean)
+    .forEach((theme) => {
+      if (seenThemes.has(theme)) {
+        return;
+      }
+
+      seenThemes.add(theme);
+      normalizedThemes.push(theme);
+    });
+
+  return normalizedThemes;
+}
+
+export function normalizePersonalNote(value: string | null | undefined): string | null {
+  const normalizedValue = value?.trim() ?? '';
+
+  if (normalizedValue.length === 0) {
+    return null;
+  }
+
+  if (normalizedValue.length > maxPersonalNoteLength) {
+    throw new Error(`La note perso ne doit pas depasser ${maxPersonalNoteLength} caracteres.`);
+  }
+
+  return normalizedValue;
+}
+
 function createGame(fen: string | null): Chess {
   return fen ? new Chess(fen) : new Chess();
 }
 
-function normalizeOptionalText(value: string | null | undefined): string | null {
+function normalizeFen(value: string | null | undefined): string | null {
   const normalizedValue = value?.trim() ?? '';
 
-  return normalizedValue.length > 0 ? normalizedValue : null;
+  if (normalizedValue.length === 0) {
+    return null;
+  }
+
+  validateFen(normalizedValue);
+
+  return new Chess(normalizedValue).fen();
+}
+
+function normalizeSolution(solution: string[]): string[] {
+  return solution.map((move) => move.trim().toLowerCase()).filter(Boolean);
+}
+
+function validatePromotionMove(move: string, index: number): void {
+  if (move.length !== 5) {
+    return;
+  }
+
+  const fromRank = move[1];
+  const toRank = move[3];
+  const isValidPromotionPath = (fromRank === '7' && toRank === '8') || (fromRank === '2' && toRank === '1');
+
+  if (!isValidPromotionPath) {
+    throw new Error(`Le coup ${index + 1} (${move}) contient une promotion invalide.`);
+  }
 }

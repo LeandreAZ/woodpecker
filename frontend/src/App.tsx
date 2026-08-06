@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react';
 import { AuthPanel } from './features/auth/AuthPanel';
 import { loadStoredSession, saveStoredSession, type AuthSession } from './features/auth/authStorage';
 import { TrainingsPanel } from './features/trainings/TrainingsPanel';
-import { useAppRoute } from './shared/routing/appRouter';
+import { getRouteDocumentTitle, useAppRoute } from './shared/routing/appRouter';
 import { unauthorizedEventName } from './shared/api/client';
 
 export function App() {
   const [session, setSession] = useState<AuthSession | null>(() => loadStoredSession());
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const { navigate, route } = useAppRoute();
+
+  useEffect(() => {
+    document.title = getRouteDocumentTitle(route);
+  }, [route]);
 
   useEffect(() => {
     function handleUnauthorized() {
@@ -52,14 +56,7 @@ export function App() {
   }
 
   if (session) {
-    return (
-      <TrainingsPanel
-        onLogout={handleLogout}
-        onNavigate={navigate}
-        route={route}
-        session={session}
-      />
-    );
+    return <TrainingsPanel onLogout={handleLogout} onNavigate={navigate} route={route} session={session} />;
   }
 
   return (
@@ -92,4 +89,3 @@ export function App() {
     </main>
   );
 }
-

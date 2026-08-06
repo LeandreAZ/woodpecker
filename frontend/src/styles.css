@@ -1323,7 +1323,7 @@ code {
   text-align: center;
 }
 
-.wp-main {
+.wp-main-shell {
   min-width: 0;
   padding: 32px 30px;
   background:
@@ -1331,7 +1331,69 @@ code {
     linear-gradient(180deg, rgba(12, 21, 31, 0.76), rgba(12, 21, 31, 0.2));
 }
 
-.wp-page {
+.wp-route-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  max-width: 1240px;
+  margin: 0 auto 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(180, 199, 220, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(18, 31, 45, 0.86), rgba(12, 21, 31, 0.92));
+}
+
+.wp-route-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.wp-route-copy strong {
+  color: #f8fbff;
+  font-size: 1.05rem;
+}
+
+.wp-route-copy p {
+  margin: 0;
+  color: #9fb0c2;
+  line-height: 1.5;
+}
+
+.wp-route-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #7f93a7;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wp-route-breadcrumbs span {
+  border-radius: 999px;
+  background: rgba(238, 244, 251, 0.05);
+  padding: 5px 9px;
+}
+
+.wp-route-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wp-route-meta span {
+  border-radius: 999px;
+  background: rgba(69, 200, 120, 0.12);
+  color: #d8f5e4;
+  padding: 7px 11px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.wp-main {
   display: grid;
   gap: 22px;
   max-width: 1240px;
