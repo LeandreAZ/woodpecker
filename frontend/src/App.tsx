@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AuthPanel } from './features/auth/AuthPanel';
 import { loadStoredSession, saveStoredSession, type AuthSession } from './features/auth/authStorage';
-import { TrainingsPanel } from './features/trainings/TrainingsPanel';
+import TrainingsPanel from './features/trainings/TrainingsPanel';
 import { getRouteDocumentTitle, useAppRoute } from './shared/routing/appRouter';
 import { unauthorizedEventName } from './shared/api/client';
 
@@ -89,3 +89,7 @@ export function App() {
     </main>
   );
 }
+
+export default App;
+
+

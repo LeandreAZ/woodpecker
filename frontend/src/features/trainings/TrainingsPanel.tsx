@@ -82,3 +82,6 @@ function viewFromRoute(route: AppRoute): View {
       return 'dashboard';
   }
 }
+
+export default TrainingsPanel;
+
