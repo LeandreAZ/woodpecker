@@ -1,19 +1,37 @@
 import { parsePuzzleCsv, type PuzzleCsvRow } from './csvImport';
 import { PageHeader, Stat } from './TrainingsViewPrimitives';
-import type { Training, View } from './trainingsTypes';
+import type { Training, TrainingDashboardSummary, View } from './trainingsTypes';
 
-export function DashboardView({ errorMessage, isError, isLoading, onCreate, onOpenTraining, selectedTrainingIri, trainings }: { errorMessage?: string; isError: boolean; isLoading: boolean; onCreate: () => void; onOpenTraining: (trainingIri: string, view?: View) => void; selectedTrainingIri: string | null; trainings: Training[]; }) {
+function cycleStatusLabel(summary: TrainingDashboardSummary) {
+  if (summary.latestCycleStatus === 'active' && summary.hasResumableCycle) {
+    return `Cycle ${summary.latestCycleNumber} actif`;
+  }
+
+  if (summary.latestCycleStatus === 'completed') {
+    return `Cycle ${summary.latestCycleNumber} termine`;
+  }
+
+  if (summary.latestCycleNumber) {
+    return `Cycle ${summary.latestCycleNumber} prepare`;
+  }
+
+  return 'Aucun cycle';
+}
+
+export function DashboardView({ dashboardSummaries, errorMessage, isError, isLoading, onCreate, onOpenTraining, selectedTrainingIri, trainings }: { dashboardSummaries: TrainingDashboardSummary[]; errorMessage?: string; isError: boolean; isLoading: boolean; onCreate: () => void; onOpenTraining: (trainingIri: string, view?: View) => void; selectedTrainingIri: string | null; trainings: Training[]; }) {
   const selectedTraining = trainings.find((training) => training['@id'] === selectedTrainingIri) ?? null;
   const trainingsWithDescription = trainings.filter((training) => training.description?.trim().length).length;
+  const resumableCount = dashboardSummaries.filter((summary) => summary.hasResumableCycle).length;
 
   return (
     <div className="wp-page">
       <PageHeader eyebrow="Tableau de bord" title="Mes entrainements" description="Reprends un cycle, cree un nouvel entrainement ou ouvre directement le solveur." action={<button className="wp-primary" type="button" onClick={onCreate}>+ Creer un entrainement</button>} />
-      {trainings.length > 0 && <section className="wp-dashboard-overview"><Stat label="Entrainements" value={String(trainings.length)} /><Stat label="Selection active" value={selectedTraining ? selectedTraining.name : 'Aucune'} /><Stat label="Descriptifs remplis" value={String(trainingsWithDescription)} /></section>}
+      {trainings.length > 0 && <section className="wp-dashboard-overview"><Stat label="Entrainements" value={String(trainings.length)} /><Stat label="Selection active" value={selectedTraining ? selectedTraining.name : 'Aucune'} /><Stat label="Cycles a reprendre" value={String(resumableCount)} /><Stat label="Descriptifs remplis" value={String(trainingsWithDescription)} /></section>}
       {isLoading && <p className="wp-empty">Chargement des entrainements...</p>}
       {isError && <p className="alert error-alert">{errorMessage}</p>}
       {!isLoading && trainings.length === 0 && <div className="wp-empty-card"><h3>Aucun entrainement pour l'instant</h3><p>Cree ton premier set Woodpecker, puis ajoute des puzzles manuellement ou via CSV.</p><button className="wp-primary" type="button" onClick={onCreate}>Creer le premier entrainement</button></div>}
-      {trainings.length > 0 && <div className="wp-training-grid">{trainings.map((training) => <article className={training['@id'] === selectedTrainingIri ? 'wp-training-card selected' : 'wp-training-card'} key={training['@id']}><div className="wp-card-copy"><div className="wp-card-status"><span>{training.status}</span><small>{new Date(training.createdAt).toLocaleDateString('fr-FR')}</small></div><h3>{training.name}</h3><p>{training.description || 'Aucune description pour le moment.'}</p></div><div className="wp-card-meta"><span>{training['@id'] === selectedTrainingIri ? 'Ouvert dans la session' : 'Pret a reprendre'}</span><span>{training.description?.trim().length ? 'Description OK' : 'Description vide'}</span></div><div className="wp-progress"><span /></div><div className="wp-card-actions"><button type="button" onClick={() => onOpenTraining(training['@id'], 'detail')}>Ouvrir</button><button type="button" onClick={() => onOpenTraining(training['@id'], 'solver')}>Solveur</button></div></article>)}</div>}
+      {dashboardSummaries.length > 0 && <div className="wp-training-grid">{dashboardSummaries.map((summary) => { const training = summary.training; return <article className={training['@id'] === selectedTrainingIri ? 'wp-training-card selected' : 'wp-training-card'} key={training['@id']}><div className="wp-card-copy"><div className="wp-card-status"><span>{cycleStatusLabel(summary)}</span><small>{training.createdAt ? new Date(training.createdAt).toLocaleDateString('fr-FR') : 'Brouillon'}</small></div><h3>{training.name}</h3><p>{training.description || 'Aucune description pour le moment.'}</p><div className="wp-card-meta dashboard-card-meta"><span>{summary.puzzleCount} puzzle(s)</span><span>{summary.attemptCount} tentative(s)</span><span>{summary.latestAttemptedAt ? `Activite ${new Date(summary.latestAttemptedAt).toLocaleDateString('fr-FR')}` : 'Aucune tentative'}</span></div></div><div className="wp-card-meta"><span>{summary.solvedCount} resolu(s)</span><span>{summary.failedCount} a revoir</span><span>{summary.pendingCount} restant(s)</span></div><div className="wp-progress"><span style={{ width: `${summary.progressPercent}%` }} /></div><div className="wp-card-actions"><button type="button" onClick={() => onOpenTraining(training['@id'], 'detail')}>Ouvrir</button><button type="button" onClick={() => onOpenTraining(training['@id'], 'solver')}>{summary.hasResumableCycle ? 'Reprendre' : 'Solveur'}</button></div></article>; })}</div>}
+      {!isLoading && !isError && trainings.length > 0 && dashboardSummaries.length === 0 && <p className="wp-empty">Chargement des resumes du tableau de bord...</p>}
     </div>
   );
 }

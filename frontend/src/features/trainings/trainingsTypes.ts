@@ -76,7 +76,55 @@ export type TrainingOverview = {
   cycles: Cycle[];
   cyclePuzzles: CyclePuzzle[];
   trainingSessions: TrainingSession[];
-  attempts: Attempt[];
+};
+
+export type TrainingCycleSummary = {
+  attemptCount: number;
+  cycle: Cycle;
+  failed: number;
+  pending: number;
+  progressPercent: number;
+  solved: number;
+  total: number;
+};
+
+export type TrainingAttemptSummary = {
+  '@id': string;
+  id: number;
+  successful: boolean;
+  mistakesCount: number;
+  durationMilliseconds: number;
+  attemptedAt: string;
+  cycleNumber?: number | null;
+  trainingPuzzlePosition?: number | null;
+};
+
+export type TrainingSummary = {
+  puzzleCount: number;
+  ratedPuzzleCount: number;
+  themedPuzzleCount: number;
+  notedPuzzleCount: number;
+  attemptCount: number;
+  solvedAttemptCount: number;
+  averageMistakes: number;
+  latestCycleSummary: TrainingCycleSummary | null;
+  cycleSummaries: TrainingCycleSummary[];
+  latestAttempts: TrainingAttemptSummary[];
+};
+
+export type TrainingDashboardSummary = {
+  training: Training;
+  puzzleCount: number;
+  attemptCount: number;
+  progressPercent: number;
+  solvedCount: number;
+  failedCount: number;
+  pendingCount: number;
+  latestCycleNumber?: number | null;
+  latestCycleStatus?: string | null;
+  hasResumableCycle: boolean;
+  latestAttemptedAt?: string | null;
+  descriptionReady: boolean;
 };
 
 export type CycleStats = {

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import { apiPathFromIri, buildCycleStats, fetchAllCollection } from './trainingsUtils';
-import type { Puzzle, Training, TrainingOverview } from './trainingsTypes';
+import type { Puzzle, Training, TrainingDashboardSummary, TrainingOverview, TrainingSummary } from './trainingsTypes';
 import type { useTrainingsPanelUiState } from './useTrainingsPanelUiState';
 
 type UiState = ReturnType<typeof useTrainingsPanelUiState>;
@@ -13,17 +13,35 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     queryFn: () => fetchAllCollection<Training>('/trainings', session.token),
   });
 
+  const dashboardSummariesQuery = useQuery({
+    queryKey: ['training-dashboard', session.email],
+    enabled: uiState.activeView === 'dashboard',
+    queryFn: () => apiRequest<TrainingDashboardSummary[]>('/trainings/dashboard', { token: session.token }),
+  });
+
   const effectiveSelectedTrainingIri =
     uiState.selectedTrainingIri ?? trainingsQuery.data?.[0]?.['@id'] ?? null;
   const selectedTraining =
     trainingsQuery.data?.find((training) => training['@id'] === effectiveSelectedTrainingIri) ?? null;
   const effectiveMistakeLimit = uiState.mistakeLimitOverride ?? selectedTraining?.mistakeLimit ?? 3;
+  const needsTrainingOverview =
+    uiState.activeView === 'detail' || uiState.activeView === 'import' || uiState.activeView === 'solver';
+  const needsTrainingSummary = uiState.activeView === 'detail';
 
   const trainingOverviewQuery = useQuery({
     queryKey: ['training-overview', session.email, effectiveSelectedTrainingIri],
-    enabled: Boolean(effectiveSelectedTrainingIri),
+    enabled: Boolean(effectiveSelectedTrainingIri) && needsTrainingOverview,
     queryFn: () =>
       apiRequest<TrainingOverview>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/overview`, {
+        token: session.token,
+      }),
+  });
+
+  const trainingSummaryQuery = useQuery({
+    queryKey: ['training-summary', session.email, effectiveSelectedTrainingIri],
+    enabled: Boolean(effectiveSelectedTrainingIri) && needsTrainingSummary,
+    queryFn: () =>
+      apiRequest<TrainingSummary>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/summary`, {
         token: session.token,
       }),
   });
@@ -32,7 +50,6 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
   const cycles = trainingOverviewQuery.data?.cycles ?? [];
   const trainingCyclePuzzles = trainingOverviewQuery.data?.cyclePuzzles ?? [];
   const trainingSessions = trainingOverviewQuery.data?.trainingSessions ?? [];
-  const attempts = trainingOverviewQuery.data?.attempts ?? [];
 
   const effectiveActiveCycleIri =
     uiState.activeCycleIri ?? cycles.filter((cycle) => cycle.status === 'active').at(-1)?.['@id'] ?? null;
@@ -69,7 +86,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
 
   const selectedPuzzleQuery = useQuery({
     queryKey: ['puzzle', session.email, selectedTrainingPuzzleLinkedPuzzle],
-    enabled: Boolean(selectedTrainingPuzzleLinkedPuzzle),
+    enabled: uiState.activeView === 'solver' && Boolean(selectedTrainingPuzzleLinkedPuzzle),
     queryFn: () =>
       apiRequest<Puzzle>(apiPathFromIri(selectedTrainingPuzzleLinkedPuzzle ?? ''), {
         token: session.token,
@@ -116,16 +133,15 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
   const cyclePuzzlesQuery = { ...trainingOverviewQuery, data: activeCyclePuzzles };
   const trainingCyclePuzzlesQuery = { ...trainingOverviewQuery, data: trainingCyclePuzzles };
   const trainingSessionsQuery = { ...trainingOverviewQuery, data: trainingSessions };
-  const attemptsQuery = { ...trainingOverviewQuery, data: attempts };
 
   return {
-    attemptsQuery,
     cyclePuzzlesQuery,
     cycleStats,
     currentCycle,
     currentCycleIsFinished,
     currentCycleStatusLabel,
     cyclesQuery,
+    dashboardSummariesQuery,
     effectiveActiveCycleIri,
     effectiveActiveTrainingSessionIri,
     effectiveMistakeLimit,
@@ -142,6 +158,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     trainingOverviewQuery,
     trainingPuzzlesQuery,
     trainingSessionsQuery,
+    trainingSummaryQuery,
     trainingsQuery,
   };
 }

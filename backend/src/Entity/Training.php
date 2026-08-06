@@ -8,7 +8,9 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\TrainingDashboardAction;
 use App\Controller\TrainingOverviewAction;
+use App\Controller\TrainingSummaryAction;
 use App\Enum\TrainingStatus;
 use App\Repository\TrainingRepository;
 use App\State\TrainingOwnerProcessor;
@@ -25,6 +27,12 @@ use Symfony\Component\Validator\Constraints as Assert;
     operations: [
         new Get(),
         new GetCollection(),
+        new GetCollection(
+            uriTemplate: '/trainings/dashboard',
+            controller: TrainingDashboardAction::class,
+            read: false,
+            name: 'training_dashboard',
+        ),
         new Post(processor: TrainingOwnerProcessor::class),
         new Patch(processor: TrainingOwnerProcessor::class),
         new Delete(),
@@ -33,6 +41,12 @@ use Symfony\Component\Validator\Constraints as Assert;
             controller: TrainingOverviewAction::class,
             read: false,
             name: 'training_overview',
+        ),
+        new Get(
+            uriTemplate: '/trainings/{id}/summary',
+            controller: TrainingSummaryAction::class,
+            read: false,
+            name: 'training_summary',
         ),
     ],
     normalizationContext: ['groups' => ['training:read']],

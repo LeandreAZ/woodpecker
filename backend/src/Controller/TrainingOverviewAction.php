@@ -2,14 +2,12 @@
 
 namespace App\Controller;
 
-use App\Entity\Attempt;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
 use App\Entity\Puzzle;
 use App\Entity\TrainingPuzzle;
 use App\Entity\TrainingSession;
 use App\Entity\User;
-use App\Repository\AttemptRepository;
 use App\Repository\CyclePuzzleRepository;
 use App\Repository\CycleRepository;
 use App\Repository\TrainingPuzzleRepository;
@@ -28,7 +26,6 @@ final class TrainingOverviewAction
         private readonly CycleRepository $cycleRepository,
         private readonly CyclePuzzleRepository $cyclePuzzleRepository,
         private readonly TrainingSessionRepository $trainingSessionRepository,
-        private readonly AttemptRepository $attemptRepository,
     ) {
     }
 
@@ -51,7 +48,6 @@ final class TrainingOverviewAction
             'cycles' => array_map($this->normalizeCycle(...), $this->cycleRepository->findByTrainingOrdered($training)),
             'cyclePuzzles' => array_map($this->normalizeCyclePuzzle(...), $this->cyclePuzzleRepository->findByTrainingOrdered($training)),
             'trainingSessions' => array_map($this->normalizeTrainingSession(...), $this->trainingSessionRepository->findByTrainingOrdered($training)),
-            'attempts' => array_map($this->normalizeAttempt(...), $this->attemptRepository->findByTrainingOrdered($training)),
         ];
 
         return new JsonResponse($payload, headers: ['Content-Type' => 'application/ld+json; charset=utf-8']);
@@ -133,24 +129,6 @@ final class TrainingOverviewAction
             'training' => $this->iri('trainings', $trainingSession->getTraining()?->getId()),
             'cycle' => $this->iri('cycles', $trainingSession->getCycle()?->getId()),
             'startedAt' => $this->formatDateTime($trainingSession->getStartedAt()),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function normalizeAttempt(Attempt $attempt): array
-    {
-        return [
-            '@id' => $this->iri('attempts', $attempt->getId()),
-            'id' => $attempt->getId(),
-            'cyclePuzzle' => $this->iri('cycle_puzzles', $attempt->getCyclePuzzle()?->getId()),
-            'trainingSession' => $this->iri('training_sessions', $attempt->getTrainingSession()?->getId()),
-            'playedMoves' => $attempt->getPlayedMoves(),
-            'successful' => $attempt->isSuccessful(),
-            'mistakesCount' => $attempt->getMistakesCount(),
-            'durationMilliseconds' => $attempt->getDurationMilliseconds(),
-            'attemptedAt' => $this->formatDateTime($attempt->getAttemptedAt()),
         ];
     }
 

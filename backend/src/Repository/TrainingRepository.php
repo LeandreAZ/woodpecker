@@ -27,4 +27,18 @@ class TrainingRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * @return list<Training>
+     */
+    public function findOwnedByUserOrdered(User $owner): array
+    {
+        return $this->createQueryBuilder('training')
+            ->andWhere('training.owner = :owner')
+            ->setParameter('owner', $owner)
+            ->orderBy('training.updatedAt', 'DESC')
+            ->addOrderBy('training.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

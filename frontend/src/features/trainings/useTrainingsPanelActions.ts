@@ -32,10 +32,15 @@ export function useTrainingsPanelActions(
 ) {
   const queryClient = useQueryClient();
 
-  async function invalidateTrainingOverview(trainingIri = queries.effectiveSelectedTrainingIri) {
-    await queryClient.invalidateQueries({
-      queryKey: ['training-overview', session.email, trainingIri],
-    });
+  async function invalidateTrainingData(trainingIri = queries.effectiveSelectedTrainingIri) {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['training-overview', session.email, trainingIri],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['training-summary', session.email, trainingIri],
+      }),
+    ]);
   }
 
   const createTrainingMutation = useMutation({
@@ -56,7 +61,7 @@ export function useTrainingsPanelActions(
       uiState.setMistakeLimitOverride(null);
       uiState.setActiveView('detail');
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
-      await invalidateTrainingOverview(training['@id']);
+      await invalidateTrainingData(training['@id']);
     },
   });
 
@@ -84,7 +89,7 @@ export function useTrainingsPanelActions(
     onSuccess: async (training) => {
       uiState.setMistakeLimitOverride(training.mistakeLimit);
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
-      await invalidateTrainingOverview(training['@id']);
+      await invalidateTrainingData(training['@id']);
     },
   });
 
@@ -133,7 +138,7 @@ export function useTrainingsPanelActions(
       uiState.setPersonalNote('');
       uiState.setSelectedTrainingPuzzleIri(trainingPuzzle['@id']);
       uiState.setActiveView('detail');
-      await invalidateTrainingOverview();
+      await invalidateTrainingData();
     },
   });
 
@@ -182,7 +187,7 @@ export function useTrainingsPanelActions(
       uiState.setCsvErrors([]);
       uiState.setCsvFileName('');
       uiState.setActiveView('solver');
-      await invalidateTrainingOverview();
+      await invalidateTrainingData();
     },
   });
 
@@ -216,7 +221,7 @@ export function useTrainingsPanelActions(
         await updateTrainingPuzzlePosition(trainingPuzzle['@id'], position, session.token);
       }
 
-      await invalidateTrainingOverview();
+      await invalidateTrainingData();
     },
   });
 
@@ -253,7 +258,7 @@ export function useTrainingsPanelActions(
       await updateTrainingPuzzlePosition(currentTrainingPuzzle['@id'], targetTrainingPuzzle.position, session.token);
     },
     onSuccess: async () => {
-      await invalidateTrainingOverview();
+      await invalidateTrainingData();
     },
   });
 
@@ -365,7 +370,7 @@ export function useTrainingsPanelActions(
       uiState.setSavedCyclePuzzleIris(new Set());
       uiState.setFailedCyclePuzzleIris(new Set());
       uiState.setActiveView('solver');
-      await invalidateTrainingOverview();
+      await invalidateTrainingData();
     },
   });
 
@@ -459,7 +464,7 @@ export function useTrainingsPanelActions(
       });
     },
     onSuccess: async ({ completedCycle }) => {
-      await invalidateTrainingOverview();
+      await invalidateTrainingData();
 
       if (completedCycle) {
         uiState.setActiveView('detail');
@@ -494,5 +499,4 @@ export function useTrainingsPanelActions(
     updateMistakeLimitMutation,
   };
 }
-
 
