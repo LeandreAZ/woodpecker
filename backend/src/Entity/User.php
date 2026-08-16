@@ -6,6 +6,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use App\Controller\UserSettingsOverviewAction;
 use App\Repository\UserRepository;
 use App\State\UserPasswordHasherProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -24,6 +25,12 @@ use Symfony\Component\Validator\Constraints as Assert;
     operations: [
         new Get(),
         new GetCollection(),
+        new GetCollection(
+            uriTemplate: '/users/me/overview',
+            controller: UserSettingsOverviewAction::class,
+            read: false,
+            name: 'user_settings_overview',
+        ),
         new Post(processor: UserPasswordHasherProcessor::class),
     ],
     normalizationContext: ['groups' => ['user:read']],
@@ -137,6 +144,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function eraseCredentials(): void
     {
         $this->plainPassword = null;
+    }
+
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
     }
 
     /**

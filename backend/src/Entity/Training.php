@@ -8,6 +8,11 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\HistoryOverviewAction;
+use App\Controller\StatsOverviewAction;
+use App\Controller\TrainingAnalyticsAction;
+use App\Controller\TrainingAttemptHistoryAction;
+use App\Controller\TrainingCycleHistoryAction;
 use App\Controller\TrainingDashboardAction;
 use App\Controller\TrainingOverviewAction;
 use App\Controller\TrainingSummaryAction;
@@ -33,6 +38,18 @@ use Symfony\Component\Validator\Constraints as Assert;
             read: false,
             name: 'training_dashboard',
         ),
+        new GetCollection(
+            uriTemplate: '/stats/overview',
+            controller: StatsOverviewAction::class,
+            read: false,
+            name: 'stats_overview',
+        ),
+        new GetCollection(
+            uriTemplate: '/history/overview',
+            controller: HistoryOverviewAction::class,
+            read: false,
+            name: 'history_overview',
+        ),
         new Post(processor: TrainingOwnerProcessor::class),
         new Patch(processor: TrainingOwnerProcessor::class),
         new Delete(),
@@ -47,6 +64,24 @@ use Symfony\Component\Validator\Constraints as Assert;
             controller: TrainingSummaryAction::class,
             read: false,
             name: 'training_summary',
+        ),
+        new Get(
+            uriTemplate: '/trainings/{id}/analytics',
+            controller: TrainingAnalyticsAction::class,
+            read: false,
+            name: 'training_analytics',
+        ),
+        new Get(
+            uriTemplate: '/trainings/{id}/attempt-history',
+            controller: TrainingAttemptHistoryAction::class,
+            read: false,
+            name: 'training_attempt_history',
+        ),
+        new Get(
+            uriTemplate: '/trainings/{id}/cycle-history',
+            controller: TrainingCycleHistoryAction::class,
+            read: false,
+            name: 'training_cycle_history',
         ),
     ],
     normalizationContext: ['groups' => ['training:read']],
@@ -210,9 +245,6 @@ class Training
         return $this;
     }
 
-    /**
-     * @return Collection<int, TrainingPuzzle>
-     */
     public function getTrainingPuzzles(): Collection
     {
         return $this->trainingPuzzles;
@@ -239,9 +271,6 @@ class Training
         return $this;
     }
 
-    /**
-     * @return Collection<int, Cycle>
-     */
     public function getCycles(): Collection
     {
         return $this->cycles;
@@ -268,9 +297,6 @@ class Training
         return $this;
     }
 
-    /**
-     * @return Collection<int, TrainingSession>
-     */
     public function getTrainingSessions(): Collection
     {
         return $this->trainingSessions;

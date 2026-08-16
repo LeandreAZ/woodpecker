@@ -41,6 +41,20 @@ final class CycleCompletionServiceTest extends TestCase
         self::assertNull($cyclePuzzle->getCompletedAt());
     }
 
+    public function testItDoesNotFlushWhenPendingPuzzleAlreadyHasNoCompletedAtAndCycleIsNotPersisted(): void
+    {
+        $cyclePuzzle = (new CyclePuzzle())
+            ->setCycle(new Cycle())
+            ->setPosition(0)
+            ->setStatus('pending');
+
+        $this->cyclePuzzleRepository->expects(self::never())->method('hasPendingCyclePuzzleForCycle');
+        $this->entityManager->expects(self::never())->method('flush');
+
+        self::assertFalse($this->service->synchronizeCyclePuzzleState($cyclePuzzle));
+        self::assertNull($cyclePuzzle->getCompletedAt());
+    }
+
     public function testItCompletesCycleWhenNoPendingPuzzleRemains(): void
     {
         $cycle = (new Cycle())
@@ -110,6 +124,33 @@ final class CycleCompletionServiceTest extends TestCase
         $this->entityManager->expects(self::once())->method('flush');
 
         self::assertFalse($this->service->synchronizeCyclePuzzleState($cyclePuzzle));
+        self::assertSame(CycleStatus::Completed->value, $cycle->getStatus());
+        self::assertSame($completedAt, $cycle->getCompletedAt());
+        self::assertNotNull($cyclePuzzle->getCompletedAt());
+    }
+
+    public function testItKeepsExistingCycleCompletedAtWhenCycleBecomesCompleted(): void
+    {
+        $completedAt = new \DateTimeImmutable('-2 minutes');
+        $cycle = (new Cycle())
+            ->setNumber(1)
+            ->setStatus(CycleStatus::Active)
+            ->setCompletedAt($completedAt);
+        $this->setEntityId($cycle, 40);
+
+        $cyclePuzzle = (new CyclePuzzle())
+            ->setCycle($cycle)
+            ->setPosition(0)
+            ->setStatus('solved');
+
+        $this->cyclePuzzleRepository
+            ->expects(self::once())
+            ->method('hasPendingCyclePuzzleForCycle')
+            ->with(40)
+            ->willReturn(false);
+        $this->entityManager->expects(self::once())->method('flush');
+
+        self::assertTrue($this->service->synchronizeCyclePuzzleState($cyclePuzzle));
         self::assertSame(CycleStatus::Completed->value, $cycle->getStatus());
         self::assertSame($completedAt, $cycle->getCompletedAt());
         self::assertNotNull($cyclePuzzle->getCompletedAt());

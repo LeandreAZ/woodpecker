@@ -6,6 +6,7 @@ export function useTrainingsPanelUiState(initialView: View) {
   const [activeView, setActiveView] = useState<View>(initialView);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('queen');
   const [selectedTrainingIri, setSelectedTrainingIri] = useState<string | null>(null);
   const [fen, setFen] = useState('');
   const [solutionText, setSolutionText] = useState('');
@@ -30,6 +31,7 @@ export function useTrainingsPanelUiState(initialView: View) {
     csvFileName,
     csvRows,
     description,
+    icon,
     failedCyclePuzzleIris,
     fen,
     mistakeLimitOverride,
@@ -46,6 +48,7 @@ export function useTrainingsPanelUiState(initialView: View) {
     setCsvFileName,
     setCsvRows,
     setDescription,
+    setIcon,
     setFailedCyclePuzzleIris,
     setFen,
     setMistakeLimitOverride,

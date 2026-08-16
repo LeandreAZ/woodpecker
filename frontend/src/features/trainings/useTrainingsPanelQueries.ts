@@ -1,49 +1,150 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
-import { apiPathFromIri, buildCycleStats, fetchAllCollection } from './trainingsUtils';
-import type { Puzzle, Training, TrainingDashboardSummary, TrainingOverview, TrainingSummary } from './trainingsTypes';
+import {
+  getPreviewDashboardSummaries,
+  getPreviewHistoryOverview,
+  getPreviewPuzzle,
+  getPreviewStatsOverview,
+  getPreviewTrainingAnalytics,
+  getPreviewTrainingAttemptHistory,
+  getPreviewTrainingCycleHistory,
+  getPreviewTrainingOverview,
+  getPreviewTrainingSummary,
+  getPreviewTrainings,
+  getPreviewUserSettingsOverview,
+  isPreviewSession,
+} from './previewData';
+import { apiPathFromIri, buildCycleStats } from './trainingsUtils';
+import type {
+  HistoryOverview,
+  Puzzle,
+  StatsOverview,
+  Training,
+  TrainingAnalytics,
+  TrainingAttemptHistory,
+  TrainingCycleHistory,
+  TrainingDashboardSummary,
+  TrainingOverview,
+  TrainingSummary,
+  UserSettingsOverview,
+} from './trainingsTypes';
 import type { useTrainingsPanelUiState } from './useTrainingsPanelUiState';
+import { fetchAllCollection } from './trainingsUtils';
 
 type UiState = ReturnType<typeof useTrainingsPanelUiState>;
 
 export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState) {
+  const previewMode = isPreviewSession(session);
+
   const trainingsQuery = useQuery({
     queryKey: ['trainings', session.email],
-    queryFn: () => fetchAllCollection<Training>('/trainings', session.token),
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewTrainings())
+        : fetchAllCollection<Training>('/trainings', session.token),
   });
 
   const dashboardSummariesQuery = useQuery({
-    queryKey: ['training-dashboard', session.email],
+    queryKey: ['training-dashboard', session.email, previewMode ? 'preview' : 'local'],
     enabled: uiState.activeView === 'dashboard',
-    queryFn: () => apiRequest<TrainingDashboardSummary[]>('/trainings/dashboard', { token: session.token }),
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewDashboardSummaries())
+        : Promise.resolve([] as TrainingDashboardSummary[]),
+  });
+
+  const statsOverviewQuery = useQuery({
+    queryKey: ['stats-overview', session.email],
+    enabled: uiState.activeView === 'stats' || uiState.activeView === 'dashboard',
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewStatsOverview())
+        : apiRequest<StatsOverview>('/stats/overview', { token: session.token }),
+  });
+
+  const historyOverviewQuery = useQuery({
+    queryKey: ['history-overview', session.email],
+    enabled: uiState.activeView === 'history',
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewHistoryOverview())
+        : apiRequest<HistoryOverview>('/history/overview', { token: session.token }),
   });
 
   const effectiveSelectedTrainingIri =
     uiState.selectedTrainingIri ?? trainingsQuery.data?.[0]?.['@id'] ?? null;
+
+  const trainingAttemptHistoryQuery = useQuery({
+    queryKey: ['training-attempt-history', session.email, effectiveSelectedTrainingIri],
+    enabled: uiState.activeView === 'history' && Boolean(effectiveSelectedTrainingIri),
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewTrainingAttemptHistory(effectiveSelectedTrainingIri ?? '/trainings/1'))
+        : apiRequest<TrainingAttemptHistory>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/attempt-history`, {
+            token: session.token,
+          }),
+  });
+
+  const trainingCycleHistoryQuery = useQuery({
+    queryKey: ['training-cycle-history', session.email, effectiveSelectedTrainingIri],
+    enabled: uiState.activeView === 'history' && Boolean(effectiveSelectedTrainingIri),
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewTrainingCycleHistory(effectiveSelectedTrainingIri ?? '/trainings/1'))
+        : apiRequest<TrainingCycleHistory>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/cycle-history`, {
+            token: session.token,
+          }),
+  });
+
+  const userSettingsOverviewQuery = useQuery({
+    queryKey: ['user-settings-overview', session.email],
+    enabled: uiState.activeView === 'settings',
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewUserSettingsOverview())
+        : apiRequest<UserSettingsOverview>('/users/me/overview', { token: session.token }),
+  });
+
   const selectedTraining =
     trainingsQuery.data?.find((training) => training['@id'] === effectiveSelectedTrainingIri) ?? null;
   const effectiveMistakeLimit = uiState.mistakeLimitOverride ?? selectedTraining?.mistakeLimit ?? 3;
   const needsTrainingOverview =
     uiState.activeView === 'detail' || uiState.activeView === 'import' || uiState.activeView === 'solver';
   const needsTrainingSummary = uiState.activeView === 'detail';
+  const needsTrainingAnalytics = uiState.activeView === 'detail';
 
   const trainingOverviewQuery = useQuery({
     queryKey: ['training-overview', session.email, effectiveSelectedTrainingIri],
     enabled: Boolean(effectiveSelectedTrainingIri) && needsTrainingOverview,
     queryFn: () =>
-      apiRequest<TrainingOverview>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/overview`, {
-        token: session.token,
-      }),
+      previewMode
+        ? Promise.resolve(getPreviewTrainingOverview(effectiveSelectedTrainingIri ?? '/trainings/1'))
+        : apiRequest<TrainingOverview>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/overview`, {
+            token: session.token,
+          }),
   });
 
   const trainingSummaryQuery = useQuery({
     queryKey: ['training-summary', session.email, effectiveSelectedTrainingIri],
     enabled: Boolean(effectiveSelectedTrainingIri) && needsTrainingSummary,
     queryFn: () =>
-      apiRequest<TrainingSummary>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/summary`, {
-        token: session.token,
-      }),
+      previewMode
+        ? Promise.resolve(getPreviewTrainingSummary(effectiveSelectedTrainingIri ?? '/trainings/1'))
+        : apiRequest<TrainingSummary>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/summary`, {
+            token: session.token,
+          }),
+  });
+
+  const trainingAnalyticsQuery = useQuery({
+    queryKey: ['training-analytics', session.email, effectiveSelectedTrainingIri],
+    enabled: Boolean(effectiveSelectedTrainingIri) && needsTrainingAnalytics,
+    queryFn: () =>
+      previewMode
+        ? Promise.resolve(getPreviewTrainingAnalytics(effectiveSelectedTrainingIri ?? '/trainings/1'))
+        : apiRequest<TrainingAnalytics>(`${apiPathFromIri(effectiveSelectedTrainingIri ?? '')}/analytics`, {
+            token: session.token,
+          }),
   });
 
   const trainingPuzzles = trainingOverviewQuery.data?.trainingPuzzles ?? [];
@@ -88,9 +189,11 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     queryKey: ['puzzle', session.email, selectedTrainingPuzzleLinkedPuzzle],
     enabled: uiState.activeView === 'solver' && Boolean(selectedTrainingPuzzleLinkedPuzzle),
     queryFn: () =>
-      apiRequest<Puzzle>(apiPathFromIri(selectedTrainingPuzzleLinkedPuzzle ?? ''), {
-        token: session.token,
-      }),
+      previewMode
+        ? Promise.resolve(getPreviewPuzzle(selectedTrainingPuzzleLinkedPuzzle ?? '') as Puzzle)
+        : apiRequest<Puzzle>(apiPathFromIri(selectedTrainingPuzzleLinkedPuzzle ?? ''), {
+            token: session.token,
+          }),
   });
 
   const selectedPuzzle =
@@ -147,6 +250,9 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     effectiveMistakeLimit,
     effectiveSelectedTrainingIri,
     hasResumableCycle,
+    historyOverviewQuery,
+    trainingAttemptHistoryQuery,
+    trainingCycleHistoryQuery,
     puzzleListIsLocked,
     selectedCyclePuzzle,
     selectedCyclePuzzleIsSaved,
@@ -154,11 +260,14 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     selectedPuzzleCount,
     selectedTraining,
     selectedTrainingPuzzle,
+    statsOverviewQuery,
+    trainingAnalyticsQuery,
     trainingCyclePuzzlesQuery,
     trainingOverviewQuery,
     trainingPuzzlesQuery,
     trainingSessionsQuery,
     trainingSummaryQuery,
     trainingsQuery,
+    userSettingsOverviewQuery,
   };
 }

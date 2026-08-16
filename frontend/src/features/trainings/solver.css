@@ -1,0 +1,204 @@
+.solver-page {
+  gap: 18px;
+}
+
+.wp-solver-hero,
+.wp-solver-settings-band,
+.wp-solver-board-panel,
+.wp-solver-list {
+  display: grid;
+  gap: 16px;
+}
+
+.wp-solver-hero {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.wp-solver-hero-ring {
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle closest-side, #08111d 78%, transparent 79% 100%),
+    conic-gradient(#b6e54a calc(var(--solver-progress, 0) * 1%), rgba(255,255,255,0.08) 0);
+}
+
+.wp-solver-hero-ring div {
+  display: grid;
+  justify-items: center;
+}
+
+.wp-solver-hero-ring strong,
+.wp-solver-hero-copy h3,
+.wp-solver-hero-metrics strong,
+.wp-solver-mini-stat strong,
+.wp-cycle-status strong,
+.wp-solver-focus-card h3 {
+  color: #f5f7fc;
+}
+
+.wp-solver-hero-copy h3 {
+  margin: 6px 0 10px;
+  font-size: 1.5rem;
+}
+
+.wp-solver-hero-copy small,
+.wp-solver-hero-metrics span,
+.wp-solver-mini-stat span,
+.wp-cycle-status span {
+  color: #9fb0c5;
+}
+
+.wp-solver-hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 260px;
+}
+
+.wp-solver-hero-metrics div,
+.wp-solver-mini-stat {
+  padding: 14px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(170, 184, 199, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.wp-solver-settings-band {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.wp-solver-settings-copy span,
+.wp-solver-settings-meta span {
+  color: #9fb0c5;
+}
+
+.wp-solver-settings-meta strong {
+  color: #f5f7fc;
+}
+
+.wp-solver-settings-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.wp-solver-settings-options button {
+  width: 46px;
+  min-height: 40px;
+  border: 1px solid rgba(170, 184, 199, 0.12);
+  border-radius: 12px;
+  color: #dfe7f6;
+  background: rgba(8, 15, 25, 0.44);
+}
+
+.wp-solver-settings-options button.active {
+  border-color: rgba(127, 240, 173, 0.3);
+  color: #b9e54e;
+}
+
+.wp-solver-layout-mockup {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.wp-solver-list {
+  align-content: start;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+}
+
+.wp-solver-list-header,
+.wp-solver-list-summary-inline,
+.wp-solver-puzzle-stack,
+.wp-solver-focus-card-wide {
+  display: grid;
+  gap: 12px;
+}
+
+.wp-solver-list-summary-inline {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wp-solver-puzzle-stack {
+  gap: 10px;
+}
+
+.wp-solver-list-item {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(170, 184, 199, 0.1);
+  border-radius: 18px;
+  color: var(--text);
+  background: rgba(8, 15, 25, 0.44);
+  text-align: left;
+  display: grid;
+  gap: 6px;
+}
+
+.wp-solver-list-item.active {
+  border-color: rgba(127, 240, 173, 0.3);
+  background: rgba(69, 200, 120, 0.08);
+}
+
+.wp-solver-list-item.solved {
+  background: rgba(69, 200, 120, 0.12);
+}
+
+.wp-solver-list-item.failed {
+  background: rgba(255, 125, 125, 0.08);
+}
+
+.wp-cycle-status {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(170, 184, 199, 0.1);
+  background: rgba(8, 15, 25, 0.5);
+}
+
+.wp-cycle-status.active {
+  border-color: rgba(127, 240, 173, 0.26);
+  background: rgba(69, 200, 120, 0.08);
+}
+
+.wp-cycle-status.finished {
+  border-color: rgba(139, 179, 216, 0.24);
+  background: rgba(139, 179, 216, 0.08);
+}
+
+.wp-cycle-status.free {
+  border-color: rgba(240, 195, 106, 0.24);
+  background: rgba(240, 195, 106, 0.08);
+}
+
+.wp-solver-focus-card-wide {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(170, 184, 199, 0.1);
+  background: rgba(8, 15, 25, 0.5);
+}
+
+@media (max-width: 1180px) {
+  .wp-solver-hero,
+  .wp-solver-settings-band,
+  .wp-solver-layout-mockup {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-solver-list {
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .wp-solver-hero-metrics,
+  .wp-solver-list-summary-inline {
+    grid-template-columns: 1fr;
+  }
+}

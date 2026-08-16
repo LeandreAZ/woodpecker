@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import './AppErrorBoundary.css';
 
 type AppErrorBoundaryProps = {
   children: ReactNode;
@@ -26,10 +27,10 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   render() {
     if (this.state.hasError) {
       return (
-        <main className="wp-page" style={{ padding: '28px' }}>
-          <div className="wp-empty-card">
-            <h3>Cette page a rencontre une erreur.</h3>
-            <p>Recharge la page. Si le probleme revient, on corrigera la vue ou la donnee qui la fait tomber.</p>
+        <main className="app-error-boundary">
+          <div className="app-error-boundary__card">
+            <h3>Cette page a rencontré une erreur.</h3>
+            <p>Recharge la page. Si le problème revient, on corrigera la vue ou la donnée qui la fait tomber.</p>
             <button className="wp-primary" type="button" onClick={() => window.location.reload()}>
               Recharger
             </button>

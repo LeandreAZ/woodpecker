@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect } from 'react';
 import type { AppRoute } from '../../shared/routing/appRouter';
-import { routesEqual } from '../../shared/routing/appRouter';
+import { normalizeRoute, routesEqual } from '../../shared/routing/appRouter';
 import type { Training, View } from './trainingsTypes';
 
 type UseTrainingsPanelRoutingArgs = {
@@ -21,7 +21,7 @@ type UseTrainingsPanelRoutingArgs = {
   trainingsArePending: boolean;
 };
 
-export function useTrainingsPanelRouting({
+function useTrainingsPanelRouting({
   activeView,
   effectiveSelectedTrainingIri,
   onNavigate,
@@ -39,7 +39,7 @@ export function useTrainingsPanelRouting({
   trainingsArePending,
 }: UseTrainingsPanelRoutingArgs) {
   const targetView = viewFromRoute(route);
-  const desiredRoute = buildRouteFromState(activeView, selectedTraining);
+  const desiredRoute = normalizeRoute(buildRouteFromState(activeView, selectedTraining));
 
   useLayoutEffect(() => {
     const routeTrainingId = getRouteTrainingId(route);
@@ -83,8 +83,16 @@ export function useTrainingsPanelRouting({
 
   useEffect(() => {
     const routeTrainingId = getRouteTrainingId(route);
+    const routeTrainingExists = routeTrainingId
+      ? trainings.some((training) => training.id === routeTrainingId)
+      : true;
 
-    if (routeTrainingId && !selectedTraining && trainingsArePending) {
+    if (routeTrainingId && !routeTrainingExists && trainingsArePending) {
+      return;
+    }
+
+    if (!routeTrainingExists) {
+      onNavigate(desiredRoute, { replace: true });
       return;
     }
 
@@ -95,11 +103,11 @@ export function useTrainingsPanelRouting({
     if (!routesEqual(route, desiredRoute)) {
       onNavigate(desiredRoute, { replace: true });
     }
-  }, [desiredRoute, onNavigate, route, selectedTraining, trainingsArePending]);
+  }, [desiredRoute, onNavigate, route, selectedTraining, trainings, trainingsArePending]);
 
   function navigateToView(nextView: View) {
     setActiveView(nextView);
-    onNavigate(buildRouteFromState(nextView, selectedTraining));
+    onNavigate(normalizeRoute(buildRouteFromState(nextView, selectedTraining)));
   }
 
   function navigateToTraining(
@@ -110,13 +118,13 @@ export function useTrainingsPanelRouting({
     openTraining(trainingIri, view);
 
     const training = trainings.find((item) => item['@id'] === trainingIri) ?? null;
-    onNavigate(buildRouteFromState(view, training));
+    onNavigate(normalizeRoute(buildRouteFromState(view, training)));
   }
 
   function navigateToPuzzleSolver(trainingPuzzleIri: string) {
     setSelectedTrainingPuzzleIri(trainingPuzzleIri);
     setActiveView('solver');
-    onNavigate(buildRouteFromState('solver', selectedTraining));
+    onNavigate(normalizeRoute(buildRouteFromState('solver', selectedTraining)));
   }
 
   return {
@@ -138,7 +146,15 @@ function viewFromRoute(route: AppRoute): View {
       return 'solver';
     case 'training-detail':
       return 'detail';
+    case 'stats-overview':
+      return 'stats';
+    case 'history-detail':
+      return 'history';
+    case 'user-settings':
+      return 'settings';
     case 'auth':
+      return 'dashboard';
+    default:
       return 'dashboard';
   }
 }
@@ -157,6 +173,12 @@ function buildRouteFromState(activeView: View, selectedTraining: Training | null
       return { name: 'training-solver', trainingId };
     case 'detail':
       return { name: 'training-detail', trainingId };
+    case 'stats':
+      return { name: 'stats-overview' };
+    case 'history':
+      return { name: 'history-detail' };
+    case 'settings':
+      return { name: 'user-settings' };
   }
 }
 
@@ -167,3 +189,6 @@ function getRouteTrainingId(route: AppRoute): number | undefined {
 
   return undefined;
 }
+
+export { useTrainingsPanelRouting };
+export default useTrainingsPanelRouting;

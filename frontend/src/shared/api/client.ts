@@ -37,7 +37,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && options.token) {
       window.dispatchEvent(new Event(unauthorizedEventName));
     }
 

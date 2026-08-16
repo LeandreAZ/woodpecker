@@ -179,6 +179,115 @@ final class TrainingSummaryActionTest extends TestCase
         self::assertSame(1, $payload['latestAttempts'][0]['trainingPuzzlePosition']);
     }
 
+
+    public function testUsesLatestCycleFirstAndKeepsZeroedSummaryWhenNoAttemptsExist(): void
+    {
+        $owner = (new User())->setEmail('owner@example.com');
+        $training = (new Training())
+            ->setName('Structured set')
+            ->setOwner($owner);
+        $this->setEntityId($training, 8);
+
+        $puzzleOne = (new Puzzle())
+            ->setSolution(['e2e4'])
+            ->setThemes(['fork']);
+        $this->setEntityId($puzzleOne, 103);
+
+        $puzzleTwo = (new Puzzle())
+            ->setSolution(['d2d4']);
+        $this->setEntityId($puzzleTwo, 104);
+
+        $trainingPuzzleOne = (new TrainingPuzzle())
+            ->setTraining($training)
+            ->setPuzzle($puzzleOne)
+            ->setPosition(0);
+        $this->setEntityId($trainingPuzzleOne, 203);
+
+        $trainingPuzzleTwo = (new TrainingPuzzle())
+            ->setTraining($training)
+            ->setPuzzle($puzzleTwo)
+            ->setPosition(1)
+            ->setPersonalNote('  ');
+        $this->setEntityId($trainingPuzzleTwo, 204);
+
+        $olderCycle = (new Cycle())
+            ->setTraining($training)
+            ->setNumber(1)
+            ->setStatus('completed')
+            ->setStartedAt(new \DateTimeImmutable('2026-08-04T09:00:00+00:00'))
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-04T09:20:00+00:00'));
+        $this->setEntityId($olderCycle, 302);
+
+        $latestCycle = (new Cycle())
+            ->setTraining($training)
+            ->setNumber(3)
+            ->setStatus('active')
+            ->setStartedAt(new \DateTimeImmutable('2026-08-06T09:00:00+00:00'));
+        $this->setEntityId($latestCycle, 303);
+
+        $olderSolvedPuzzle = (new CyclePuzzle())
+            ->setCycle($olderCycle)
+            ->setTrainingPuzzle($trainingPuzzleOne)
+            ->setPosition(0)
+            ->setStatus('solved');
+        $this->setEntityId($olderSolvedPuzzle, 403);
+
+        $latestPendingPuzzle = (new CyclePuzzle())
+            ->setCycle($latestCycle)
+            ->setTrainingPuzzle($trainingPuzzleOne)
+            ->setPosition(0)
+            ->setStatus('pending');
+        $this->setEntityId($latestPendingPuzzle, 404);
+
+        $latestFailedPuzzle = (new CyclePuzzle())
+            ->setCycle($latestCycle)
+            ->setTrainingPuzzle($trainingPuzzleTwo)
+            ->setPosition(1)
+            ->setStatus('failed');
+        $this->setEntityId($latestFailedPuzzle, 405);
+
+        $this->security->method('getUser')->willReturn($owner);
+        $this->trainingRepository
+            ->method('findOneOwnedByUser')
+            ->with(8, $owner)
+            ->willReturn($training);
+        $this->trainingPuzzleRepository
+            ->method('findByTrainingWithPuzzleOrdered')
+            ->with($training)
+            ->willReturn([$trainingPuzzleOne, $trainingPuzzleTwo]);
+        $this->cycleRepository
+            ->method('findByTrainingOrdered')
+            ->with($training)
+            ->willReturn([$olderCycle, $latestCycle]);
+        $this->cyclePuzzleRepository
+            ->method('findByTrainingOrdered')
+            ->with($training)
+            ->willReturn([$olderSolvedPuzzle, $latestPendingPuzzle, $latestFailedPuzzle]);
+        $this->attemptRepository
+            ->method('findByTrainingOrdered')
+            ->with($training)
+            ->willReturn([]);
+
+        $response = ($this->action)(8);
+        $payload = json_decode($response->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(0, $payload['attemptCount']);
+        self::assertSame(0, $payload['solvedAttemptCount']);
+        self::assertSame(0, $payload['averageMistakes']);
+        self::assertSame(3, $payload['latestCycleSummary']['cycle']['number']);
+        self::assertSame(0, $payload['latestCycleSummary']['solved']);
+        self::assertSame(1, $payload['latestCycleSummary']['failed']);
+        self::assertSame(1, $payload['latestCycleSummary']['pending']);
+        self::assertSame(0, $payload['latestCycleSummary']['attemptCount']);
+        self::assertSame(0, $payload['latestCycleSummary']['progressPercent']);
+        self::assertCount(2, $payload['cycleSummaries']);
+        self::assertSame(3, $payload['cycleSummaries'][0]['cycle']['number']);
+        self::assertSame(1, $payload['cycleSummaries'][1]['cycle']['number']);
+        self::assertSame([], $payload['latestAttempts']);
+        self::assertSame(0, $payload['notedPuzzleCount']);
+        self::assertSame(1, $payload['themedPuzzleCount']);
+    }
+
     private function setEntityId(object $entity, int $id): void
     {
         $reflection = new \ReflectionProperty($entity, 'id');

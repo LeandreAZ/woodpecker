@@ -1,33 +1,86 @@
-import { useEffect, useState } from 'react';
-import { AuthPanel } from './features/auth/AuthPanel';
+import { useEffect, useMemo, useState } from 'react';
+import { AuthPage } from './features/auth/AuthPage';
+import { ComparePage } from './features/compare/ComparePage';
 import { loadStoredSession, saveStoredSession, type AuthSession } from './features/auth/authStorage';
-import TrainingsPanel from './features/trainings/TrainingsPanel';
+import { TrainingsPanel } from './features/trainings/TrainingsPanel';
+import { previewSession } from './features/trainings/previewData';
 import { getRouteDocumentTitle, useAppRoute } from './shared/routing/appRouter';
 import { unauthorizedEventName } from './shared/api/client';
 
-export function App() {
-  const [session, setSession] = useState<AuthSession | null>(() => loadStoredSession());
-  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
+function getPreviewSessionFromLocation(): AuthSession | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('preview') === '1' ? previewSession : null;
+}
+
+function isCompareRoute(routeName: string) {
+  return routeName.startsWith('compare-');
+}
+
+function isExpiredPreviewRequested(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('expired') === '1';
+}
+
+const App = () => {
+  const [session, setSession] = useState<AuthSession | null>(() => getPreviewSessionFromLocation() ?? loadStoredSession());
+  const [sessionMessage, setSessionMessage] = useState<string | null>(() => (isExpiredPreviewRequested() ? 'Reconnecte-toi pour continuer ton entraînement.' : null));
   const { navigate, route } = useAppRoute();
+  const authPreviewExpired = useMemo(() => isExpiredPreviewRequested(), []);
 
   useEffect(() => {
     document.title = getRouteDocumentTitle(route);
   }, [route]);
 
   useEffect(() => {
+    if (route.name !== 'auth' || !authPreviewExpired) {
+      return;
+    }
+
+    setSessionMessage('Reconnecte-toi pour continuer ton entraînement.');
+  }, [authPreviewExpired, route.name]);
+
+  useEffect(() => {
     function handleUnauthorized() {
+      const preview = getPreviewSessionFromLocation();
+
+      if (preview) {
+        setSession(preview);
+        return;
+      }
+
+      if (isCompareRoute(route.name)) {
+        return;
+      }
+
       saveStoredSession(null);
       setSession(null);
-      setSessionMessage('Ta session a expire. Reconnecte-toi pour continuer.');
+      setSessionMessage('Reconnecte-toi pour continuer ton entraînement.');
       navigate({ name: 'auth' }, { replace: true });
     }
 
     window.addEventListener(unauthorizedEventName, handleUnauthorized);
-
     return () => window.removeEventListener(unauthorizedEventName, handleUnauthorized);
-  }, [navigate]);
+  }, [navigate, route.name]);
 
   useEffect(() => {
+    if (isCompareRoute(route.name)) {
+      return;
+    }
+
+    const preview = getPreviewSessionFromLocation();
+
+    if (preview) {
+      if (!session || session.token !== preview.token) {
+        setSession(preview);
+      }
+
+      if (route.name === 'auth') {
+        navigate({ name: 'dashboard' }, { replace: true });
+      }
+
+      return;
+    }
+
     if (session) {
       if (route.name === 'auth') {
         navigate({ name: 'dashboard' }, { replace: true });
@@ -49,47 +102,29 @@ export function App() {
   }
 
   function handleLogout() {
+    if (getPreviewSessionFromLocation()) {
+      setSession(previewSession);
+      navigate({ name: 'dashboard' }, { replace: true });
+      return;
+    }
+
     saveStoredSession(null);
     setSession(null);
     setSessionMessage(null);
     navigate({ name: 'auth' }, { replace: true });
   }
 
+  if (isCompareRoute(route.name)) {
+    return <ComparePage route={route as never} />;
+  }
+
   if (session) {
     return <TrainingsPanel onLogout={handleLogout} onNavigate={navigate} route={route} session={session} />;
   }
 
-  return (
-    <main className="auth-shell">
-      <section className="brand-panel">
-        <div className="brand-panel-shell">
-          <div className="brand-mark" aria-hidden="true">
-            WP
-          </div>
-          <p className="brand-title">Woodpecker Trainer</p>
-          <h1>Entraine-toi. Repete. Progresse.</h1>
-          <p className="lead">
-            Cree tes entrainements tactiques, importe des puzzles compatibles Lichess et travaille
-            chaque cycle avec un echiquier interactif.
-          </p>
-          <ul className="brand-points">
-            <li>Cycles Woodpecker clairs</li>
-            <li>Import CSV compatible Lichess</li>
-            <li>Solveur interactif et suivi des erreurs</li>
-          </ul>
-        </div>
-        <div className="brand-footer-row">
-          <span>� 2026 Woodpecker Trainer</span>
-          <span>A propos</span>
-          <span>Contact</span>
-        </div>
-      </section>
+  return <AuthPage onAuthenticated={handleAuthenticated} sessionMessage={sessionMessage} />;
+};
 
-      <AuthPanel sessionMessage={sessionMessage} onAuthenticated={handleAuthenticated} />
-    </main>
-  );
-}
-
+export { App };
 export default App;
-
 

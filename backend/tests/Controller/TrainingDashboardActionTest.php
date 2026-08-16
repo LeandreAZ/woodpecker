@@ -148,6 +148,105 @@ final class TrainingDashboardActionTest extends TestCase
         self::assertSame('2026-08-06T18:10:00+00:00', $payload[0]['latestAttemptedAt']);
     }
 
+
+    public function testMarksActiveCycleAsResumableWhenPendingPuzzlesRemain(): void
+    {
+        $owner = (new User())->setEmail('owner@example.com');
+        $training = (new Training())
+            ->setName('Longer set')
+            ->setOwner($owner);
+        $this->setEntityId($training, 8);
+
+        $puzzleOne = (new Puzzle())
+            ->setSolution(['e2e4']);
+        $this->setEntityId($puzzleOne, 12);
+
+        $puzzleTwo = (new Puzzle())
+            ->setSolution(['d2d4']);
+        $this->setEntityId($puzzleTwo, 13);
+
+        $trainingPuzzleOne = (new TrainingPuzzle())
+            ->setTraining($training)
+            ->setPuzzle($puzzleOne)
+            ->setPosition(0);
+        $this->setEntityId($trainingPuzzleOne, 22);
+
+        $trainingPuzzleTwo = (new TrainingPuzzle())
+            ->setTraining($training)
+            ->setPuzzle($puzzleTwo)
+            ->setPosition(1);
+        $this->setEntityId($trainingPuzzleTwo, 23);
+
+        $latestCycle = (new Cycle())
+            ->setTraining($training)
+            ->setNumber(3)
+            ->setStatus('active');
+        $this->setEntityId($latestCycle, 32);
+
+        $solvedCyclePuzzle = (new CyclePuzzle())
+            ->setCycle($latestCycle)
+            ->setTrainingPuzzle($trainingPuzzleOne)
+            ->setPosition(0)
+            ->setStatus('solved');
+        $this->setEntityId($solvedCyclePuzzle, 42);
+
+        $pendingCyclePuzzle = (new CyclePuzzle())
+            ->setCycle($latestCycle)
+            ->setTrainingPuzzle($trainingPuzzleTwo)
+            ->setPosition(1)
+            ->setStatus('pending');
+        $this->setEntityId($pendingCyclePuzzle, 43);
+
+        $session = (new TrainingSession())
+            ->setTraining($training)
+            ->setCycle($latestCycle)
+            ->setStartedAt(new \DateTimeImmutable('2026-08-06T19:00:00+00:00'));
+        $this->setEntityId($session, 52);
+
+        $attempt = (new Attempt())
+            ->setCyclePuzzle($solvedCyclePuzzle)
+            ->setTrainingSession($session)
+            ->setPlayedMoves(['e2e4'])
+            ->setSuccessful(true)
+            ->setMistakesCount(1)
+            ->setDurationMilliseconds(14000)
+            ->setAttemptedAt(new \DateTimeImmutable('2026-08-06T19:05:00+00:00'));
+        $this->setEntityId($attempt, 62);
+
+        $this->security->method('getUser')->willReturn($owner);
+        $this->trainingRepository
+            ->method('findOwnedByUserOrdered')
+            ->with($owner)
+            ->willReturn([$training]);
+        $this->trainingPuzzleRepository
+            ->method('findByTrainingWithPuzzleOrdered')
+            ->with($training)
+            ->willReturn([$trainingPuzzleOne, $trainingPuzzleTwo]);
+        $this->cycleRepository
+            ->method('findByTrainingOrdered')
+            ->with($training)
+            ->willReturn([$latestCycle]);
+        $this->cyclePuzzleRepository
+            ->method('findByTrainingOrdered')
+            ->with($training)
+            ->willReturn([$solvedCyclePuzzle, $pendingCyclePuzzle]);
+        $this->attemptRepository
+            ->method('findByTrainingOrdered')
+            ->with($training)
+            ->willReturn([$attempt]);
+
+        $response = ($this->action)();
+        $payload = json_decode($response->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertCount(1, $payload);
+        self::assertSame(50, $payload[0]['progressPercent']);
+        self::assertSame(1, $payload[0]['solvedCount']);
+        self::assertSame(0, $payload[0]['failedCount']);
+        self::assertSame(1, $payload[0]['pendingCount']);
+        self::assertTrue($payload[0]['hasResumableCycle']);
+        self::assertFalse($payload[0]['descriptionReady']);
+    }
+
     private function setEntityId(object $entity, int $id): void
     {
         $reflection = new \ReflectionProperty($entity, 'id');

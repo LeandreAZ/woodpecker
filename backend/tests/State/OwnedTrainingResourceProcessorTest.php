@@ -227,6 +227,22 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
         self::assertSame($cycle, $this->processor->process($cycle, new Post()));
     }
 
+
+    public function testItRejectsActiveCycleWithoutOwnedTraining(): void
+    {
+        $cycle = (new Cycle())
+            ->setNumber(2)
+            ->setStatus('active');
+
+        $this->cycleRepository->expects(self::never())->method('hasActiveCycleForTraining');
+        $this->persistProcessor->expects(self::never())->method('process');
+
+        $this->expectException(AccessDeniedHttpException::class);
+        $this->expectExceptionMessage('another user training');
+
+        $this->processor->process($cycle, new Post());
+    }
+
     public function testItLocksTrainingPuzzleListAfterFirstCycle(): void
     {
         $training = $this->createTraining();
@@ -242,6 +258,21 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
 
         $this->expectException(ConflictHttpException::class);
         $this->expectExceptionMessage('puzzle list is locked');
+
+        $this->processor->process($trainingPuzzle, new Post());
+    }
+
+
+    public function testItRejectsTrainingPuzzleWithoutOwnedTraining(): void
+    {
+        $trainingPuzzle = (new TrainingPuzzle())
+            ->setPosition(0);
+
+        $this->cycleRepository->expects(self::never())->method('hasCycleForTraining');
+        $this->persistProcessor->expects(self::never())->method('process');
+
+        $this->expectException(AccessDeniedHttpException::class);
+        $this->expectExceptionMessage('another user training');
 
         $this->processor->process($trainingPuzzle, new Post());
     }

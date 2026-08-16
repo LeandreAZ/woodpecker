@@ -7,12 +7,18 @@ export function NavButton({
   onClick,
 }: {
   active: boolean;
-  children: string;
+  children: ReactNode;
   disabled?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button aria-current={active ? 'page' : undefined} className={active ? 'active' : undefined} disabled={disabled} type="button" onClick={onClick}>
+    <button
+      aria-current={active ? 'page' : undefined}
+      className={active ? 'active' : undefined}
+      disabled={disabled}
+      type="button"
+      onClick={onClick}
+    >
       {children}
     </button>
   );

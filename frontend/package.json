@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run check:exports && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:exports": "node ./scripts/check-relative-exports.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",

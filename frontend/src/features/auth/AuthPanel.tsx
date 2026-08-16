@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '../../shared/api/client';
+import { ApiError, apiRequest } from '../../shared/api/client';
 import type { AuthSession } from './authStorage';
 
 type AuthPanelProps = {
@@ -12,127 +12,190 @@ type LoginResponse = {
   token: string;
 };
 
-export function AuthPanel({ sessionMessage, onAuthenticated }: AuthPanelProps) {
+function iconProps() {
+  return {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.7,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  };
+}
+
+function AlertIcon() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8.2v4.6" />
+      <path d="M12 15.8h.01" />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M2.8 12s3.4-5.3 9.2-5.3 9.2 5.3 9.2 5.3-3.4 5.3-9.2 5.3S2.8 12 2.8 12Z" />
+      <circle cx="12" cy="12" r="2.1" />
+    </svg>
+  );
+}
+
+function AuthPanel({ sessionMessage, onAuthenticated }: AuthPanelProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const authMutation = useMutation({
     mutationFn: async () => {
       const normalizedEmail = email.trim().toLowerCase();
 
-      if (mode === 'register') {
-        await apiRequest('/users', {
+      try {
+        if (mode === 'register') {
+          await apiRequest('/users', {
+            method: 'POST',
+            body: {
+              email: normalizedEmail,
+              plainPassword: password,
+            },
+          });
+        }
+
+        const login = await apiRequest<LoginResponse>('/login_check', {
           method: 'POST',
+          contentType: 'application/json',
           body: {
             email: normalizedEmail,
-            plainPassword: password,
+            password,
           },
         });
-      }
 
-      const login = await apiRequest<LoginResponse>('/login_check', {
-        method: 'POST',
-        contentType: 'application/json',
-        body: {
+        return {
+          token: login.token,
           email: normalizedEmail,
-          password,
-        },
-      });
+        };
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401 && mode === 'login') {
+          throw new Error('Email ou mot de passe incorrect.');
+        }
 
-      return {
-        token: login.token,
-        email: normalizedEmail,
-      };
+        throw error;
+      }
     },
     onSuccess: onAuthenticated,
   });
 
-  const title = mode === 'login' ? 'Se connecter' : 'Créer un compte';
-  const submitLabel = mode === 'login' ? 'Se connecter' : 'Créer un compte';
+  const isLogin = mode === 'login';
+  const topErrorMessage = !sessionMessage && authMutation.isError ? authMutation.error.message : null;
+
+  function toggleMode() {
+    setMode(isLogin ? 'register' : 'login');
+    authMutation.reset();
+  }
 
   return (
-    <section className="auth-card" aria-labelledby="auth-title">
-      <div className="card-header auth-card-header">
-        <div>
-          <p className="eyebrow">Compte</p>
-          <h2 id="auth-title">{title}</h2>
-        </div>
+    <section aria-labelledby="auth-title" className="auth-panel">
+      <div className="auth-panel__header">
+        <h1 className="auth-panel__title" id="auth-title">
+          {isLogin ? 'Connexion' : 'Créer un compte'}
+        </h1>
+        <button className="auth-panel__switch" type="button" onClick={toggleMode}>
+          {isLogin ? 'Créer un compte' : 'Connexion'}
+        </button>
       </div>
 
-      <div className="auth-mode-switch" role="tablist" aria-label="Mode d'authentification">
-        <button
-          className={mode === 'login' ? 'active' : undefined}
-          type="button"
-          onClick={() => setMode('login')}
-        >
-          Se connecter
-        </button>
-        <button
-          className={mode === 'register' ? 'active' : undefined}
-          type="button"
-          onClick={() => setMode('register')}
-        >
-          Créer un compte
-        </button>
-      </div>
+      {sessionMessage ? (
+        <div className="auth-panel__alert" role="status">
+          <span className="auth-panel__alert-icon"><AlertIcon /></span>
+          <div>
+            <strong>Ta session a expiré.</strong>
+            <span>{sessionMessage}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {topErrorMessage ? (
+        <div className="auth-panel__alert" role="status">
+          <span className="auth-panel__alert-icon"><AlertIcon /></span>
+          <div>
+            <strong>Connexion impossible.</strong>
+            <span>{topErrorMessage}</span>
+          </div>
+        </div>
+      ) : null}
 
       <form
-        className="form-stack"
+        className="auth-panel__form"
         onSubmit={(event) => {
           event.preventDefault();
           authMutation.mutate();
         }}
       >
-        <label>
-          Email
-          <input
-            autoComplete="email"
-            name="email"
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="toi@example.com"
-            required
-            type="email"
-            value={email}
-          />
+        <label className="auth-panel__field">
+          <span>Email</span>
+          <div className="auth-panel__input-shell">
+            <input
+              autoComplete="email"
+              name="email"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="ton@email.com"
+              required
+              type="email"
+              value={email}
+            />
+          </div>
         </label>
 
-        <label>
-          Mot de passe
-          <input
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            minLength={8}
-            name="password"
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Minimum 8 caractères"
-            required
-            type="password"
-            value={password}
-          />
+        <label className="auth-panel__field">
+          <span>Mot de passe</span>
+          <div className="auth-panel__input-shell auth-panel__input-shell--password">
+            <input
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              minLength={8}
+              name="password"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="● ● ● ● ● ● ● ●"
+              required
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+            />
+            <button
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="auth-panel__password-toggle"
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+            >
+              <EyeIcon />
+            </button>
+          </div>
         </label>
 
-        <div className="auth-help-row">
-          <span>{mode === 'login' ? 'Connexion securisee' : 'Minimum 8 caracteres'}</span>
-          <button
-            className="auth-inline-toggle"
-            type="button"
-            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-          >
-            {mode === 'login' ? 'Pas encore de compte ?' : 'Deja un compte ?'}
-          </button>
+        <div className="auth-panel__meta">
+          <span />
+          {isLogin ? (
+            <button className="auth-panel__forgot" type="button">
+              Mot de passe oublié ?
+            </button>
+          ) : null}
         </div>
 
-        {sessionMessage && <p className="alert info-alert">{sessionMessage}</p>}
-
-        {authMutation.isError && (
-          <p className="alert error-alert">{authMutation.error.message}</p>
-        )}
-
-        <button className="primary-button" disabled={authMutation.isPending} type="submit">
-          {authMutation.isPending ? 'Chargement...' : submitLabel}
+        <button className="auth-panel__submit" disabled={authMutation.isPending} type="submit">
+          {authMutation.isPending ? 'Chargement...' : isLogin ? 'Se connecter' : 'Créer un compte'}
         </button>
+
+        <div className="auth-panel__footer">
+          <span>{isLogin ? "Tu n'as pas encore de compte ?" : 'Tu as déjà un compte ?'}</span>
+          <button className="auth-panel__inline-link" type="button" onClick={toggleMode}>
+            {isLogin ? 'Créer un compte' : 'Connexion'}
+          </button>
+        </div>
       </form>
     </section>
   );
 }
 
+export { AuthPanel };
+export default AuthPanel;

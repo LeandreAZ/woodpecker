@@ -51,17 +51,48 @@ export function useTrainingsPanelActions(
         body: {
           name: uiState.name.trim(),
           description: uiState.description.trim() || null,
+          icon: uiState.icon,
         },
       }),
     onSuccess: async (training) => {
       uiState.setName('');
       uiState.setDescription('');
+      uiState.setIcon('queen');
       uiState.setSelectedTrainingIri(training['@id']);
       uiState.setSelectedTrainingPuzzleIri(null);
       uiState.setMistakeLimitOverride(null);
       uiState.setActiveView('detail');
       await queryClient.invalidateQueries({ queryKey: ['trainings', session.email] });
       await invalidateTrainingData(training['@id']);
+    },
+  });
+
+
+  const deleteTrainingMutation = useMutation({
+    mutationFn: async (trainingIri: string) => {
+      await apiRequest<void>(apiPathFromIri(trainingIri), {
+        method: 'DELETE',
+        token: session.token,
+      });
+
+      return trainingIri;
+    },
+    onSuccess: async (deletedTrainingIri) => {
+      if (queries.effectiveSelectedTrainingIri === deletedTrainingIri) {
+        const remainingTraining = (queries.trainingsQuery.data ?? []).find(
+          (training) => training['@id'] !== deletedTrainingIri,
+        );
+        uiState.setSelectedTrainingIri(remainingTraining?.['@id'] ?? null);
+        uiState.setSelectedTrainingPuzzleIri(null);
+        uiState.setActiveCycleIri(null);
+        uiState.setActiveTrainingSessionIri(null);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['trainings', session.email] }),
+        queryClient.invalidateQueries({ queryKey: ['training-dashboard', session.email] }),
+        queryClient.invalidateQueries({ queryKey: ['stats-overview', session.email] }),
+      ]);
     },
   });
 
@@ -490,6 +521,7 @@ export function useTrainingsPanelActions(
   return {
     createPuzzleMutation,
     createTrainingMutation,
+    deleteTrainingMutation,
     deleteTrainingPuzzleMutation,
     importCsvMutation,
     moveTrainingPuzzleMutation,

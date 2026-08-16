@@ -1,0 +1,200 @@
+.compare-page {
+  min-height: 100vh;
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(92, 142, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 82% 6%, rgba(130, 229, 141, 0.12), transparent 20%),
+    linear-gradient(180deg, #040912 0%, #07101a 52%, #050b14 100%);
+}
+
+.compare-page__surface {
+  border: 1px solid rgba(154, 173, 204, 0.16);
+  border-radius: 22px;
+  background: rgba(10, 19, 31, 0.95);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.compare-page__topbar {
+  padding: 20px;
+}
+
+.compare-page__topbar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.compare-page__title {
+  margin: 0;
+  color: #eef3fb;
+  font-size: clamp(2rem, 3vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+.compare-page__description {
+  margin: 8px 0 0;
+  max-width: 72ch;
+  color: #95a7c2;
+  line-height: 1.6;
+}
+
+.compare-page__nav-stack {
+  display: grid;
+  gap: 12px;
+  min-width: min(100%, 760px);
+}
+
+.compare-page__nav-section {
+  display: grid;
+  gap: 8px;
+}
+
+.compare-page__nav-title {
+  color: #95a7c2;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.compare-page__nav-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.compare-page__nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(154, 173, 204, 0.16);
+  color: #eef3fb;
+  text-decoration: none;
+  background: rgba(18, 30, 49, 0.92);
+}
+
+.compare-page__nav-link.is-active {
+  background: linear-gradient(180deg, rgba(50, 92, 190, 0.95), rgba(30, 58, 122, 0.95));
+  border-color: rgba(96, 143, 255, 0.42);
+}
+
+.compare-page__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.compare-page__pane {
+  overflow: hidden;
+}
+
+.compare-page__pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(154, 173, 204, 0.16);
+}
+
+.compare-page__pane-title {
+  display: block;
+  color: #eef3fb;
+  font-size: 1.05rem;
+}
+
+.compare-page__pane-meta {
+  display: block;
+  margin-top: 4px;
+  color: #95a7c2;
+  font-size: 0.92rem;
+}
+
+.compare-page__viewport {
+  padding: 12px;
+  overflow: auto;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.025) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.025) 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+}
+
+.compare-page__viewport--mobile {
+  display: grid;
+  place-items: start center;
+}
+
+.compare-page__image,
+.compare-page__frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #050b14;
+}
+
+.compare-page__image {
+  height: auto;
+  border-radius: 14px;
+}
+
+.compare-page__image--mobile,
+.compare-page__frame--mobile {
+  width: min(100%, 430px);
+  border-radius: 18px;
+}
+
+.compare-page__frame {
+  height: 960px;
+  border-radius: 14px;
+}
+
+.compare-page__frame--mobile {
+  height: 932px;
+}
+
+.compare-page__missing {
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(130, 229, 141, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(9, 16, 27, 0.92), rgba(7, 13, 22, 0.98));
+}
+
+.compare-page__missing-card {
+  max-width: 420px;
+  padding: 24px;
+  border-radius: 18px;
+  border: 1px solid rgba(154, 173, 204, 0.16);
+  background: rgba(12, 22, 35, 0.94);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.28);
+}
+
+.compare-page__missing-title {
+  display: block;
+  color: #eef3fb;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+
+.compare-page__missing-text {
+  margin: 0;
+  color: #95a7c2;
+  line-height: 1.7;
+}
+
+@media (max-width: 960px) {
+  .compare-page__grid {
+    grid-template-columns: 1fr;
+  }
+}
