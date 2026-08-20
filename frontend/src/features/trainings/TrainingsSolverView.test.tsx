@@ -1,7 +1,8 @@
+import type { ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SolverView } from './TrainingsSolverView';
-import type { CyclePuzzle, CycleStats, Puzzle, Training, TrainingPuzzle } from './trainingsTypes';
+import type { CyclePuzzle, CycleStats, Puzzle, Training, TrainingPuzzle, TrainingSummary } from './trainingsTypes';
 
 vi.mock('./PuzzleSolver', () => ({
   PuzzleSolver: ({ onCompleted, onFailed }: { onCompleted?: (result: { durationMilliseconds: number; mistakesCount: number; playedMoves: string[] }) => void; onFailed?: (result: { durationMilliseconds: number; mistakesCount: number; playedMoves: string[] }) => void }) => (
@@ -42,6 +43,14 @@ const selectedTrainingPuzzle: TrainingPuzzle = {
   training: training['@id'],
 };
 
+const secondTrainingPuzzle: TrainingPuzzle = {
+  '@id': '/api/training_puzzles/2',
+  id: 2,
+  position: 1,
+  puzzle: selectedPuzzle,
+  training: training['@id'],
+};
+
 const baseCycleStats: CycleStats = {
   failed: 1,
   pending: 2,
@@ -50,195 +59,165 @@ const baseCycleStats: CycleStats = {
   total: 3,
 };
 
+const summary: TrainingSummary = {
+  attemptCount: 3,
+  averageMistakes: 1,
+  cycleSummaries: [
+    {
+      attemptCount: 3,
+      cycle: {
+        '@id': '/api/cycles/1',
+        completedAt: '2026-08-10T09:00:00+00:00',
+        id: 1,
+        number: 1,
+        startedAt: '2026-08-03T09:00:00+00:00',
+        status: 'active',
+        training: training['@id'],
+      },
+      failed: 1,
+      pending: 2,
+      progressPercent: 33,
+      solved: 1,
+      total: 3,
+    },
+  ],
+  latestAttempts: [],
+  latestCycleSummary: {
+    attemptCount: 3,
+    cycle: {
+      '@id': '/api/cycles/1',
+      completedAt: '2026-08-10T09:00:00+00:00',
+      id: 1,
+      number: 1,
+      startedAt: '2026-08-03T09:00:00+00:00',
+      status: 'active',
+      training: training['@id'],
+    },
+    failed: 1,
+    pending: 2,
+    progressPercent: 33,
+    solved: 1,
+    total: 3,
+  },
+  notedPuzzleCount: 0,
+  puzzleCount: 2,
+  ratedPuzzleCount: 1,
+  solvedAttemptCount: 1,
+  themedPuzzleCount: 1,
+};
+
 const activeCyclePuzzle: CyclePuzzle = {
   '@id': '/api/cycle_puzzles/1',
-  cycle: '/api/cycles/2',
+  cycle: '/api/cycles/1',
   id: 1,
   position: 0,
   status: 'failed',
   trainingPuzzle: selectedTrainingPuzzle['@id'],
 };
 
+function renderSolver(overrides: Partial<ComponentProps<typeof SolverView>> = {}) {
+  const props: ComponentProps<typeof SolverView> = {
+    attemptIsError: false,
+    attemptIsPending: false,
+    cycleIsFinished: false,
+    cyclePuzzles: [],
+    cycleStats: baseCycleStats,
+    currentCyclePuzzle: null,
+    failedCyclePuzzleIris: new Set(),
+    hasActiveCycle: true,
+    mistakeLimit: 3,
+    mistakeLimitIsError: false,
+    mistakeLimitIsPending: false,
+    onBackToDashboard: vi.fn(),
+    onBackToDetail: vi.fn(),
+    onMistakeLimitChange: vi.fn(),
+    onPuzzleCompleted: vi.fn(),
+    onPuzzleFailed: vi.fn(),
+    onPuzzleSelect: vi.fn(),
+    savedCyclePuzzleIris: new Set(),
+    selectedPuzzle,
+    selectedTraining: training,
+    selectedTrainingPuzzle,
+    summary,
+    trainingPuzzles: [selectedTrainingPuzzle, secondTrainingPuzzle],
+    ...overrides,
+  };
+
+  return render(<SolverView {...props} />);
+}
+
 describe('SolverView', () => {
   it('propose un retour au tableau de bord quand aucun training n est ouvert', () => {
     const onBackToDashboard = vi.fn();
 
-    render(
-      <SolverView
-        attemptIsError={false}
-        attemptIsPending={false}
-        cycleIsFinished={false}
-        cyclePuzzles={[]}
-        cycleStats={{ ...baseCycleStats, failed: 0, pending: 0, solved: 0, total: 1, progressPercent: 0 }}
-        currentCyclePuzzle={null}
-        failedCyclePuzzleIris={new Set()}
-        hasActiveCycle={false}
-        mistakeLimit={3}
-        mistakeLimitIsError={false}
-        mistakeLimitIsPending={false}
-        onBackToDashboard={onBackToDashboard}
-        onBackToDetail={vi.fn()}
-        onMistakeLimitChange={vi.fn()}
-        onPuzzleCompleted={vi.fn()}
-        onPuzzleFailed={vi.fn()}
-        onPuzzleSelect={vi.fn()}
-        savedCyclePuzzleIris={new Set()}
-        selectedTraining={null}
-        selectedTrainingPuzzle={null}
-        trainingPuzzles={[]}
-      />,
-    );
+    renderSolver({
+      onBackToDashboard,
+      selectedTraining: null,
+      selectedTrainingPuzzle: null,
+      selectedPuzzle: undefined,
+      summary: null,
+      trainingPuzzles: [],
+      cyclePuzzles: [],
+      cycleStats: { ...baseCycleStats, failed: 0, pending: 0, solved: 0, total: 1, progressPercent: 0 },
+      hasActiveCycle: false,
+    });
 
-    expect(screen.getByText('Aucun entrainement ouvert')).toBeInTheDocument();
-
+    expect(screen.getByText('Aucun entraînement ouvert')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le tableau de bord' }));
-
     expect(onBackToDashboard).toHaveBeenCalledTimes(1);
   });
 
   it('affiche un retour au detail quand le training ne contient encore aucun puzzle', () => {
     const onBackToDetail = vi.fn();
 
-    render(
-      <SolverView
-        attemptIsError={false}
-        attemptIsPending={false}
-        cycleIsFinished={false}
-        cyclePuzzles={[]}
-        cycleStats={{ ...baseCycleStats, failed: 0, pending: 0, solved: 0, total: 0, progressPercent: 0 }}
-        currentCyclePuzzle={null}
-        failedCyclePuzzleIris={new Set()}
-        hasActiveCycle={false}
-        mistakeLimit={3}
-        mistakeLimitIsError={false}
-        mistakeLimitIsPending={false}
-        onBackToDashboard={vi.fn()}
-        onBackToDetail={onBackToDetail}
-        onMistakeLimitChange={vi.fn()}
-        onPuzzleCompleted={vi.fn()}
-        onPuzzleFailed={vi.fn()}
-        onPuzzleSelect={vi.fn()}
-        savedCyclePuzzleIris={new Set()}
-        selectedTraining={training}
-        selectedTrainingPuzzle={null}
-        trainingPuzzles={[]}
-      />,
-    );
+    renderSolver({
+      onBackToDetail,
+      trainingPuzzles: [],
+      selectedTrainingPuzzle: null,
+      selectedPuzzle: undefined,
+    });
 
     expect(screen.getByText('Ce training ne contient pas encore de puzzle')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Retour au detail du training' }));
-
+    fireEvent.click(screen.getByRole('button', { name: 'Retour au détail du training' }));
     expect(onBackToDetail).toHaveBeenCalledTimes(1);
   });
 
-  it('affiche le mode libre quand aucun cycle actif ne suit la tentative', () => {
-    render(
-      <SolverView
-        attemptIsError={false}
-        attemptIsPending={false}
-        cycleIsFinished={false}
-        cyclePuzzles={[]}
-        cycleStats={{ ...baseCycleStats, failed: 0, pending: 0, solved: 0, total: 1, progressPercent: 0 }}
-        currentCyclePuzzle={null}
-        failedCyclePuzzleIris={new Set()}
-        hasActiveCycle={false}
-        mistakeLimit={3}
-        mistakeLimitIsError={false}
-        mistakeLimitIsPending={false}
-        onBackToDashboard={vi.fn()}
-        onBackToDetail={vi.fn()}
-        onMistakeLimitChange={vi.fn()}
-        onPuzzleCompleted={vi.fn()}
-        onPuzzleFailed={vi.fn()}
-        onPuzzleSelect={vi.fn()}
-        savedCyclePuzzleIris={new Set()}
-        selectedPuzzle={selectedPuzzle}
-        selectedTraining={training}
-        selectedTrainingPuzzle={selectedTrainingPuzzle}
-        trainingPuzzles={[selectedTrainingPuzzle]}
-      />,
-    );
+  it('affiche la barre du cycle et la progression du solveur', () => {
+    renderSolver();
 
-    expect(screen.getByText('Mode libre', { selector: 'strong' })).toBeInTheDocument();
-    expect(screen.getByText(/Demarre un cycle depuis le detail/)).toBeInTheDocument();
-    expect(screen.getByTestId('puzzle-solver')).toBeInTheDocument();
+    expect(screen.getByText('Cycle 1')).toBeInTheDocument();
+    expect(screen.getAllByText('33%').length).toBeGreaterThan(0);
+    expect(screen.getByText('Progression')).toBeInTheDocument();
+    expect(screen.getByText('Puzzle 1 / 2')).toBeInTheDocument();
   });
 
-  it('met en avant un puzzle a revoir et laisse changer la tolerance', () => {
-    const onMistakeLimitChange = vi.fn();
+  it('met en avant un puzzle a revoir avec une alerte au dessus de l echiquier', () => {
+    renderSolver({
+      currentCyclePuzzle: activeCyclePuzzle,
+      cyclePuzzles: [activeCyclePuzzle],
+      failedCyclePuzzleIris: new Set(['/api/cycle_puzzles/1']),
+    });
 
-    render(
-      <SolverView
-        attemptIsError={false}
-        attemptIsPending={false}
-        cycleIsFinished={false}
-        cyclePuzzles={[activeCyclePuzzle]}
-        cycleStats={baseCycleStats}
-        currentCyclePuzzle={activeCyclePuzzle}
-        failedCyclePuzzleIris={new Set(['/api/cycle_puzzles/1'])}
-        hasActiveCycle={true}
-        mistakeLimit={3}
-        mistakeLimitIsError={false}
-        mistakeLimitIsPending={false}
-        onBackToDashboard={vi.fn()}
-        onBackToDetail={vi.fn()}
-        onMistakeLimitChange={onMistakeLimitChange}
-        onPuzzleCompleted={vi.fn()}
-        onPuzzleFailed={vi.fn()}
-        onPuzzleSelect={vi.fn()}
-        savedCyclePuzzleIris={new Set()}
-        selectedPuzzle={selectedPuzzle}
-        selectedTraining={training}
-        selectedTrainingPuzzle={selectedTrainingPuzzle}
-        trainingPuzzles={[selectedTrainingPuzzle]}
-      />,
-    );
-
-    expect(screen.getByText('Cycle actif', { selector: 'strong' })).toBeInTheDocument();
-    expect(screen.getByText(/Ce puzzle est marque a revoir/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: '5' }));
-
-    expect(onMistakeLimitChange).toHaveBeenCalledWith(5);
+    expect(screen.getByText(/Ce puzzle est marqué à revoir/)).toBeInTheDocument();
+    expect(screen.getByText('À revoir')).toBeInTheDocument();
   });
 
-
-  it('transmet les callbacks de resolution quand le puzzle actif est encore jouable', () => {
+  it('transmet les callbacks de resolution et permet la navigation precedent suivant', () => {
     const onPuzzleCompleted = vi.fn();
     const onPuzzleFailed = vi.fn();
     const onPuzzleSelect = vi.fn();
 
-    render(
-      <SolverView
-        attemptIsError={false}
-        attemptIsPending={false}
-        cycleIsFinished={false}
-        cyclePuzzles={[{ ...activeCyclePuzzle, status: 'pending' }]}
-        cycleStats={baseCycleStats}
-        currentCyclePuzzle={{ ...activeCyclePuzzle, status: 'pending' }}
-        failedCyclePuzzleIris={new Set()}
-        hasActiveCycle={true}
-        mistakeLimit={3}
-        mistakeLimitIsError={false}
-        mistakeLimitIsPending={false}
-        onBackToDashboard={vi.fn()}
-        onBackToDetail={vi.fn()}
-        onMistakeLimitChange={vi.fn()}
-        onPuzzleCompleted={onPuzzleCompleted}
-        onPuzzleFailed={onPuzzleFailed}
-        onPuzzleSelect={onPuzzleSelect}
-        savedCyclePuzzleIris={new Set()}
-        selectedPuzzle={selectedPuzzle}
-        selectedTraining={training}
-        selectedTrainingPuzzle={selectedTrainingPuzzle}
-        trainingPuzzles={[selectedTrainingPuzzle]}
-      />,
-    );
+    renderSolver({
+      currentCyclePuzzle: { ...activeCyclePuzzle, status: 'pending' },
+      cyclePuzzles: [{ ...activeCyclePuzzle, status: 'pending' }],
+      onPuzzleCompleted,
+      onPuzzleFailed,
+      onPuzzleSelect,
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Completer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Echouer' }));
-    fireEvent.click(screen.getByRole('button', { name: '1 Rating 1600 En cours' }));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/ }));
 
     expect(onPuzzleCompleted).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -254,53 +233,22 @@ describe('SolverView', () => {
         playedMoves: ['e2e4'],
       }),
     );
-    expect(onPuzzleSelect).toHaveBeenCalledWith('/api/training_puzzles/1');
+    expect(onPuzzleSelect).toHaveBeenCalledWith('/api/training_puzzles/2');
   });
 
-  it('bloque les callbacks et affiche les messages de sauvegarde quand le puzzle est deja traite', () => {
-    const onPuzzleCompleted = vi.fn();
-    const onPuzzleFailed = vi.fn();
+  it('affiche les messages de sauvegarde et de cycle deja valide', () => {
+    renderSolver({
+      attemptError: 'Tentative impossible pour le moment.',
+      attemptIsError: true,
+      attemptIsPending: true,
+      currentCyclePuzzle: { ...activeCyclePuzzle, status: 'solved' },
+      cycleIsFinished: true,
+      cyclePuzzles: [activeCyclePuzzle],
+      savedCyclePuzzleIris: new Set(['/api/cycle_puzzles/1']),
+    });
 
-    render(
-      <SolverView
-        attemptError='Tentative impossible pour le moment.'
-        attemptIsError={true}
-        attemptIsPending={true}
-        cycleIsFinished={true}
-        cyclePuzzles={[activeCyclePuzzle]}
-        cycleStats={{ ...baseCycleStats, solved: 2, failed: 1, pending: 0, progressPercent: 100 }}
-        currentCyclePuzzle={{ ...activeCyclePuzzle, status: 'solved' }}
-        failedCyclePuzzleIris={new Set(['/api/cycle_puzzles/1'])}
-        hasActiveCycle={true}
-        mistakeLimit={3}
-        mistakeLimitError='Impossible de changer la tolerance.'
-        mistakeLimitIsError={true}
-        mistakeLimitIsPending={true}
-        onBackToDashboard={vi.fn()}
-        onBackToDetail={vi.fn()}
-        onMistakeLimitChange={vi.fn()}
-        onPuzzleCompleted={onPuzzleCompleted}
-        onPuzzleFailed={onPuzzleFailed}
-        onPuzzleSelect={vi.fn()}
-        savedCyclePuzzleIris={new Set(['/api/cycle_puzzles/1'])}
-        selectedPuzzle={selectedPuzzle}
-        selectedTraining={training}
-        selectedTrainingPuzzle={selectedTrainingPuzzle}
-        trainingPuzzles={[selectedTrainingPuzzle]}
-      />,
-    );
-
-    expect(screen.getByText('Cycle termine')).toBeInTheDocument();
-    expect(screen.getByText(/Ce puzzle est deja sauvegarde comme resolu/)).toBeInTheDocument();
-    expect(screen.getByText('Sauvegarde de la tolerance...')).toBeInTheDocument();
-    expect(screen.getByText('Impossible de changer la tolerance.')).toBeInTheDocument();
     expect(screen.getByText('Sauvegarde de la tentative...')).toBeInTheDocument();
     expect(screen.getByText('Tentative impossible pour le moment.')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Completer' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Echouer' }));
-
-    expect(onPuzzleCompleted).not.toHaveBeenCalled();
-    expect(onPuzzleFailed).not.toHaveBeenCalled();
+    expect(screen.getByText('Ce puzzle est déjà validé pour ce cycle.')).toBeInTheDocument();
   });
 });

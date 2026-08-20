@@ -1,105 +1,54 @@
-.solver-panel-mockup {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 220px;
-  gap: 18px;
-  align-items: start;
-}
-
-.solver-info,
-.solver-actions,
-.solver-board-shell {
-  border: 1px solid rgba(61, 82, 109, 0.28);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(10, 21, 37, 0.96), rgba(8, 17, 31, 0.96));
-  box-shadow: 0 24px 48px rgba(3, 8, 18, 0.24);
-}
-
-.solver-info,
-.solver-actions {
+.wp-puzzle-solver-v2 {
   display: grid;
   gap: 16px;
-  padding: 18px;
 }
 
-.solver-board-shell {
-  padding: 14px;
-}
-
-.solver-stat-card,
-.solver-solution-card {
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(170, 184, 199, 0.1);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.solver-stat-card.warning {
-  border-color: rgba(240, 195, 106, 0.24);
-  background: rgba(240, 195, 106, 0.08);
-}
-
-.solver-stat-card-large strong,
-.solver-stat-card strong,
-.solver-solution-card strong {
-  display: block;
-  margin-top: 6px;
-  color: #f5f7fc;
-  font-size: 1.25rem;
-}
-
-.solver-stat-card span,
-.solver-solution-card span,
-.solver-info-tags span,
-.solver-feedback p {
-  color: #9fb0c5;
-}
-
-.solver-info-tags {
+.wp-puzzle-solver-v2__status {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(61, 82, 109, 0.22);
+  border-radius: 16px;
+  background: rgba(8, 17, 31, 0.48);
 }
 
-.solver-feedback {
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(170, 184, 199, 0.1);
-  background: rgba(8, 15, 25, 0.5);
-}
-
-.solver-feedback strong {
-  display: block;
-  margin-bottom: 6px;
+.wp-puzzle-solver-v2__status strong {
   color: #f5f7fc;
 }
 
-.solver-feedback-success {
-  border-color: rgba(127, 240, 173, 0.22);
-  background: rgba(69, 200, 120, 0.08);
+.wp-puzzle-solver-v2__status span,
+.wp-puzzle-solver-v2__status small {
+  color: #a8b7ca;
 }
 
-.solver-feedback-error {
-  border-color: rgba(255, 125, 125, 0.24);
-  background: rgba(255, 125, 125, 0.08);
-}
-
-.solver-board-shell-mockup {
+.wp-puzzle-solver-v2__board {
   min-width: 0;
+  padding: 3px;
+  border-radius: 14px;
+  border: 1px solid rgba(61, 82, 109, 0.26);
+  background: rgba(8, 17, 31, 0.72);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.solver-actions-right {
-  align-content: start;
+.wp-puzzle-solver-v2__board.is-success {
+  border-color: rgba(116, 212, 73, 0.72);
+  box-shadow: 0 0 0 1px rgba(116, 212, 73, 0.34), 0 16px 32px rgba(56, 128, 39, 0.24);
 }
 
-.solver-action-button.muted {
-  background: rgba(9, 17, 28, 0.72);
-  color: #eef4fb;
-  border-color: rgba(170, 184, 199, 0.14);
-  box-shadow: none;
+.wp-puzzle-solver-v2__board.is-error {
+  border-color: rgba(236, 92, 92, 0.78);
+  box-shadow: 0 0 0 1px rgba(236, 92, 92, 0.34), 0 16px 32px rgba(116, 34, 34, 0.24);
 }
 
-@media (max-width: 1180px) {
-  .solver-panel-mockup {
-    grid-template-columns: 1fr;
+@media (max-width: 760px) {
+  .wp-puzzle-solver-v2__status {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

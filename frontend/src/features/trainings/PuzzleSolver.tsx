@@ -39,35 +39,23 @@ type ChessSquare = Parameters<Chess['get']>[0];
 function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: PuzzleSolverProps) {
   const initialFen = fen?.trim() || undefined;
   const normalizedSolution = useMemo(() => solution.map((move) => move.trim()).filter(Boolean), [solution]);
-  const [solverState, setSolverState] = useState(() => createInitialSolverState(initialFen, normalizedSolution));
+  const [solverState, setSolverState] = useState(() => createInitialSolverState(initialFen));
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [isSolutionVisible, setIsSolutionVisible] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
+  const [rightClickMarkers, setRightClickMarkers] = useState<Record<string, CSSProperties>>({});
 
-  const { countedMistakeKeys, game, currentFen, moveIndex, playedMoves, mistakesCount, startedAt, completedAt, feedback } = solverState;
+  const { countedMistakeKeys, game, currentFen, moveIndex, playedMoves, feedback, mistakesCount, startedAt, completedAt } = solverState;
   const boardOrientation = game.turn() === 'w' ? 'white' : 'black';
   const legalTargetSquares = selectedSquare ? getLegalTargetSquares(game, selectedSquare) : [];
-  const squareStyles = getSquareStyles(selectedSquare, legalTargetSquares);
-  const elapsedMilliseconds = (completedAt ?? now) - startedAt;
-  const visibleProgress = Math.min(moveIndex, normalizedSolution.length);
-  const remainingErrors = Math.max(0, mistakeLimit - mistakesCount);
-  const feedbackClassName = ['solver-feedback', `solver-feedback-${feedback.kind}`].join(' ');
+  const squareStyles = getSquareStyles(selectedSquare, legalTargetSquares, rightClickMarkers);
+  const boardFeedbackClassName = ['wp-puzzle-solver-v2__board', feedback.kind === 'success' ? 'is-success' : '', feedback.kind === 'error' ? 'is-error' : '']
+    .filter(Boolean)
+    .join(' ');
 
   useEffect(() => {
-    if (completedAt) {
-      return undefined;
-    }
-
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, [completedAt]);
-
-  function resetPuzzle() {
     setSelectedSquare(null);
-    setIsSolutionVisible(false);
-    setNow(Date.now());
-    setSolverState(createInitialSolverState(initialFen, normalizedSolution));
-  }
+    setRightClickMarkers({});
+    setSolverState(createInitialSolverState(initialFen));
+  }, [initialFen, normalizedSolution]);
 
   function handlePieceDrop(sourceSquare: string, targetSquare: string | null): boolean {
     if (completedAt || !targetSquare) {
@@ -75,27 +63,23 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
     }
 
     const expectedMove = normalizedSolution[moveIndex];
-
     if (!expectedMove) {
       setSolverState({
         ...solverState,
-        feedback: { kind: 'success', message: 'Sequence completee.' },
+        feedback: { kind: 'success', message: 'Séquence complétée.' },
       });
-
       return false;
     }
 
-    const attemptedMove = `${sourceSquare}${targetSquare}`;
+    const attemptedMove = sourceSquare + targetSquare;
 
     if (!isExpectedMove(attemptedMove, expectedMove)) {
-      const mistakeKey = `${moveIndex}:${attemptedMove.toLowerCase()}`;
-
+      const mistakeKey = String(moveIndex) + ':' + attemptedMove.toLowerCase();
       if (countedMistakeKeys.has(mistakeKey)) {
         setSolverState({
           ...solverState,
-          feedback: { kind: 'info', message: 'Cette erreur a deja ete comptee. Essaie une autre idee.' },
+          feedback: { kind: 'info', message: 'Cette erreur a déjà été comptée. Essayez une autre idée.' },
         });
-
         return false;
       }
 
@@ -111,7 +95,7 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
         completedAt: failedAt,
         feedback: {
           kind: 'error',
-          message: failedAt ? 'Tentative echouee. Reprends la position.' : 'Mauvais coup. Continue a chercher.',
+          message: failedAt ? 'Tentative échouée. Revenez au puzzle suivant.' : 'Mauvais coup. Continuez à chercher.',
         },
       });
 
@@ -127,14 +111,12 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
     }
 
     const playerMove = playMove(game, expectedMove);
-
     if (!playerMove) {
       setSolverState({
         ...solverState,
         mistakesCount: mistakesCount + 1,
-        feedback: { kind: 'error', message: 'Le coup attendu n est pas legal depuis cette position.' },
+        feedback: { kind: 'error', message: 'Le coup attendu n’est pas légal depuis cette position.' },
       });
-
       return false;
     }
 
@@ -143,7 +125,6 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
 
     if (nextMoveIndex < normalizedSolution.length) {
       const replyMove = playMove(game, normalizedSolution[nextMoveIndex]);
-
       if (!replyMove) {
         setSolverState({
           ...solverState,
@@ -151,9 +132,8 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
           currentFen: game.fen(),
           moveIndex: nextMoveIndex,
           playedMoves: nextPlayedMoves,
-          feedback: { kind: 'error', message: 'La reponse automatique n est pas legale depuis cette position.' },
+          feedback: { kind: 'error', message: 'La réponse automatique n’est pas légale depuis cette position.' },
         });
-
         setSelectedSquare(null);
         return true;
       }
@@ -173,7 +153,7 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
       moveIndex: nextMoveIndex,
       playedMoves: nextPlayedMoves,
       completedAt: finishedAt,
-      feedback: isCompleted ? { kind: 'success', message: 'Bravo, solution trouvee.' } : { kind: 'info', message: 'Bon coup. Trouve la suite.' },
+      feedback: isCompleted ? { kind: 'success', message: 'Bravo, solution trouvée.' } : { kind: 'info', message: 'Bon coup. Trouvez la suite.' },
     });
 
     if (isCompleted) {
@@ -181,10 +161,11 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
     }
 
     setSelectedSquare(null);
+    setRightClickMarkers({});
     return true;
   }
 
-  function handleSquareClick(square: string): void {
+  function handleSquareClick(square: string) {
     if (!selectedSquare) {
       const piece = game.get(square as ChessSquare);
       if (piece && piece.color === game.turn()) {
@@ -205,27 +186,24 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
     }
   }
 
+  function handleSquareRightClick(square: string) {
+    setRightClickMarkers((current) => {
+      const next = { ...current };
+      if (next[square]) {
+        delete next[square];
+      } else {
+        next[square] = {
+          backgroundColor: 'rgba(232, 70, 70, 0.34)',
+          boxShadow: 'inset 0 0 0 3px rgba(232, 70, 70, 0.78)',
+        };
+      }
+      return next;
+    });
+  }
+
   return (
-    <div className="solver-panel-mockup">
-      <aside className="solver-info solver-info-left">
-        <div className="solver-stat-card solver-stat-card-large">
-          <span>Puzzle</span>
-          <strong>{visibleProgress} / {normalizedSolution.length}</strong>
-          <small>Progression de la ligne de solution</small>
-        </div>
-
-        <div className="solver-info-tags">
-          <span>Mode suivi</span>
-          <span>{boardOrientation === 'white' ? 'Blancs au trait' : 'Noirs au trait'}</span>
-        </div>
-
-        <div className={feedbackClassName}>
-          <strong>{feedback.kind === 'success' ? 'Valide' : feedback.kind === 'error' ? 'Attention' : 'En cours'}</strong>
-          <p>{feedback.message}</p>
-        </div>
-      </aside>
-
-      <div className="solver-board-shell solver-board-shell-mockup">
+    <div className="wp-puzzle-solver-v2">
+      <div className={boardFeedbackClassName}>
         <Chessboard
           options={{
             id: 'woodpecker-solver-board',
@@ -236,83 +214,56 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
             showAnimations: true,
             showNotation: true,
             animationDurationInMs: 180,
-            canDragPiece: ({ piece }) => piece.pieceType[0] === game.turn(),
-            onPieceDrop: ({ sourceSquare, targetSquare }) => handlePieceDrop(sourceSquare, targetSquare),
-            onSquareClick: ({ square }) => handleSquareClick(square),
+            canDragPiece: (...args) => canDragCurrentTurnPiece(args[0], game),
+            onPieceDrop: (...args) => {
+              const { sourceSquare, targetSquare } = normalizeDropArgs(args[0], args[1]);
+              return handlePieceDrop(sourceSquare, targetSquare);
+            },
+            onSquareClick: (...args) => {
+              const square = normalizeSquareArg(args[0]);
+              if (square) {
+                handleSquareClick(square);
+              }
+            },
+            onSquareRightClick: (...args) => {
+              const square = normalizeSquareArg(args[0]);
+              if (square) {
+                handleSquareRightClick(square);
+              }
+            },
             boardStyle: {
               aspectRatio: '1 / 1',
               border: '1px solid rgba(238, 244, 251, 0.16)',
-              borderRadius: '18px',
+              borderRadius: '12px',
               boxShadow: '0 22px 52px rgba(0, 0, 0, 0.36)',
               height: 'auto',
               width: '100%',
+              touchAction: 'none',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
             },
-            darkSquareStyle: { backgroundColor: '#6d7f97' },
-            lightSquareStyle: { backgroundColor: '#d5dbe4' },
+            darkSquareStyle: { backgroundColor: '#7f9f56' },
+            lightSquareStyle: { backgroundColor: '#f0e6c8' },
             dropSquareStyle: { boxShadow: 'inset 0 0 0 4px rgba(131, 228, 133, 0.52)' },
             draggingPieceStyle: { cursor: 'grabbing', filter: 'drop-shadow(0 10px 12px rgba(0, 0, 0, 0.34))' },
             squareStyles,
           }}
         />
       </div>
-
-      <aside className="solver-actions solver-actions-right">
-        <div className="solver-stat-card">
-          <span>Temps</span>
-          <strong>{formatDuration(elapsedMilliseconds)}</strong>
-          <small>Depuis le debut de la tentative</small>
-        </div>
-
-        <div className="solver-stat-card warning">
-          <span>Erreurs</span>
-          <strong>{mistakesCount} / {mistakeLimit}</strong>
-          <small>{remainingErrors} restantes avant echec</small>
-        </div>
-
-        {isSolutionVisible ? (
-          <div className="solver-solution-card">
-            <span>Solution</span>
-            <strong>{formatSolutionForDisplay(initialFen, normalizedSolution)}</strong>
-          </div>
-        ) : (
-          <button className="solver-action-button" type="button" onClick={() => setIsSolutionVisible(true)}>
-            Voir la solution
-          </button>
-        )}
-
-        <button className="solver-action-button muted" type="button" onClick={resetPuzzle}>
-          Reinitialiser la position
-        </button>
-      </aside>
     </div>
   );
 }
 
-function createInitialSolverState(fen: string | undefined, solution: string[]): SolverState {
+function createInitialSolverState(fen: string | undefined): SolverState {
   const game = createGame(fen);
-  const playedMoves: string[] = [];
-  let moveIndex = 0;
-  let feedback: Feedback = { kind: 'info', message: 'Trouve le meilleur coup.' };
-
-  if (solution.length > 1) {
-    const firstMove = playMove(game, solution[0]);
-
-    if (firstMove) {
-      playedMoves.push(moveToUci(firstMove));
-      moveIndex = 1;
-      feedback = { kind: 'info', message: 'Le premier coup theorique a ete joue. A toi de trouver la suite.' };
-    } else {
-      feedback = { kind: 'error', message: 'Le premier coup de la ligne n est pas legal depuis cette FEN.' };
-    }
-  }
 
   return {
     countedMistakeKeys: new Set(),
     game,
     currentFen: game.fen(),
-    moveIndex,
-    playedMoves,
-    feedback,
+    moveIndex: 0,
+    playedMoves: [],
+    feedback: { kind: 'info', message: 'Trouvez le meilleur coup.' },
     mistakesCount: 0,
     startedAt: Date.now(),
     completedAt: null,
@@ -331,51 +282,74 @@ function getLegalTargetSquares(game: Chess, square: string): string[] {
   return game.moves({ square: square as ChessSquare, verbose: true }).map((move) => move.to);
 }
 
-function getSquareStyles(selectedSquare: string | null, legalTargetSquares: string[]): Record<string, CSSProperties> {
-  const styles: Record<string, CSSProperties> = {};
+function normalizeSquareArg(arg: unknown): string | null {
+  if (typeof arg === 'string') {
+    return arg;
+  }
+
+  if (arg && typeof arg === 'object' && 'square' in arg && typeof (arg as { square?: unknown }).square === 'string') {
+    return (arg as { square: string }).square;
+  }
+
+  return null;
+}
+
+function normalizeDropArgs(firstArg: unknown, secondArg: unknown): { sourceSquare: string; targetSquare: string | null } {
+  if (typeof firstArg === 'string') {
+    return {
+      sourceSquare: firstArg,
+      targetSquare: typeof secondArg === 'string' ? secondArg : null,
+    };
+  }
+
+  if (firstArg && typeof firstArg === 'object') {
+    const data = firstArg as { sourceSquare?: unknown; targetSquare?: unknown };
+    return {
+      sourceSquare: typeof data.sourceSquare === 'string' ? data.sourceSquare : '',
+      targetSquare: typeof data.targetSquare === 'string' ? data.targetSquare : null,
+    };
+  }
+
+  return { sourceSquare: '', targetSquare: null };
+}
+
+function canDragCurrentTurnPiece(arg: unknown, game: Chess): boolean {
+  if (typeof arg === 'string') {
+    return arg[0] === game.turn();
+  }
+
+  if (arg && typeof arg === 'object' && 'piece' in arg) {
+    const piece = (arg as { piece?: unknown }).piece;
+    if (piece && typeof piece === 'object' && 'pieceType' in piece && typeof (piece as { pieceType?: unknown }).pieceType === 'string') {
+      return ((piece as { pieceType: string }).pieceType[0]) === game.turn();
+    }
+
+    if (typeof piece === 'string') {
+      return piece[0] === game.turn();
+    }
+  }
+
+  return true;
+}
+
+function getSquareStyles(selectedSquare: string | null, legalTargetSquares: string[], rightClickMarkers: Record<string, CSSProperties>): Record<string, CSSProperties> {
+  const styles: Record<string, CSSProperties> = { ...rightClickMarkers };
 
   if (selectedSquare) {
     styles[selectedSquare] = {
+      ...styles[selectedSquare],
       background: 'radial-gradient(circle, rgba(255, 213, 92, 0.72) 0%, rgba(255, 213, 92, 0.34) 55%, transparent 56%)',
     };
   }
 
   for (const square of legalTargetSquares) {
     styles[square] = {
+      ...styles[square],
       background: 'radial-gradient(circle, rgba(20, 31, 44, 0.34) 0%, rgba(20, 31, 44, 0.34) 18%, transparent 20%)',
     };
   }
 
   return styles;
-}
-
-function formatSolutionForDisplay(fen: string | undefined, solution: string[]): string {
-  if (solution.length === 0) {
-    return 'Aucune solution';
-  }
-
-  const game = createGame(fen);
-  const sanMoves: string[] = [];
-
-  for (const uciMove of solution) {
-    const move = playMove(game, uciMove);
-
-    if (!move) {
-      return solution.join('  ');
-    }
-
-    sanMoves.push(move.san);
-  }
-
-  return sanMoves.join('  ');
-}
-
-function formatDuration(milliseconds: number): string {
-  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function isExpectedMove(attemptedMove: string, expectedMove: string): boolean {
@@ -395,7 +369,7 @@ function playMove(game: Chess, uciMove: string): Move | null {
 }
 
 function moveToUci(move: Move): string {
-  return `${move.from}${move.to}${move.promotion ?? ''}`;
+  return move.from + move.to + (move.promotion ?? '');
 }
 
 export { PuzzleSolver };

@@ -1,204 +1,344 @@
-.solver-page {
+.solver-page-v2 {
   gap: 18px;
+  min-height: 0;
 }
 
-.wp-solver-hero,
-.wp-solver-settings-band,
-.wp-solver-board-panel,
-.wp-solver-list {
+.wp-solver-topbar-v2 {
   display: grid;
-  gap: 16px;
-}
-
-.wp-solver-hero {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
   align-items: center;
 }
 
-.wp-solver-hero-ring {
-  width: 120px;
-  height: 120px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle closest-side, #08111d 78%, transparent 79% 100%),
-    conic-gradient(#b6e54a calc(var(--solver-progress, 0) * 1%), rgba(255,255,255,0.08) 0);
+.wp-solver-topbar-v2__cycle,
+.wp-solver-topbar-v2__metric,
+.wp-solver-topbar-v2__metrics {
+  min-width: 0;
 }
 
-.wp-solver-hero-ring div {
-  display: grid;
-  justify-items: center;
-}
-
-.wp-solver-hero-ring strong,
-.wp-solver-hero-copy h3,
-.wp-solver-hero-metrics strong,
-.wp-solver-mini-stat strong,
-.wp-cycle-status strong,
-.wp-solver-focus-card h3 {
-  color: #f5f7fc;
-}
-
-.wp-solver-hero-copy h3 {
-  margin: 6px 0 10px;
-  font-size: 1.5rem;
-}
-
-.wp-solver-hero-copy small,
-.wp-solver-hero-metrics span,
-.wp-solver-mini-stat span,
-.wp-cycle-status span {
-  color: #9fb0c5;
-}
-
-.wp-solver-hero-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 260px;
-}
-
-.wp-solver-hero-metrics div,
-.wp-solver-mini-stat {
-  padding: 14px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(170, 184, 199, 0.1);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.wp-solver-settings-band {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-}
-
-.wp-solver-settings-copy span,
-.wp-solver-settings-meta span {
-  color: #9fb0c5;
-}
-
-.wp-solver-settings-meta strong {
-  color: #f5f7fc;
-}
-
-.wp-solver-settings-options {
+.wp-solver-topbar-v2__cycle {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.wp-solver-settings-options button {
-  width: 46px;
-  min-height: 40px;
-  border: 1px solid rgba(170, 184, 199, 0.12);
-  border-radius: 12px;
-  color: #dfe7f6;
-  background: rgba(8, 15, 25, 0.44);
-}
-
-.wp-solver-settings-options button.active {
-  border-color: rgba(127, 240, 173, 0.3);
-  color: #b9e54e;
-}
-
-.wp-solver-layout-mockup {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  align-items: center;
   gap: 18px;
 }
 
-.wp-solver-list {
-  align-content: start;
-  max-height: calc(100vh - 180px);
-  overflow: auto;
-}
-
-.wp-solver-list-header,
-.wp-solver-list-summary-inline,
-.wp-solver-puzzle-stack,
-.wp-solver-focus-card-wide {
+.wp-solver-topbar-v2__metrics {
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(220px, 260px));
+  gap: 18px;
+  justify-content: end;
 }
 
-.wp-solver-list-summary-inline {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.wp-solver-topbar-v2__metric {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 18px;
 }
 
-.wp-solver-puzzle-stack {
-  gap: 10px;
-}
-
-.wp-solver-list-item {
-  width: 100%;
-  padding: 14px 16px;
-  border: 1px solid rgba(170, 184, 199, 0.1);
-  border-radius: 18px;
-  color: var(--text);
-  background: rgba(8, 15, 25, 0.44);
-  text-align: left;
+.wp-solver-topbar-v2__cycle-copy,
+.wp-solver-topbar-v2__metric > div {
+  min-width: 0;
   display: grid;
   gap: 6px;
 }
 
-.wp-solver-list-item.active {
-  border-color: rgba(127, 240, 173, 0.3);
-  background: rgba(69, 200, 120, 0.08);
+.wp-solver-topbar-v2__cycle-copy {
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 28px;
 }
 
-.wp-solver-list-item.solved {
-  background: rgba(69, 200, 120, 0.12);
+.wp-solver-topbar-v2__cycle-copy > div {
+  display: grid;
+  gap: 6px;
 }
 
-.wp-solver-list-item.failed {
-  background: rgba(255, 125, 125, 0.08);
+.wp-solver-topbar-v2__puzzle-copy strong {
+  font-size: 2rem;
+  line-height: 1;
 }
 
-.wp-cycle-status {
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(170, 184, 199, 0.1);
-  background: rgba(8, 15, 25, 0.5);
+.wp-solver-topbar-v2__ring {
+  width: 112px;
+  height: 112px;
+  flex: 0 0 112px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle closest-side, #08111d 76%, transparent 77% 100%),
+    conic-gradient(#b6e54a calc(var(--solver-progress, 0) * 1%), rgba(255, 255, 255, 0.08) 0);
 }
 
-.wp-cycle-status.active {
-  border-color: rgba(127, 240, 173, 0.26);
-  background: rgba(69, 200, 120, 0.08);
+.wp-solver-topbar-v2__ring strong,
+.wp-solver-topbar-v2__cycle strong,
+.wp-solver-topbar-v2__metric strong,
+.wp-solver-list-v2 h3,
+.wp-solver-board-panel-v2 h3 {
+  color: #f5f7fc;
 }
 
-.wp-cycle-status.finished {
-  border-color: rgba(139, 179, 216, 0.24);
-  background: rgba(139, 179, 216, 0.08);
+.wp-solver-topbar-v2__ring strong {
+  font-size: 2rem;
 }
 
-.wp-cycle-status.free {
-  border-color: rgba(240, 195, 106, 0.24);
-  background: rgba(240, 195, 106, 0.08);
+.wp-solver-topbar-v2__cycle strong {
+  font-size: 1.45rem;
+  line-height: 1.05;
 }
 
-.wp-solver-focus-card-wide {
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(170, 184, 199, 0.1);
-  background: rgba(8, 15, 25, 0.5);
+.wp-solver-topbar-v2__cycle p,
+.wp-solver-topbar-v2__metric p,
+.wp-solver-topbar-v2__metric small,
+.wp-solver-board-panel-v2__header p {
+  margin: 0;
+  color: #a8b7ca;
 }
 
-@media (max-width: 1180px) {
-  .wp-solver-hero,
-  .wp-solver-settings-band,
-  .wp-solver-layout-mockup {
+.wp-solver-topbar-v2__cycle p {
+  font-size: 1rem;
+}
+
+.wp-solver-topbar-v2__metric-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.wp-solver-topbar-v2__metric-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.wp-solver-topbar-v2__metric-icon.tone-green {
+  color: #a8dc35;
+  background: rgba(129, 187, 45, 0.14);
+}
+
+.wp-solver-topbar-v2__metric-icon.tone-blue {
+  color: #53a4ff;
+  background: rgba(83, 164, 255, 0.14);
+}
+
+.wp-solver-topbar-v2__metric p {
+  font-size: 2rem;
+  line-height: 1;
+  color: #f5f7fc;
+}
+
+.wp-solver-topbar-v2__metric small {
+  color: #a8dc35;
+}
+
+.wp-solver-layout-v2 {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.wp-solver-list-v2,
+.wp-solver-board-panel-v2 {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.wp-solver-list-v2 {
+  align-content: start;
+}
+
+.wp-solver-board-panel-v2 {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.wp-solver-list-v2__header,
+.wp-solver-list-v2__table-head,
+.wp-solver-list-v2__row,
+.wp-solver-board-nav-v2 {
+  display: grid;
+  align-items: center;
+}
+
+.wp-solver-list-v2__table-head,
+.wp-solver-list-v2__row {
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.wp-solver-list-v2__header h3,
+.wp-solver-board-panel-v2__header h3 {
+  margin: 0;
+}
+
+.wp-solver-list-v2__table-head {
+  padding: 0 6px 10px;
+  color: #8ea3bc;
+  border-bottom: 1px solid rgba(61, 82, 109, 0.2);
+}
+
+.wp-solver-list-v2__body {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.wp-solver-list-v2__row {
+  width: 100%;
+  padding: 14px 12px;
+  border: 1px solid rgba(61, 82, 109, 0.22);
+  border-radius: 16px;
+  background: rgba(8, 17, 31, 0.54);
+  color: #dce7f6;
+  text-align: left;
+}
+
+.wp-solver-list-v2__row.is-active {
+  border-color: rgba(83, 164, 255, 0.44);
+  background: rgba(29, 72, 137, 0.24);
+}
+
+.wp-solver-list-v2__row.is-solved {
+  background: rgba(52, 131, 63, 0.18);
+}
+
+.wp-solver-list-v2__row.is-failed {
+  background: rgba(155, 85, 49, 0.18);
+}
+
+.wp-solver-list-v2__status {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wp-solver-list-v2__status svg {
+  width: 18px;
+  height: 18px;
+}
+
+.wp-solver-board-panel-v2__alerts {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-solver-board-panel-v2__alerts .alert {
+  margin: 0;
+}
+
+.wp-solver-board-panel-v2__body {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.wp-solver-board-nav-v2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(61, 82, 109, 0.2);
+}
+
+.wp-solver-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+}
+
+.wp-puzzle-solver-v2 {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.wp-puzzle-solver-v2__board {
+  width: min(100%, 760px, calc(100vh - 400px));
+}
+
+@media (min-width: 1321px) {
+  .solver-page-v2 {
+    height: calc(100vh - 40px);
+    overflow: hidden;
+  }
+
+  .wp-solver-layout-v2 {
+    overflow: hidden;
+  }
+
+  .wp-solver-list-v2,
+  .wp-solver-board-panel-v2 {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 1320px) {
+  .wp-solver-topbar-v2,
+  .wp-solver-layout-v2 {
     grid-template-columns: 1fr;
   }
 
-  .wp-solver-list {
-    max-height: none;
+  .wp-solver-topbar-v2__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .wp-puzzle-solver-v2__board {
+    width: min(100%, 760px);
   }
 }
 
-@media (max-width: 640px) {
-  .wp-solver-hero-metrics,
-  .wp-solver-list-summary-inline {
+@media (max-width: 900px) {
+  .wp-solver-topbar-v2__metrics {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .solver-page-v2 {
+    overflow: visible;
+  }
+
+  .wp-solver-topbar-v2__cycle,
+  .wp-solver-topbar-v2__metric,
+  .wp-solver-board-nav-v2 {
+    grid-template-columns: 1fr;
+    display: grid;
+    align-items: flex-start;
+  }
+
+  .wp-solver-topbar-v2__cycle-copy {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .wp-solver-topbar-v2__metrics,
+  .wp-solver-board-nav-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-solver-list-v2__body {
+    overflow: visible;
+  }
+
+  .wp-solver-list-v2__table-head,
+  .wp-solver-list-v2__row {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .wp-puzzle-solver-v2__board {
+    width: 100%;
   }
 }

@@ -186,6 +186,7 @@ function TrainingsPanelContentScreen({
           selectedPuzzle={state.selectedPuzzle}
           selectedTraining={state.selectedTraining}
           selectedTrainingPuzzle={state.selectedTrainingPuzzle}
+          summary={state.trainingSummaryQuery.data ?? null}
           trainingPuzzles={state.trainingPuzzlesQuery.data ?? emptySolverTrainingPuzzles}
         />
       )}

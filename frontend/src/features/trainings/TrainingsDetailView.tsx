@@ -1,3 +1,8 @@
+import type { CSSProperties } from 'react';
+import type { UseMutationResult } from '@tanstack/react-query';
+import * as AppIcons from '../../shared/AppIcons';
+import { PageHeader } from './TrainingsViewPrimitives';
+import { formatDateTime } from './trainingsUtils';
 import type {
   CycleStats,
   Training,
@@ -7,9 +12,6 @@ import type {
   TrainingPuzzle,
   TrainingSummary,
 } from './trainingsTypes';
-import type { UseMutationResult } from '@tanstack/react-query';
-import { PageHeader } from './TrainingsViewPrimitives';
-import { formatDateTime, formatDuration, getCycleStatusLabel } from './trainingsUtils';
 import './detail.css';
 
 type DetailViewProps = {
@@ -60,55 +62,219 @@ type DetailViewProps = {
   trainingPuzzlesIsLoading: boolean;
 };
 
-function DetailView(props: DetailViewProps) {
-  const {
-    analytics,
-    analyticsError,
-    analyticsIsError,
-    analyticsIsLoading,
-    createPuzzleMutation,
-    cycleStats,
-    cycleStatusLabel,
-    deletePuzzleError,
-    deletePuzzleIsError,
-    deletePuzzleIsPending,
-    fen,
-    hasResumableCycle,
-    movePuzzleError,
-    movePuzzleIsError,
-    movePuzzleIsPending,
-    onBackToDashboard,
-    onFenChange,
-    onImport,
-    onOpenSolver,
-    onPersonalNoteChange,
-    onPuzzleDelete,
-    onPuzzleMove,
-    onPuzzleSelect,
-    onRatingChange,
-    onSolutionTextChange,
-    onStartCycle,
-    onThemesTextChange,
-    personalNote,
-    puzzleCount,
-    puzzleListIsLocked,
-    rating,
-    selectedTraining,
-    solutionText,
-    startCycleError,
-    startCycleIsError,
-    startCycleIsPending,
-    summary,
-    summaryError,
-    summaryIsError,
-    summaryIsLoading,
-    themesText,
-    trainingPuzzles,
-    trainingPuzzlesError,
-    trainingPuzzlesIsError,
-    trainingPuzzlesIsLoading,
-  } = props;
+type PuzzleRowTone = 'green' | 'amber' | 'blue' | 'red';
 
+type PuzzleRowStatus = {
+  attemptedAtLabel: string;
+  attemptsLabel: string;
+  percentageLabel: string;
+  statusLabel: string;
+  tone: PuzzleRowTone;
+};
+
+const PIECE_SYMBOLS: Record<string, string> = {
+  K: '♔',
+  Q: '♕',
+  R: '♖',
+  B: '♗',
+  N: '♘',
+  P: '♙',
+  k: '♚',
+  q: '♛',
+  r: '♜',
+  b: '♝',
+  n: '♞',
+  p: '♟',
+};
+
+function getTrainingIcon(icon?: string | null) {
+  switch (icon) {
+    case 'knight':
+      return 'N';
+    case 'bishop':
+      return 'B';
+    case 'rook':
+      return 'R';
+    case 'pawn':
+      return 'P';
+    default:
+      return <AppIcons.QueenIcon />;
+  }
+}
+
+function formatCompactDate(value?: string | null) {
+  if (!value) {
+    return 'Jamais';
+  }
+
+  return new Date(value).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function getDifficultyLabel(rating?: number | null) {
+  if (!rating) {
+    return 'Libre';
+  }
+  if (rating < 1400) {
+    return 'Facile';
+  }
+  if (rating < 1900) {
+    return 'Moyen';
+  }
+  return 'Difficile';
+}
+
+function getAttemptForPosition(attempts: TrainingAttemptSummary[], position: number) {
+  return attempts.find((attempt) => attempt.trainingPuzzlePosition === position) ?? null;
+}
+
+function getPuzzleStatus(attempt: TrainingAttemptSummary | null): PuzzleRowStatus {
+  if (!attempt) {
+    return {
+      attemptedAtLabel: 'Jamais',
+      attemptsLabel: '0',
+      percentageLabel: '0%',
+      statusLabel: 'Non tenté',
+      tone: 'blue',
+    };
+  }
+
+  if (attempt.successful) {
+    return {
+      attemptedAtLabel: formatCompactDate(attempt.attemptedAt),
+      attemptsLabel: '1',
+      percentageLabel: '100%',
+      statusLabel: 'Résolu',
+      tone: 'green',
+    };
+  }
+
+  return {
+    attemptedAtLabel: formatCompactDate(attempt.attemptedAt),
+    attemptsLabel: String(Math.max(attempt.mistakesCount, 1)),
+    percentageLabel: attempt.mistakesCount > 2 ? '0%' : '50%',
+    statusLabel: attempt.mistakesCount > 2 ? 'Échoué' : 'À revoir',
+    tone: attempt.mistakesCount > 2 ? 'red' : 'amber',
+  };
+}
+
+function getCycleDelta(cycleSummaries: TrainingCycleSummary[]) {
+  if (cycleSummaries.length < 2) {
+    return null;
+  }
+
+  return cycleSummaries[0].progressPercent - cycleSummaries[1].progressPercent;
+}
+
+function buildPercentLabel(value: number, total: number) {
+  if (total <= 0) {
+    return '0%';
+  }
+  return String(Math.round((value / total) * 100)) + '%';
+}
+
+function parseFenBoard(fen?: string | null) {
+  const board = fen?.trim().split(' ')[0] ?? '';
+  const rows = board.split('/');
+  if (rows.length !== 8) {
+    return null;
+  }
+
+  try {
+    return rows.map((row) => {
+      const cells: string[] = [];
+      for (const token of row) {
+        const emptyCount = Number(token);
+        if (Number.isInteger(emptyCount) && emptyCount > 0) {
+          for (let index = 0; index < emptyCount; index += 1) {
+            cells.push('');
+          }
+        } else {
+          cells.push(token);
+        }
+      }
+
+      if (cells.length !== 8) {
+        throw new Error('invalid fen row');
+      }
+
+      return cells;
+    });
+  } catch {
+    return null;
+  }
+}
+
+function ProgressRing({ percent }: { percent: number }) {
+  const style = {
+    '--detail-progress': String(percent) + '%',
+  } as CSSProperties;
+
+  return (
+    <div className="wp-detail-cycle-ring" style={style}>
+      <div>
+        <strong>{String(percent) + '%'}</strong>
+      </div>
+    </div>
+  );
+}
+
+function PuzzlePreview({ fen }: { fen?: string | null }) {
+  const rows = parseFenBoard(fen);
+
+  if (!rows) {
+    return <span className="wp-detail-problem-preview__empty">?</span>;
+  }
+
+  return (
+    <span className="wp-detail-problem-preview__board" aria-hidden="true">
+      {rows.map((row, rowIndex) =>
+        row.map((piece, columnIndex) => {
+          const isDark = (rowIndex + columnIndex) % 2 === 1;
+          const cellClassName = isDark
+            ? 'wp-detail-problem-preview__cell is-dark'
+            : 'wp-detail-problem-preview__cell is-light';
+          return (
+            <span className={cellClassName} key={String(rowIndex) + '-' + String(columnIndex)}>
+              {piece ? PIECE_SYMBOLS[piece] ?? '' : ''}
+            </span>
+          );
+        }),
+      )}
+    </span>
+  );
+}
+
+function DetailView({
+  analytics,
+  analyticsError,
+  analyticsIsError,
+  analyticsIsLoading,
+  cycleStats,
+  hasResumableCycle,
+  onBackToDashboard,
+  onImport,
+  onOpenSolver,
+  onPuzzleSelect,
+  onStartCycle,
+  puzzleCount,
+  puzzleListIsLocked,
+  selectedTraining,
+  startCycleError,
+  startCycleIsError,
+  startCycleIsPending,
+  summary,
+  summaryError,
+  summaryIsError,
+  summaryIsLoading,
+  trainingPuzzles,
+  trainingPuzzlesError,
+  trainingPuzzlesIsError,
+  trainingPuzzlesIsLoading,
+}: DetailViewProps) {
   if (!selectedTraining) {
     return (
       <div className="wp-page">
@@ -118,442 +284,335 @@ function DetailView(props: DetailViewProps) {
               Retour au tableau de bord
             </button>
           }
-          eyebrow="Detail"
-          title="Selectionne un entrainement"
-          description="Retourne au tableau de bord pour ouvrir un entrainement existant."
+          eyebrow="Détail"
+          title="Sélectionne un entraînement"
+          description="Retourne au tableau de bord pour ouvrir un entraînement existant."
         />
       </div>
     );
   }
 
-  const latestCycleSummary = summary?.latestCycleSummary ?? null;
-  const latestAttempts = summary?.latestAttempts ?? [];
+  const trainingIcon = getTrainingIcon(selectedTraining.icon);
   const cycleSummaries = summary?.cycleSummaries ?? [];
+  const latestCycleSummary = summary?.latestCycleSummary ?? cycleSummaries[0] ?? null;
+  const latestAttempts = summary?.latestAttempts ?? [];
   const summaryPuzzleCount = summary?.puzzleCount ?? puzzleCount;
-  const ratedPuzzleCount = summary?.ratedPuzzleCount ?? 0;
-  const notedPuzzleCount = summary?.notedPuzzleCount ?? 0;
-  const themedPuzzleCount = summary?.themedPuzzleCount ?? 0;
-  const solvedAttempts = summary?.solvedAttemptCount ?? 0;
-  const averageMistakes = summary ? summary.averageMistakes.toFixed(1) : '0.0';
   const attemptCount = summary?.attemptCount ?? 0;
-  const analyticsPerformance = analytics?.performance ?? null;
-  const analyticsProgression = analytics?.progressionSnapshot ?? null;
-  const analyticsCycleTimeline = analytics?.cycleTimeline ?? [];
-  const latestCycleDate = latestCycleSummary?.cycle.startedAt ? formatDateTime(latestCycleSummary.cycle.startedAt) : null;
-  const cycleHeadline = latestCycleSummary ? `Cycle ${latestCycleSummary.cycle.number}` : hasResumableCycle ? 'Cycle en pause' : 'Collection prete';
-  const cycleCopy = latestCycleSummary
-    ? `Tu as ${latestCycleSummary.solved} resolu(s), ${latestCycleSummary.failed} a revoir et ${latestCycleSummary.pending} restant(s).`
-    : 'Prepare la collection puis demarre un cycle pour reproduire la cadence Woodpecker.';
+  const averageMistakes = summary?.averageMistakes ?? 0;
+  const hasStartedCycle = Boolean(latestCycleSummary || hasResumableCycle || cycleSummaries.length > 0);
+  const cycleNumber = latestCycleSummary?.cycle.number ?? 1;
+  const cycleDelta = getCycleDelta(cycleSummaries);
+  const progressLabel = cycleDelta === null
+    ? String(cycleStats.progressPercent) + '%'
+    : (cycleDelta > 0 ? '+' : '') + String(cycleDelta) + '% ce cycle';
+  const collectionLabel = puzzleListIsLocked ? 'Collection verrouillée' : 'Collection ouverte';
+  const layoutClassName = hasStartedCycle ? 'wp-detail-layout-v2' : 'wp-detail-layout-v2 is-prestart';
+  const cyclePlaceholders = Math.max(0, 3 - cycleSummaries.length);
+  const attemptPlaceholders = Math.max(0, 4 - latestAttempts.length);
 
   return (
-    <div className="wp-page wp-detail-page">
-      <PageHeader
-        eyebrow="Detail entrainement"
-        title={selectedTraining.name}
-        description={selectedTraining.description || 'Entraine ce set, verrouille-le dans un cycle, puis travaille tes repetitions.'}
-        action={
-          <button className="wp-primary" type="button" onClick={onOpenSolver}>
-            Ouvrir le solveur
-          </button>
-        }
-      />
-
-      <section className="wp-detail-hero-shell wp-panel">
-        <div className="wp-detail-title-block">
-          <div className="wp-detail-art">#</div>
-          <div className="wp-detail-title-copy">
-            <p className="eyebrow">Training tactique</p>
-            <h3>{selectedTraining.name}</h3>
-            <p>{selectedTraining.description || 'Collection dediee aux repetitions tactiques progressives.'}</p>
-            <div className="wp-inline-metrics">
-              <span>{summaryPuzzleCount} problemes</span>
-              <span>{selectedTraining.createdAt ? `Cree le ${formatDateTime(selectedTraining.createdAt)}` : 'Date de creation indisponible'}</span>
-              <span>{hasResumableCycle ? 'Tactique' : 'Collection prete'}</span>
-            </div>
+    <div className="wp-page wp-detail-page-v2">
+      <header className="wp-detail-hero-v2">
+        <div className="wp-detail-hero-v2__identity">
+          <div className="wp-detail-hero-v2__badge">
+            {trainingIcon}
+          </div>
+          <div className="wp-detail-hero-v2__copy">
+            <h1>{selectedTraining.name}</h1>
+            <p>{selectedTraining.description || 'Entraînement tactique personnalisé.'}</p>
           </div>
         </div>
 
-        <div className="wp-detail-hero-actions">
-          <button className="wp-primary" disabled={startCycleIsPending || trainingPuzzles.length === 0} type="button" onClick={onStartCycle}>
-            {startCycleIsPending ? (hasResumableCycle ? 'Reprise...' : 'Demarrage...') : hasResumableCycle ? 'Reprendre le cycle' : 'Demarrer un cycle'}
-          </button>
-          <button className="wp-secondary" type="button" onClick={onImport}>
-            Importer CSV
-          </button>
-          <button className="wp-secondary wp-icon-action" type="button" onClick={onBackToDashboard}>
-            ...
-          </button>
+        <div className="wp-detail-hero-v2__actions">
+          {hasStartedCycle ? (
+            <button className="wp-primary wp-detail-hero-v2__primary" type="button" onClick={onOpenSolver}>
+              Ouvrir le solveur
+            </button>
+          ) : (
+            <div className="wp-detail-hero-v2__action-row">
+              <button className="wp-secondary wp-detail-hero-v2__secondary" type="button" onClick={onImport}>
+                Ajouter des puzzles
+              </button>
+              <button
+                className="wp-primary wp-detail-hero-v2__primary"
+                disabled={startCycleIsPending || trainingPuzzles.length === 0}
+                type="button"
+                onClick={onStartCycle}
+              >
+                {startCycleIsPending ? 'Démarrage...' : 'Démarrer le cycle'}
+              </button>
+            </div>
+          )}
         </div>
-      </section>
+      </header>
 
-      <section className="wp-detail-kpis">
-        <article className="wp-detail-kpi wp-panel">
-          <span>Problemes</span>
+      <section className="wp-detail-kpis-v2">
+        <article className="wp-detail-kpi-v2 tone-blue">
+          <div className="wp-detail-kpi-v2__header">
+            <span className="wp-detail-kpi-v2__icon"><AppIcons.BarsIcon /></span>
+            <p>Problèmes</p>
+          </div>
           <strong>{summaryPuzzleCount}</strong>
-          <small>dans la collection</small>
+          <small>{hasStartedCycle ? 'Total' : 'Collection'}</small>
         </article>
-        <article className="wp-detail-kpi wp-panel accent">
-          <span>Progression</span>
-          <strong>{cycleStats.progressPercent}%</strong>
-          <small>{cycleStats.solved} / {summaryPuzzleCount || 0} resolus</small>
+        <article className="wp-detail-kpi-v2 tone-green">
+          <div className="wp-detail-kpi-v2__header">
+            <span className="wp-detail-kpi-v2__icon"><AppIcons.TrendUpIcon /></span>
+            <p>{hasStartedCycle ? 'Progression' : 'Réussite du cycle actuel'}</p>
+          </div>
+          <strong>{String(cycleStats.progressPercent) + '%'}</strong>
+          <small>{progressLabel}</small>
         </article>
-        <article className="wp-detail-kpi wp-panel success">
-          <span>Resolus</span>
+        <article className="wp-detail-kpi-v2 tone-green">
+          <div className="wp-detail-kpi-v2__header">
+            <span className="wp-detail-kpi-v2__icon"><AppIcons.CheckCircleIcon /></span>
+            <p>Résolus</p>
+          </div>
           <strong>{cycleStats.solved}</strong>
-          <small>{solvedAttempts} tentatives reussies</small>
+          <small>{buildPercentLabel(cycleStats.solved, summaryPuzzleCount)}</small>
         </article>
-        <article className="wp-detail-kpi wp-panel warning">
-          <span>A revoir</span>
+        <article className="wp-detail-kpi-v2 tone-amber">
+          <div className="wp-detail-kpi-v2__header">
+            <span className="wp-detail-kpi-v2__icon"><AppIcons.RepeatIcon /></span>
+            <p>À revoir</p>
+          </div>
           <strong>{cycleStats.failed}</strong>
-          <small>{averageMistakes} erreur(s) / tentative</small>
+          <small>{buildPercentLabel(cycleStats.failed, summaryPuzzleCount)}</small>
         </article>
-        <article className="wp-detail-kpi wp-panel muted">
-          <span>Restants</span>
+        <article className="wp-detail-kpi-v2 tone-blue">
+          <div className="wp-detail-kpi-v2__header">
+            <span className="wp-detail-kpi-v2__icon"><AppIcons.HistoryIcon /></span>
+            <p>Restants</p>
+          </div>
           <strong>{cycleStats.pending}</strong>
-          <small>{attemptCount} tentatives enregistrees</small>
+          <small>{buildPercentLabel(cycleStats.pending, summaryPuzzleCount)}</small>
         </article>
-        <article className="wp-detail-kpi wp-panel cycle">
-          <span>Statut du cycle</span>
-          <strong>{cycleStatusLabel}</strong>
-          <small>{hasResumableCycle ? 'Cycle reprenable' : 'Pret a demarrer'}</small>
+        <article className="wp-detail-kpi-v2 tone-violet">
+          <div className="wp-detail-kpi-v2__header">
+            <span className="wp-detail-kpi-v2__icon"><AppIcons.TargetIcon /></span>
+            <p>Tentatives</p>
+          </div>
+          <strong>{attemptCount}</strong>
+          <small>{averageMistakes.toFixed(1) + ' moy.'}</small>
         </article>
       </section>
 
-      <div className="wp-detail-overview-grid wp-detail-overview-grid-hero">
-        <section className="wp-panel wp-detail-cycle-card">
-          <div className="wp-panel-title">
-            <div>
-              <p className="eyebrow">Cycle actuel</p>
-              <h3>{cycleHeadline}</h3>
-            </div>
-            <span className="wp-status-pill success">{hasResumableCycle ? 'Reprenable' : 'Resume'}</span>
-          </div>
-          <p className="wp-detail-highlight-copy">{cycleCopy}</p>
-          <div className="wp-detail-cycle-metrics">
-            <div>
-              <span>Resolus</span>
-              <strong>{cycleStats.solved}</strong>
-            </div>
-            <div>
-              <span>A revoir</span>
-              <strong>{cycleStats.failed}</strong>
-            </div>
-            <div>
-              <span>Restants</span>
-              <strong>{cycleStats.pending}</strong>
-            </div>
-          </div>
-          <div className="wp-inline-metrics wp-inline-metrics-spaced">
-            <span>{hasResumableCycle ? 'Tu peux reprendre exactement la ou tu t es arrete.' : 'Le prochain cycle verrouillera la collection.'}</span>
-            <span>{latestCycleDate ? `Derniere activite ${latestCycleDate}` : 'Aucune tentative recente'}</span>
-          </div>
-        </section>
+      <div className={layoutClassName}>
+        <div className="wp-detail-layout-v2__main">
+          {hasStartedCycle ? (
+            <section className="wp-panel wp-detail-status-card-v2">
+              <div className="wp-panel-title">
+                <div>
+                  <h3>Statut du cycle</h3>
+                </div>
+              </div>
 
-        <section className="wp-panel wp-detail-lock-card">
-          <div className="wp-panel-title">
-            <div>
-              <p className="eyebrow">Collection verrouillee</p>
-              <h3>{puzzleListIsLocked ? 'Edition suspendue' : 'Edition encore ouverte'}</h3>
-            </div>
-            <span className={`wp-status-pill ${puzzleListIsLocked ? 'warning' : 'info'}`}>{puzzleListIsLocked ? 'Verrouillee' : 'Editable'}</span>
-          </div>
-          <p className="wp-detail-highlight-copy">
-            {puzzleListIsLocked
-              ? 'La liste des problemes est verrouillee car un cycle existe deja. Termine ou supprime le cycle pour retrouver une edition complete.'
-              : 'Tu peux encore enrichir, reordonner et nettoyer la collection avant de lancer un vrai cycle.'}
-          </p>
-          <div className="wp-inline-metrics wp-inline-metrics-spaced">
-            <span>{ratedPuzzleCount} avec rating</span>
-            <span>{themedPuzzleCount} avec themes</span>
-            <span>{notedPuzzleCount} avec note perso</span>
-          </div>
-        </section>
-      </div>
+              <div className="wp-detail-status-card-v2__grid wp-detail-status-card-v2__grid--compact">
+                <div className="wp-detail-status-card-v2__progress">
+                  <ProgressRing percent={cycleStats.progressPercent} />
+                  <div>
+                    <strong>{'Cycle ' + cycleNumber}</strong>
+                    <small>
+                      {latestCycleSummary?.cycle.startedAt
+                        ? formatCompactDate(latestCycleSummary.cycle.startedAt) + (latestCycleSummary?.cycle.completedAt ? ' - ' + formatCompactDate(latestCycleSummary.cycle.completedAt) : '')
+                        : 'Date indisponible'}
+                    </small>
+                  </div>
+                </div>
 
-      <section className="wp-panel wp-history-panel">
-        <div className="wp-panel-title">
-          <div>
-            <p className="eyebrow">Analytics</p>
-            <h3>Progression du training</h3>
-          </div>
+                <div className="wp-detail-status-card-v2__lock">
+                  <span className="wp-detail-status-card-v2__lock-icon"><AppIcons.LockIcon /></span>
+                  <div>
+                    <strong>{collectionLabel}</strong>
+                    <p>{puzzleListIsLocked ? 'Terminez le cycle actuel pour débloquer de nouveaux problèmes.' : 'La collection reste accessible sur ce cycle.'}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="wp-panel wp-detail-tolerance-card-v2">
+              <div className="wp-panel-title">
+                <div>
+                  <h3>Tolérance des erreurs</h3>
+                </div>
+              </div>
+
+              <div className="wp-detail-tolerance-card-v2__options">
+                {[3, 2, 1].map((value) => {
+                  const isActive = selectedTraining.mistakeLimit === value;
+                  const subtitle = value === 3 ? 'Tolérant' : value === 2 ? 'Standard' : 'Strict';
+                  return (
+                    <article className={isActive ? 'wp-detail-tolerance-option is-active' : 'wp-detail-tolerance-option'} key={value}>
+                      <span className="wp-detail-tolerance-option__icon">{isActive ? <AppIcons.CheckCircleIcon /> : <span className="wp-detail-tolerance-option__dot" />}</span>
+                      <strong>{String(value) + ' ' + (value > 1 ? 'erreurs' : 'erreur')}</strong>
+                      <small>{subtitle}</small>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <section className="wp-panel wp-detail-collection-card-v2">
+            <div className="wp-panel-title with-action">
+              <div>
+                <h3>Collection de problèmes</h3>
+                <p>{summaryPuzzleCount} problèmes</p>
+              </div>
+            </div>
+
+            {trainingPuzzlesIsLoading ? <p className="wp-empty">Chargement des problèmes...</p> : null}
+            {trainingPuzzlesIsError ? <p className="alert error-alert">{trainingPuzzlesError}</p> : null}
+            {startCycleIsError ? <p className="alert error-alert">{startCycleError}</p> : null}
+            {analyticsIsLoading ? <p className="wp-empty">Chargement des analytics...</p> : null}
+            {analyticsIsError ? <p className="alert error-alert">{analyticsError}</p> : null}
+            {summaryIsError ? <p className="alert error-alert">{summaryError}</p> : null}
+            {!trainingPuzzlesIsLoading && trainingPuzzles.length === 0 ? <p className="wp-empty">Aucun problème ajouté pour le moment.</p> : null}
+
+            {trainingPuzzles.length > 0 ? (
+              <div className="wp-detail-problems-table-wrap">
+                <table className="wp-detail-problems-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Aperçu</th>
+                      <th>Difficulté</th>
+                      <th>Statut</th>
+                      <th>Réussite</th>
+                      <th>Tentatives</th>
+                      <th>Dernière tentative</th>
+                      <th aria-hidden="true" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trainingPuzzles.slice(0, 5).map((trainingPuzzle) => {
+                      const puzzle = typeof trainingPuzzle.puzzle === 'string' ? null : trainingPuzzle.puzzle;
+                      const attempt = getAttemptForPosition(latestAttempts, trainingPuzzle.position);
+                      const status = getPuzzleStatus(attempt);
+                      return (
+                        <tr key={trainingPuzzle['@id']}>
+                          <td>{trainingPuzzle.position + 1}</td>
+                          <td>
+                            <button className="wp-detail-problem-preview" type="button" onClick={() => onPuzzleSelect(trainingPuzzle['@id'])}>
+                              <PuzzlePreview fen={puzzle?.fen} />
+                            </button>
+                          </td>
+                          <td className={'tone-' + status.tone}>{getDifficultyLabel(puzzle?.rating)}</td>
+                          <td>
+                            <span className={'wp-detail-table-status tone-' + status.tone}>{status.statusLabel}</span>
+                          </td>
+                          <td>{status.percentageLabel}</td>
+                          <td>{status.attemptsLabel}</td>
+                          <td>{status.attemptedAtLabel}</td>
+                          <td>
+                            <button className="wp-detail-table-arrow" type="button" onClick={() => onPuzzleSelect(trainingPuzzle['@id'])}>
+                              ›
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            {trainingPuzzles.length > 5 ? (
+              <button className="wp-detail-collection-card-v2__more" type="button" onClick={() => onPuzzleSelect(trainingPuzzles[0]['@id'])}>
+                Voir tous les problèmes ›
+              </button>
+            ) : null}
+          </section>
         </div>
 
-        {analyticsIsLoading && <p className="wp-empty">Chargement des analytics...</p>}
-        {analyticsIsError && <p className="alert error-alert">{analyticsError}</p>}
-
-        {analytics && (
-          <>
-            <div className="wp-inline-metrics wp-inline-metrics-spaced">
-              <span>{analyticsPerformance?.successRate ?? 0}% de reussite</span>
-              <span>{analyticsPerformance?.averageDurationSeconds ?? 0}s par tentative</span>
-              <span>{analyticsProgression?.bestCycleProgressPercent ?? 0}% meilleur cycle</span>
-              <span>{analyticsProgression?.resumableCycle ? 'Cycle encore reprenable' : 'Aucune reprise en attente'}</span>
-            </div>
-
-            <div className="wp-detail-overview-grid">
-              <section className="wp-panel wp-detail-subpanel">
-                <div className="wp-panel-title">
-                  <div>
-                    <p className="eyebrow">Performance</p>
-                    <h3>Rythme de resolution</h3>
-                  </div>
+        {hasStartedCycle ? (
+          <div className="wp-detail-layout-v2__side">
+            <section className="wp-panel wp-detail-side-card-v2">
+              <div className="wp-panel-title with-action">
+                <div>
+                  <h3>Historique des cycles</h3>
                 </div>
-                <div className="wp-import-preview-list">
-                  <article className="wp-import-preview-row">
-                    <strong>{analyticsPerformance?.attemptCount ?? 0} tentative(s)</strong>
-                    <small>{analyticsPerformance?.solvedAttemptCount ?? 0} reussie(s), {analyticsPerformance?.failedAttemptCount ?? 0} a revoir.</small>
-                  </article>
-                  <article className="wp-import-preview-row">
-                    <strong>{analyticsPerformance?.averageMistakes.toFixed(1) ?? '0.0'} erreur(s) / tentative</strong>
-                    <small>{analyticsPerformance?.latestAttemptedAt ? `Derniere activite ${formatDateTime(analyticsPerformance.latestAttemptedAt)}.` : 'Aucune tentative enregistree pour le moment.'}</small>
-                  </article>
-                </div>
-              </section>
-
-              <section className="wp-panel wp-detail-subpanel">
-                <div className="wp-panel-title">
-                  <div>
-                    <p className="eyebrow">Collection</p>
-                    <h3>Preparation du set</h3>
-                  </div>
-                </div>
-                <div className="wp-import-preview-list">
-                  <article className="wp-import-preview-row">
-                    <strong>{analytics.puzzleReadiness.puzzleCount} puzzle(s)</strong>
-                    <small>{analytics.puzzleReadiness.ratedPuzzleCount} notes, {analytics.puzzleReadiness.themedPuzzleCount} avec themes, {analytics.puzzleReadiness.notedPuzzleCount} avec note perso.</small>
-                  </article>
-                  <article className="wp-import-preview-row">
-                    <strong>{analyticsProgression?.latestCycleProgressPercent ?? 0}% sur le cycle courant</strong>
-                    <small>{analyticsProgression?.completedCycleCount ?? 0} cycle(s) termines, {analyticsProgression?.activeCycleCount ?? 0} actif(s).</small>
-                  </article>
-                </div>
-              </section>
-            </div>
-
-            {analyticsCycleTimeline.length > 0 && (
-              <div className="wp-cycle-list">
-                {analyticsCycleTimeline.map((item) => (
-                  <article className="wp-cycle-row" key={item.cycle['@id']}>
-                    <div>
-                      <strong>Cycle {item.cycle.number}</strong>
-                      <span>{getCycleStatusLabel(item.cycle.status)}</span>
-                    </div>
-                    <div className="wp-cycle-row-progress">
-                      <div className="wp-progress">
-                        <span style={{ width: `${item.progressPercent}%` }} />
-                      </div>
-                      <small>{item.solved} resolu(s), {item.failed} a revoir, {item.pending} restant(s)</small>
-                    </div>
-                    <div className="wp-cycle-row-meta">
-                      <span>{item.attemptCount} tentative(s)</span>
-                      <span>{item.cycle.startedAt ? `Debut ${formatDateTime(item.cycle.startedAt)}` : 'Pas demarre'}</span>
-                      {item.cycle.completedAt && <span>Fin {formatDateTime(item.cycle.completedAt)}</span>}
-                    </div>
-                  </article>
-                ))}
+                {cycleSummaries.length > 0 ? <button className="wp-link-button" type="button">Voir tout</button> : null}
               </div>
-            )}
-          </>
-        )}
-      </section>
 
-      <div className="wp-two-columns wp-detail-main-columns">
-        <section className="wp-panel wp-detail-form-panel">
-          <div className="wp-panel-title">
-            <div>
-              <p className="eyebrow">Ajouter manuellement un probleme</p>
-              <h3>Enrichir la collection</h3>
-            </div>
-          </div>
+              {summaryIsLoading ? <p className="wp-empty">Chargement des cycles...</p> : null}
+              {!summaryIsLoading && !summaryIsError && cycleSummaries.length === 0 ? <p className="wp-empty">Aucun cycle lancé pour le moment.</p> : null}
 
-          {puzzleListIsLocked && <p className="alert warning-alert">La collection est verrouillee pendant un cycle en cours. Les nouveaux problemes seront ajoutes apres la fin du cycle.</p>}
-
-          <form
-            className="form-stack"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!puzzleListIsLocked) {
-                createPuzzleMutation.mutate();
-              }
-            }}
-          >
-            <label>
-              FEN ou position
-              <textarea disabled={puzzleListIsLocked} onChange={(event) => onFenChange(event.target.value)} placeholder="Colle une FEN ou utilise l editeur de position" rows={2} value={fen} />
-            </label>
-
-            <label>
-              Solution (variation principale)
-              <input disabled={puzzleListIsLocked} onChange={(event) => onSolutionTextChange(event.target.value)} placeholder="Ex : e2e4 e7e5 g1f3" required value={solutionText} />
-            </label>
-
-            <div className="form-grid">
-              <label>
-                Theme (optionnel)
-                <input disabled={puzzleListIsLocked} onChange={(event) => onThemesTextChange(event.target.value)} placeholder="fork, pin, mate" value={themesText} />
-              </label>
-              <label>
-                Rating
-                <input disabled={puzzleListIsLocked} min={1} onChange={(event) => onRatingChange(event.target.value)} placeholder="1500" type="number" value={rating} />
-              </label>
-            </div>
-
-            <label>
-              Note personnelle
-              <textarea disabled={puzzleListIsLocked} onChange={(event) => onPersonalNoteChange(event.target.value)} placeholder="Pourquoi ce probleme est interessant ?" rows={3} value={personalNote} />
-            </label>
-
-            {createPuzzleMutation.isError && <p className="alert error-alert">{createPuzzleMutation.error.message}</p>}
-
-            <button className="wp-primary" disabled={createPuzzleMutation.isPending || puzzleListIsLocked} type="submit">
-              {createPuzzleMutation.isPending ? 'Ajout...' : 'Ajouter a la collection'}
-            </button>
-          </form>
-        </section>
-
-        <section className="wp-panel wp-detail-collection wp-detail-collection-panel">
-          <div className="wp-panel-title with-action">
-            <div>
-              <p className="eyebrow">Collection de problemes</p>
-              <h3>Liste active</h3>
-            </div>
-            <button className="wp-secondary" type="button" onClick={onImport}>
-              Importer CSV
-            </button>
-          </div>
-
-          <div className="wp-inline-metrics wp-inline-metrics-spaced">
-            <span>Total {summaryPuzzleCount}</span>
-            <span>{themedPuzzleCount} avec themes</span>
-            <span>{puzzleListIsLocked ? 'Collection verrouillee' : 'Collection editable'}</span>
-          </div>
-
-          <div className="wp-cycle-actions wp-cycle-actions-emphasis">
-            <button className="wp-primary full" disabled={startCycleIsPending || trainingPuzzles.length === 0} type="button" onClick={onStartCycle}>
-              {startCycleIsPending ? (hasResumableCycle ? 'Reprise...' : 'Demarrage...') : hasResumableCycle ? 'Reprendre le cycle' : 'Demarrer le cycle'}
-            </button>
-            <p>{hasResumableCycle ? 'Rouvre le cycle actif existant et continue sans creer de doublon.' : 'Cree un cycle actif, prepare les puzzles du cycle, puis ouvre le solveur.'}</p>
-          </div>
-
-          {startCycleIsError && <p className="alert error-alert">{startCycleError}</p>}
-          {trainingPuzzlesIsLoading && <p className="wp-empty">Chargement des puzzles...</p>}
-          {trainingPuzzlesIsError && <p className="alert error-alert">{trainingPuzzlesError}</p>}
-          {deletePuzzleIsError && <p className="alert error-alert">{deletePuzzleError}</p>}
-          {movePuzzleIsError && <p className="alert error-alert">{movePuzzleError}</p>}
-          {!trainingPuzzlesIsLoading && trainingPuzzles.length === 0 && <p className="wp-empty">Aucun puzzle ajoute pour l instant.</p>}
-
-          <div className="wp-puzzle-table wp-puzzle-table-rich">
-            {trainingPuzzles.map((trainingPuzzle, index) => {
-              const puzzle = typeof trainingPuzzle.puzzle === 'string' ? null : trainingPuzzle.puzzle;
-
-              return (
-                <div className="wp-puzzle-row-with-actions" key={trainingPuzzle['@id']}>
-                  <button className="wp-puzzle-row" type="button" onClick={() => onPuzzleSelect(trainingPuzzle['@id'])}>
-                    <span>#{trainingPuzzle.position + 1}</span>
-                    <strong>{puzzle?.solution.join(' ') ?? 'Puzzle a charger'}</strong>
-                    <em>{puzzle?.themes.join(', ') || trainingPuzzle.personalNote || 'Sans theme'}</em>
-                    <small>{puzzle?.rating ? `Rating ${puzzle.rating}` : 'Rating libre'}{' - '}{trainingPuzzle.personalNote?.trim().length ? 'Note perso' : 'Sans note'}</small>
-                  </button>
-
-                  {!puzzleListIsLocked && (
-                    <div className="wp-puzzle-actions">
-                      <button aria-label={`Monter le puzzle ${trainingPuzzle.position + 1}`} className="wp-secondary wp-puzzle-action" disabled={movePuzzleIsPending || index === 0} type="button" onClick={() => onPuzzleMove(trainingPuzzle['@id'], 'up')}>
-                        Haut
-                      </button>
-                      <button aria-label={`Descendre le puzzle ${trainingPuzzle.position + 1}`} className="wp-secondary wp-puzzle-action" disabled={movePuzzleIsPending || index === trainingPuzzles.length - 1} type="button" onClick={() => onPuzzleMove(trainingPuzzle['@id'], 'down')}>
-                        Bas
-                      </button>
-                      <button
-                        aria-label={`Supprimer le puzzle ${trainingPuzzle.position + 1}`}
-                        className="wp-danger wp-puzzle-action"
-                        disabled={deletePuzzleIsPending}
-                        type="button"
-                        onClick={() => {
-                          const shouldDelete = window.confirm(`Supprimer le puzzle ${trainingPuzzle.position + 1} de ce training ?`);
-                          if (shouldDelete) {
-                            onPuzzleDelete(trainingPuzzle['@id']);
-                          }
-                        }}
-                      >
-                        Retirer
-                      </button>
-                    </div>
-                  )}
+              {cycleSummaries.length > 0 ? (
+                <div className="wp-detail-side-list">
+                  {cycleSummaries.slice(0, 5).map((item) => (
+                    <article className="wp-detail-side-row" key={item.cycle['@id']}>
+                      <div className="wp-detail-side-row__copy">
+                        <strong>{'Cycle ' + item.cycle.number}</strong>
+                        <small>{item.cycle.startedAt ? formatCompactDate(item.cycle.startedAt) : 'Non démarré'}{item.cycle.completedAt ? ' - ' + formatCompactDate(item.cycle.completedAt) : ''}</small>
+                      </div>
+                      <span className="tone-green">{String(item.progressPercent) + '%'}</span>
+                      <span className={item.progressPercent >= 50 ? 'tone-green' : item.progressPercent >= 1 ? 'tone-amber' : 'tone-blue'}>
+                        {item.progressPercent > 0 ? '+' + String(Math.max(item.progressPercent - 50, 0)) + '%' : '—'}
+                      </span>
+                      <button className="wp-detail-table-arrow" type="button">›</button>
+                    </article>
+                  ))}
+                  {Array.from({ length: cyclePlaceholders }).map((_, index) => (
+                    <article className="wp-detail-side-row wp-detail-side-row--placeholder" key={'cycle-placeholder-' + String(index)}>
+                      <div className="wp-detail-side-row__copy">
+                        <strong>Cycle suivant</strong>
+                        <small>Il apparaîtra ici dès qu un nouveau cycle sera lancé.</small>
+                      </div>
+                      <span>—</span>
+                      <span>—</span>
+                      <span className="wp-detail-table-arrow">·</span>
+                    </article>
+                  ))}
                 </div>
-              );
-            })}
+              ) : null}
+            </section>
+
+            <section className="wp-panel wp-detail-side-card-v2">
+              <div className="wp-panel-title with-action">
+                <div>
+                  <h3>Dernières tentatives</h3>
+                </div>
+                {latestAttempts.length > 0 ? <button className="wp-link-button" type="button">Voir tout</button> : null}
+              </div>
+
+              {summaryIsLoading ? <p className="wp-empty">Chargement des tentatives...</p> : null}
+              {!summaryIsLoading && !summaryIsError && latestAttempts.length === 0 ? <p className="wp-empty">Aucune tentative sauvegardée pour le moment.</p> : null}
+
+              {latestAttempts.length > 0 ? (
+                <div className="wp-detail-side-list">
+                  {latestAttempts.slice(0, 5).map((attempt) => {
+                    const tone: PuzzleRowTone = attempt.successful ? 'green' : attempt.mistakesCount > 2 ? 'red' : 'amber';
+                    return (
+                      <article className="wp-detail-side-row wp-detail-side-row--attempt" key={attempt['@id']}>
+                        <div className={'wp-detail-side-row__status tone-' + tone}>
+                          {attempt.successful ? <AppIcons.CheckCircleIcon /> : <AppIcons.RepeatIcon />}
+                        </div>
+                        <div className="wp-detail-side-row__copy">
+                          <strong>{attempt.successful ? 'Réussi' : attempt.mistakesCount > 2 ? 'Échoué' : 'Partiellement réussi'}</strong>
+                          <small>{String(Math.max(attempt.mistakesCount, 1)) + ' tentative' + (Math.max(attempt.mistakesCount, 1) > 1 ? 's' : '')}</small>
+                        </div>
+                        <span>{formatDateTime(attempt.attemptedAt)}</span>
+                        <button className="wp-detail-table-arrow" type="button">›</button>
+                      </article>
+                    );
+                  })}
+                  {Array.from({ length: attemptPlaceholders }).map((_, index) => (
+                    <article className="wp-detail-side-row wp-detail-side-row--attempt wp-detail-side-row--placeholder" key={'attempt-placeholder-' + String(index)}>
+                      <div className="wp-detail-side-row__status">·</div>
+                      <div className="wp-detail-side-row__copy">
+                        <strong>Prochaine tentative</strong>
+                        <small>Cette zone se remplit au fur et à mesure de vos essais.</small>
+                      </div>
+                      <span>—</span>
+                      <span className="wp-detail-table-arrow">·</span>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+            </section>
           </div>
-        </section>
-      </div>
-
-      <div className="wp-two-columns wp-detail-history-columns">
-        <section className="wp-panel wp-history-panel">
-          <div className="wp-panel-title">
-            <div>
-              <p className="eyebrow">Cycles</p>
-              <h3>Historique des cycles</h3>
-            </div>
-          </div>
-
-          {summaryIsLoading && <p className="wp-empty">Chargement du resume...</p>}
-          {summaryIsError && <p className="alert error-alert">{summaryError}</p>}
-          {!summaryIsLoading && !summaryIsError && cycleSummaries.length === 0 && <p className="wp-empty">Aucun cycle lance pour l instant. Demarre un cycle quand la collection est prete.</p>}
-
-          {cycleSummaries.length > 0 && (
-            <div className="wp-cycle-list">
-              {cycleSummaries.map((summaryItem: TrainingCycleSummary) => (
-                <article className="wp-cycle-row" key={summaryItem.cycle['@id']}>
-                  <div>
-                    <strong>Cycle {summaryItem.cycle.number}</strong>
-                    <span>{getCycleStatusLabel(summaryItem.cycle.status)}</span>
-                  </div>
-                  <div className="wp-cycle-row-progress">
-                    <div className="wp-progress">
-                      <span style={{ width: `${summaryItem.progressPercent}%` }} />
-                    </div>
-                    <small>{summaryItem.solved} resolu(s), {summaryItem.failed} a revoir, {summaryItem.pending} restant(s)</small>
-                  </div>
-                  <div className="wp-cycle-row-meta">
-                    <span>{summaryItem.attemptCount} tentative(s)</span>
-                    <span>{summaryItem.cycle.startedAt ? `Debut ${formatDateTime(summaryItem.cycle.startedAt)}` : 'Pas demarre'}</span>
-                    {summaryItem.cycle.completedAt && <span>Fin {formatDateTime(summaryItem.cycle.completedAt)}</span>}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="wp-panel wp-history-panel">
-          <div className="wp-panel-title">
-            <div>
-              <p className="eyebrow">Historique</p>
-              <h3>Dernieres tentatives</h3>
-            </div>
-          </div>
-
-          {summaryIsLoading && <p className="wp-empty">Chargement des tentatives...</p>}
-          {summaryIsError && <p className="alert error-alert">{summaryError}</p>}
-          {!summaryIsLoading && !summaryIsError && latestAttempts.length === 0 && <p className="wp-empty">Aucune tentative sauvegardee pour l instant. Demarre un cycle puis resous un puzzle.</p>}
-
-          {latestAttempts.length > 0 && (
-            <div className="wp-attempt-list">
-              {latestAttempts.map((attempt: TrainingAttemptSummary) => (
-                <article className="wp-attempt-row" key={attempt['@id']}>
-                  <div>
-                    <strong>{attempt.successful ? 'Reussi' : 'A revoir'}</strong>
-                    <span>{attempt.cycleNumber ? `Cycle ${attempt.cycleNumber}` : 'Cycle'}{' - '}{typeof attempt.trainingPuzzlePosition === 'number' ? `Puzzle ${attempt.trainingPuzzlePosition + 1}` : 'Puzzle'}</span>
-                  </div>
-                  <div className="wp-attempt-metrics">
-                    <span>{attempt.mistakesCount} erreur(s)</span>
-                    <span>{formatDuration(attempt.durationMilliseconds)}</span>
-                    <span>{formatDateTime(attempt.attemptedAt)}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+        ) : null}
       </div>
     </div>
   );
