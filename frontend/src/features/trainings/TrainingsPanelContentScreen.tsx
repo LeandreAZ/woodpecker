@@ -1,6 +1,7 @@
 import type { CyclePuzzle, TrainingPuzzle, View } from './trainingsTypes';
 import { DashboardOverviewView } from './dashboard/DashboardOverviewView';
 import { DetailView } from './TrainingsDetailView';
+import { StatsOverviewView as RichStatsOverviewView } from './TrainingsPanelViews';
 import { SolverView } from './TrainingsSolverView';
 import type { useTrainingsPanelState } from './useTrainingsPanelState';
 import './trainings-common.css';
@@ -9,7 +10,6 @@ import {
   HistoryOverviewView,
   ImportView,
   SettingsOverviewView,
-  StatsOverviewView,
 } from './TrainingsPanelContentViews';
 
 type TrainingsPanelState = ReturnType<typeof useTrainingsPanelState>;
@@ -192,7 +192,7 @@ function TrainingsPanelContentScreen({
       )}
 
       {state.activeView === 'stats' && (
-        <StatsOverviewView
+        <RichStatsOverviewView
           errorMessage={state.statsOverviewQuery.error?.message}
           isError={state.statsOverviewQuery.isError}
           isLoading={state.statsOverviewQuery.isLoading}
@@ -233,3 +233,4 @@ function TrainingsPanelContentScreen({
 
 export { TrainingsPanelContentScreen };
 export default TrainingsPanelContentScreen;
+

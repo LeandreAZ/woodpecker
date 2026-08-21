@@ -15,7 +15,7 @@ function TrainingsRouteBar({
   route,
   selectedTraining,
 }: TrainingsRouteBarProps) {
-  if (activeView === 'dashboard' || activeView === 'detail' || activeView === 'solver') {
+  if (activeView === 'dashboard' || activeView === 'detail' || activeView === 'solver' || activeView === 'stats') {
     return null;
   }
 

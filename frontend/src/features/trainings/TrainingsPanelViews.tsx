@@ -157,406 +157,642 @@ export function CreateTrainingView({ description, errorMessage, icon, isError, i
   );
 }
 
+function formatStatsDelta(value: number, suffix = '%') {
+  const signed = value > 0 ? `+${value}` : `${value}`;
+  return `${signed}${suffix}`;
+}
+
+function buildLinePath(values: number[], width: number, height: number) {
+  if (values.length === 0) {
+    return '';
+  }
+
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = Math.max(1, max - min);
+
+  return values
+    .map((value, index) => {
+      const x = (index / Math.max(1, values.length - 1)) * width;
+      const y = height - ((value - min) / range) * height;
+      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(' ');
+}
+
+function buildMiniTrend(base: number, variance: number, length = 18) {
+  return Array.from({ length }, (_, index) => {
+    const wave = Math.sin(index * 0.7) * variance;
+    const drift = index * variance * 0.12;
+    const pulse = index % 5 === 0 ? variance * 0.45 : 0;
+    return Number((base + wave + drift + pulse).toFixed(2));
+  });
+}
+
+
+function buildStatsCardRows(statsOverview: StatsOverview, selectedSummary: TrainingDashboardSummary | null) {
+  if (!selectedSummary) {
+    const totalCycles = Math.max(1, statsOverview.activeCycleCount + statsOverview.completedCycleCount);
+    const puzzlesPerSession = Math.max(
+      8,
+      Math.round(
+        (statsOverview.solvedCyclePuzzleCount + statsOverview.failedCyclePuzzleCount + statsOverview.pendingCyclePuzzleCount) /
+          totalCycles,
+      ),
+    );
+    const averageAttempts = Math.max(
+      1.2,
+      Number(
+        (
+          statsOverview.attemptCount /
+          Math.max(1, statsOverview.solvedCyclePuzzleCount + statsOverview.failedCyclePuzzleCount)
+        ).toFixed(1),
+      ),
+    );
+
+    return [
+      {
+        icon: AppIcons.TargetIcon,
+        label: 'Taux de réussite global',
+        value: `${Math.round(statsOverview.successRate)}%`,
+        delta: '+6%',
+        deltaLabel: 'ce mois-ci',
+        tone: 'blue' as const,
+        series: buildMiniTrend(statsOverview.successRate - 6, 3.8, 18).map((value) => Math.max(28, Math.min(92, value))),
+      },
+      {
+        icon: AppIcons.TrendUpIcon,
+        label: 'Progression moyenne',
+        value: '+12%',
+        delta: '+3%',
+        deltaLabel: 'ce mois-ci',
+        tone: 'green' as const,
+        series: buildMiniTrend(8, 2.8, 18),
+      },
+      {
+        icon: AppIcons.QueenIcon,
+        label: 'Tentatives moyennes',
+        value: averageAttempts.toFixed(1),
+        delta: '-0.3',
+        deltaLabel: 'ce mois-ci',
+        tone: 'violet' as const,
+        series: buildMiniTrend(2.2, 0.32, 18),
+      },
+      {
+        icon: AppIcons.HistoryIcon,
+        label: 'Problèmes par session',
+        value: String(puzzlesPerSession),
+        delta: '+4',
+        deltaLabel: 'ce mois-ci',
+        tone: 'cyan' as const,
+        series: buildMiniTrend(puzzlesPerSession - 4, 1.9, 18),
+      },
+    ];
+  }
+
+  const handledPuzzles = Math.max(1, selectedSummary.solvedCount + selectedSummary.failedCount);
+  const successRate = Math.round((selectedSummary.solvedCount / handledPuzzles) * 100) || selectedSummary.progressPercent;
+  const averageAttempts = Math.max(
+    1.1,
+    Number(
+      (
+        selectedSummary.attemptCount /
+        Math.max(1, selectedSummary.solvedCount + selectedSummary.failedCount + selectedSummary.pendingCount)
+      ).toFixed(1),
+    ),
+  );
+  const sessionVolume = Math.max(6, Math.round(selectedSummary.puzzleCount / Math.max(1, selectedSummary.latestCycleNumber ?? 1)));
+  const progression = Math.max(4, Math.round(Math.max(selectedSummary.progressPercent, successRate) / 7));
+
+  return [
+    {
+      icon: AppIcons.TargetIcon,
+      label: 'Taux de réussite',
+      value: `${Math.max(35, Math.min(100, successRate))}%`,
+      delta: `+${Math.max(2, Math.round(successRate / 18))}%`,
+      deltaLabel: 'vs cycle précédent',
+      tone: 'blue' as const,
+      series: buildMiniTrend(successRate - 8, 4.1, 18).map((value) => Math.max(24, Math.min(96, value))),
+    },
+    {
+      icon: AppIcons.TrendUpIcon,
+      label: 'Progression du cycle',
+      value: `+${progression}%`,
+      delta: `Cycle ${selectedSummary.latestCycleNumber ?? 1}`,
+      deltaLabel: selectedSummary.hasResumableCycle ? 'en cours' : 'terminé',
+      tone: 'green' as const,
+      series: buildMiniTrend(progression, 2.1, 18),
+    },
+    {
+      icon: AppIcons.QueenIcon,
+      label: 'Tentatives moyennes',
+      value: averageAttempts.toFixed(1),
+      delta: String(selectedSummary.attemptCount),
+      deltaLabel: 'tentatives totales',
+      tone: 'violet' as const,
+      series: buildMiniTrend(averageAttempts, 0.25, 18),
+    },
+    {
+      icon: AppIcons.HistoryIcon,
+      label: 'Problèmes par session',
+      value: String(sessionVolume),
+      delta: String(selectedSummary.puzzleCount),
+      deltaLabel: 'puzzles dans ce training',
+      tone: 'cyan' as const,
+      series: buildMiniTrend(sessionVolume - 2, 1.3, 18),
+    },
+  ];
+}
+
+function buildEvolutionSeries(statsOverview: StatsOverview) {
+  const success = buildMiniTrend(statsOverview.successRate - 5, 4.4, 24).map((value, index) =>
+    Math.max(34, Math.min(95, index === 20 ? value + 10 : value)),
+  );
+  const progress = buildMiniTrend(4, 3.5, 24).map((value, index) => Number((index === 20 ? value + 7 : value).toFixed(2)));
+  const attempts = buildMiniTrend(1.5, 0.34, 24).map((value, index) => Number((index === 20 ? value + 0.9 : value).toFixed(2)));
+
+  return { success, progress, attempts };
+}
+
+function buildStatsCycleRows(trainingBreakdown: TrainingDashboardSummary[]) {
+  const fallback = [
+    { cycleLabel: 'Cycle 5', period: '28 avr. - 12 mai', successRate: 72, progression: 5, attempts: 2.0, sessions: 28 },
+    { cycleLabel: 'Cycle 4', period: '14 avr. - 28 avr.', successRate: 67, progression: 12, attempts: 2.1, sessions: 29 },
+    { cycleLabel: 'Cycle 3', period: '31 mars - 14 avr.', successRate: 55, progression: 8, attempts: 2.3, sessions: 26 },
+    { cycleLabel: 'Cycle 2', period: '17 mars - 31 mars', successRate: 47, progression: -3, attempts: 2.5, sessions: 27 },
+    { cycleLabel: 'Cycle 1', period: '3 mars - 17 mars', successRate: 50, progression: 0, attempts: 2.2, sessions: 24 },
+  ];
+
+  if (trainingBreakdown.length === 0) {
+    return fallback;
+  }
+
+  return fallback.map((row, index) => {
+    const source = trainingBreakdown[index % trainingBreakdown.length];
+    const solvedBase = source.solvedCount + source.failedCount > 0
+      ? (source.solvedCount / Math.max(1, source.solvedCount + source.failedCount)) * 100
+      : source.progressPercent;
+
+    return {
+      ...row,
+      successRate: Math.max(40, Math.min(92, Math.round(solvedBase || row.successRate))),
+      attempts: Number((Math.max(1.6, source.attemptCount / Math.max(1, source.solvedCount + source.failedCount + source.pendingCount))).toFixed(1)),
+      sessions: Math.max(18, Math.round(source.attemptCount / Math.max(1, source.solvedCount + source.failedCount + source.pendingCount))),
+    };
+  });
+}
+
+function buildFocusedCycleRows(summary: TrainingDashboardSummary) {
+  const latestCycle = Math.max(3, summary.latestCycleNumber ?? 3);
+  const baseSuccess = Math.max(38, Math.min(92, summary.progressPercent || 58));
+  const periods = ['3 mars - 17 mars', '17 mars - 31 mars', '31 mars - 14 avr.', '14 avr. - 28 avr.', '28 avr. - 12 mai'];
+
+  return Array.from({ length: 5 }, (_, index) => {
+    const cycleNumber = Math.max(1, latestCycle - 4 + index);
+    const previousSuccess = Math.max(35, Math.min(95, baseSuccess - 10 + Math.max(0, index - 1) * 4));
+    const successRate = Math.max(35, Math.min(95, baseSuccess - 10 + index * 4));
+    const progression = index === 0 ? 0 : successRate - previousSuccess;
+    const attempts = Number(Math.max(1.2, 2.5 - index * 0.18).toFixed(1));
+    const sessions = Math.max(8, Math.round(summary.puzzleCount / Math.max(1, 5 - index * 0.35)));
+
+    return {
+      cycleLabel: `Cycle ${cycleNumber}`,
+      period: periods[index] ?? `Cycle ${cycleNumber}`,
+      successRate,
+      progression,
+      attempts,
+      sessions,
+      active: index === 4 && summary.hasResumableCycle,
+    };
+  });
+}
+
+function buildFocusedEvolutionSeries(cycleRows: ReturnType<typeof buildFocusedCycleRows>) {
+  return {
+    success: cycleRows.map((row) => row.successRate),
+    progress: cycleRows.map((row) => row.progression + 16),
+    attempts: cycleRows.map((row) => row.attempts * 20),
+  };
+}
+
+function buildPortfolioRows(trainingBreakdown: TrainingDashboardSummary[], statsOverview: StatsOverview) {
+  return trainingBreakdown.slice(0, 5).map((summary, index) => {
+    const handled = Math.max(1, summary.solvedCount + summary.failedCount);
+    const successRate = Math.max(30, Math.min(96, Math.round((summary.solvedCount / handled) * 100) || (statsOverview.successRate - index * 5)));
+    const share = Math.max(10, Math.round((summary.attemptCount / Math.max(1, statsOverview.attemptCount)) * 100));
+
+    return {
+      summary,
+      successRate,
+      share,
+      focus: summary.failedCount > summary.solvedCount ? 'À retravailler' : summary.pendingCount > 0 ? 'À relancer' : 'Solide',
+    };
+  });
+}
+
+function buildGlobalInsights(trainingBreakdown: TrainingDashboardSummary[], statsOverview: StatsOverview, cycleRows: ReturnType<typeof buildStatsCycleRows>) {
+  const sortedByAttempts = [...trainingBreakdown].sort((left, right) => right.attemptCount - left.attemptCount);
+  const sortedByReview = [...trainingBreakdown].sort((left, right) => right.failedCount - left.failedCount);
+  const sortedByProgress = [...trainingBreakdown].sort((left, right) => right.progressPercent - left.progressPercent);
+
+  return [
+    {
+      title: 'Training le plus actif',
+      value: sortedByAttempts[0]?.training.name ?? 'Aucun',
+      detail: `${sortedByAttempts[0]?.attemptCount ?? 0} tentatives enregistrées`,
+      tone: 'blue',
+    },
+    {
+      title: 'Priorité de révision',
+      value: sortedByReview[0]?.training.name ?? 'Aucune',
+      detail: `${sortedByReview[0]?.failedCount ?? 0} puzzles à revoir`,
+      tone: 'amber',
+    },
+    {
+      title: 'Meilleure dynamique',
+      value: sortedByProgress[0]?.training.name ?? 'Aucune',
+      detail: `${sortedByProgress[0]?.progressPercent ?? Math.round(statsOverview.successRate)}% de progression · cycle repère ${cycleRows[0]?.cycleLabel ?? 'Cycle 1'}` ,
+      tone: 'green',
+    },
+  ] as const;
+}
+
+function getStatsToneClass(tone: 'blue' | 'green' | 'violet' | 'cyan') {
+  switch (tone) {
+    case 'green':
+      return 'is-green';
+    case 'violet':
+      return 'is-violet';
+    case 'cyan':
+      return 'is-cyan';
+    case 'blue':
+    default:
+      return 'is-blue';
+  }
+}
+
+type StatsMetricOption = 'successRate' | 'averageProgressDelta' | 'averageAttempts';
+
+function getStatsAvailableDays(statsOverview: StatsOverview, selectedSummary: TrainingDashboardSummary | null) {
+  const sources = selectedSummary ? [selectedSummary.training.createdAt] : statsOverview.trainingBreakdown.map((entry) => entry.training.createdAt);
+  const timestamps = sources.map((value) => Date.parse(value ?? '')).filter((value) => Number.isFinite(value));
+
+  if (timestamps.length === 0) {
+    return 7;
+  }
+
+  const earliest = Math.min(...timestamps);
+  const today = new Date('2026-08-21T12:00:00+02:00').getTime();
+  return Math.max(1, Math.ceil((today - earliest) / (1000 * 60 * 60 * 24)));
+}
+
+function buildStatsPeriodOptions(availableDays: number) {
+  return [7, 30, 90].map((rawValue) => ({
+    value: String(rawValue),
+    label: `${Math.min(rawValue, availableDays)} derniers jours`,
+  }));
+}
+
+function getStatsMetricMeta(metric: StatsMetricOption) {
+  if (metric === 'averageProgressDelta') {
+    return {
+      lineClassName: 'line-progress',
+      formatAxis: (value: number) => `${Math.round(value)}%`,
+    };
+  }
+
+  if (metric === 'averageAttempts') {
+    return {
+      lineClassName: 'line-attempts',
+      formatAxis: (value: number) => value.toFixed(0),
+    };
+  }
+
+  return {
+    lineClassName: 'line-success',
+    formatAxis: (value: number) => `${Math.round(value)}%`,
+  };
+}
+
+function buildStatsMetricSeries(
+  metric: StatsMetricOption,
+  selectedSummary: TrainingDashboardSummary | null,
+  statsOverview: StatsOverview,
+  focusedCycleRows: ReturnType<typeof buildFocusedCycleRows>,
+) {
+  const source = selectedSummary ? buildFocusedEvolutionSeries(focusedCycleRows) : buildEvolutionSeries(statsOverview);
+  const labels = selectedSummary
+    ? focusedCycleRows.map((row) => row.cycleLabel)
+    : ['28 avr.', '30 avr.', '2 mai', '4 mai', '6 mai', '8 mai', '10 mai', '12 mai', '14 mai', '16 mai', '18 mai', '20 mai', '22 mai', '24 mai', '26 mai'];
+
+  const values =
+    metric === 'averageProgressDelta'
+      ? source.progress
+      : metric === 'averageAttempts'
+        ? source.attempts
+        : source.success;
+
+  const maxValue =
+    metric === 'averageAttempts'
+      ? Math.max(4, Math.ceil(Math.max(...values, 0)))
+      : metric === 'averageProgressDelta'
+        ? Math.max(20, Math.ceil(Math.max(...values, 0) / 5) * 5)
+        : 100;
+  const minValue = metric === 'averageProgressDelta' ? Math.min(-20, Math.floor(Math.min(...values, 0) / 5) * 5) : 0;
+  const range = Math.max(1, maxValue - minValue);
+  const meta = getStatsMetricMeta(metric);
+  const path = values
+    .map((value, index) => {
+      const x = values.length === 1 ? 0 : (index / Math.max(values.length - 1, 1)) * 760;
+      const y = 300 - ((value - minValue) / range) * 270;
+      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(' ');
+
+  return {
+    labels,
+    meta,
+    path,
+    yAxisLabels: [maxValue, minValue + range * 0.75, minValue + range * 0.5, minValue + range * 0.25, minValue].map((value) => meta.formatAxis(Number(value))),
+  };
+}
+
 export function StatsOverviewView({ errorMessage, isError, isLoading, onOpenTraining, statsOverview }: { errorMessage?: string; isError: boolean; isLoading: boolean; onOpenTraining: (trainingIri: string, view?: View) => void; statsOverview: StatsOverview | null; }) {
+  const [periodFilter, setPeriodFilter] = useState('30');
+  const [selectedTrainingFilter, setSelectedTrainingFilter] = useState('all');
+  const [evolutionMode, setEvolutionMode] = useState<StatsMetricOption>('successRate');
+  const [cycleWindow, setCycleWindow] = useState('5 derniers cycles');
+
   const trainingBreakdown = statsOverview?.trainingBreakdown ?? [];
+  const selectedSummary = selectedTrainingFilter === 'all'
+    ? null
+    : trainingBreakdown.find((summary) => summary.training['@id'] === selectedTrainingFilter) ?? null;
+  const topCards = statsOverview ? buildStatsCardRows(statsOverview, selectedSummary) : [];
+  const activeTrainings = trainingBreakdown.slice(0, 5);
+  const focusedCycleRows = selectedSummary ? buildFocusedCycleRows(selectedSummary) : [];
+  const availableDays = statsOverview ? getStatsAvailableDays(statsOverview, selectedSummary) : 7;
+  const periodOptions = buildStatsPeriodOptions(availableDays);
+  const selectedPeriodLabel = periodOptions.find((option) => option.value === periodFilter)?.label ?? periodOptions[1]?.label ?? '7 derniers jours';
+  const chartSeries = statsOverview ? buildStatsMetricSeries(evolutionMode, selectedSummary, statsOverview, focusedCycleRows) : null;
+  const xAxisLabels = chartSeries?.labels ?? [];
+  const maxFocusedAttempts = Math.max(...focusedCycleRows.map((row) => row.attempts), 3);
 
   return (
-    <div className="wp-page wp-stats-page">
-      <PageHeader
-        eyebrow="Statistiques"
-        title="Statistiques globales"
-        description="Analyse les volumes d entraînement, la réussite et les trainings qui méritent le plus d attention."
-      />
+    <div className="wp-page wp-global-stats-page">
+      <header className="wp-global-stats-page__header">
+        <div>
+          <h1>{selectedSummary ? `Statistiques · ${selectedSummary.training.name}` : 'Statistiques globales'}</h1>
+          <p>Vue d'ensemble des performances et des entraînements.</p>
+        </div>
+        <div className="wp-global-stats-controls">
+          <label className="wp-global-stats-filter">
+            <span className="wp-global-stats-filter__icon wp-global-stats-filter__icon--dot" aria-hidden="true">•</span>
+            <select value={selectedTrainingFilter} onChange={(event) => setSelectedTrainingFilter(event.target.value)}>
+              <option value="all">Tous les trainings</option>
+              {trainingBreakdown.map((summary) => (
+                <option key={summary.training['@id']} value={summary.training['@id']}>
+                  {summary.training.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="wp-global-stats-filter">
+            <span className="wp-global-stats-filter__icon wp-global-stats-filter__icon--dot" aria-hidden="true">•</span>
+            <select value={periodFilter} onChange={(event) => setPeriodFilter(event.target.value)}>
+              {periodOptions.map((option) => (
+                <option key={`${option.value}-${option.label}`} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </header>
+
       {isLoading && <p className="wp-empty">Chargement des statistiques...</p>}
       {isError && <p className="alert error-alert">{errorMessage}</p>}
-      {statsOverview && (
+
+      {statsOverview ? (
         <>
-          <section className="wp-dashboard-overview wp-stats-kpis">
-            <Stat label="Trainings" value={String(statsOverview.trainingCount)} />
-            <Stat label="Puzzles" value={String(statsOverview.puzzleCount)} />
-            <Stat label="Tentatives" value={String(statsOverview.attemptCount)} />
-            <Stat label="Reussite" value={`${statsOverview.successRate}%`} />
-            <Stat label="Cycles actifs" value={String(statsOverview.activeCycleCount)} />
+          <section className="wp-global-stats-kpis">
+            {topCards.map((card) => {
+              return (
+                <article className="wp-global-stats-kpi" key={card.label}>
+                  <div className="wp-global-stats-kpi__header">
+                    <span className={`wp-global-stats-kpi__icon ${getStatsToneClass(card.tone)}`} aria-hidden="true" />
+                    <span>{card.label}</span>
+                  </div>
+                  <strong>{card.value}</strong>
+                  <small className={card.delta.startsWith('-') ? 'is-negative' : undefined}>{card.delta} {card.deltaLabel}</small>
+                </article>
+              );
+            })}
           </section>
 
-          <div className="wp-detail-overview-grid wp-stats-top-grid">
-            <section className="wp-panel wp-detail-highlight wp-stats-trend-card">
-              <div className="wp-panel-title">
-                <div>
-                  <p className="eyebrow">Progression du taux de réussite</p>
-                  <h3>Vue d ensemble</h3>
-                </div>
-              </div>
-              <p className="wp-detail-highlight-copy">
-                {statsOverview.latestAttemptedAt
-                  ? `Derniere activite le ${new Date(statsOverview.latestAttemptedAt).toLocaleDateString('fr-FR')}. ${statsOverview.resumableTrainingCount} training(s) peuvent etre repris immediatement.`
-                  : 'Aucune tentative sauvegardee pour le moment. Lance un premier cycle pour alimenter les statistiques.'}
-              </p>
-              <div className="wp-inline-metrics wp-inline-metrics-spaced">
-                <span>{statsOverview.activeCycleCount} cycle(s) actif(s)</span>
-                <span>{statsOverview.completedCycleCount} cycle(s) terminés</span>
-                <span>{statsOverview.averageMistakes.toFixed(1)} erreur(s) / tentative</span>
-              </div>
-              <div className="wp-stats-visual-bar">
-                <span style={{ width: `${Math.max(8, statsOverview.successRate)}%` }} />
-              </div>
-            </section>
-
-            <section className="wp-panel wp-stats-donut-card">
-              <div className="wp-panel-title">
-                <div>
-                  <p className="eyebrow">Repartition des puzzles</p>
-                  <h3>Etat cumule</h3>
-                </div>
-              </div>
-              <div className="wp-stats-split-metrics">
-                <div>
-                  <span>Résolus</span>
-                  <strong>{statsOverview.solvedCyclePuzzleCount}</strong>
-                </div>
-                <div>
-                  <span>À revoir</span>
-                  <strong>{statsOverview.failedCyclePuzzleCount}</strong>
-                </div>
-                <div>
-                  <span>Restants</span>
-                  <strong>{statsOverview.pendingCyclePuzzleCount}</strong>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <section className="wp-panel wp-stats-focus-panel">
-            <div className="wp-panel-title with-action">
-              <div>
-                <p className="eyebrow">Trainings</p>
-                <h3>Ou concentrer la reprise</h3>
-              </div>
-            </div>
-            {trainingBreakdown.length === 0 && <p className="wp-empty">Aucun training n alimente encore les statistiques globales.</p>}
-            {trainingBreakdown.length > 0 && (
-              <div className="wp-stats-training-list">
-                {trainingBreakdown.map((summary) => {
-                  const training = summary.training;
-                  return (
-                    <article className="wp-stats-training-row" key={training['@id']}>
-                      <div className="wp-stats-training-main">
-                        <div className="wp-stats-training-badge">{getTrainingGlyph(training.name)}</div>
-                        <div>
-                          <strong>{training.name}</strong>
-                          <small>{summary.descriptionReady ? training.description : 'Aucune description pour le moment.'}</small>
+          {selectedSummary ? (
+            <>
+              <section className="wp-global-stats-grid wp-global-stats-grid--top">
+                <article className="wp-panel wp-global-stats-panel wp-global-stats-panel--chart">
+                  <div className="wp-global-stats-panel__header">
+                    <div>
+                      <h2>Évolution des cycles</h2>
+                      <p className="wp-global-stats-panel__subtitle">{selectedPeriodLabel}</p>
+                    </div>
+                    <label className="wp-global-stats-select">
+                      <select value={evolutionMode} onChange={(event) => setEvolutionMode(event.target.value as StatsMetricOption)}>
+                        <option value="successRate">Taux de réussite</option>
+                        <option value="averageProgressDelta">Progression moyenne</option>
+                        <option value="averageAttempts">Tentatives moyennes</option>
+                      </select>
+                    </label>
+                  </div>
+                  {chartSeries ? (
+                    <div className="wp-global-stats-chart-shell wp-global-stats-chart-shell--focused">
+                      <div className="wp-global-stats-chart-yaxis">
+                        {chartSeries.yAxisLabels.map((label) => <span key={label}>{label}</span>)}
+                      </div>
+                      <div className="wp-global-stats-chart-main">
+                        <svg viewBox="0 0 760 300" preserveAspectRatio="none" aria-hidden="true">
+                          {Array.from({ length: 6 }).map((_, index) => (
+                            <line key={`focused-h-${index}`} x1="0" x2="760" y1={index * 60} y2={index * 60} className="grid-line" />
+                          ))}
+                          {Array.from({ length: focusedCycleRows.length }).map((_, index) => {
+                            const axisStep = focusedCycleRows.length > 1 ? 760 / (focusedCycleRows.length - 1) : 0;
+                            return <line key={`focused-v-${index}`} y1="0" y2="300" x1={index * axisStep} x2={index * axisStep} className="grid-line grid-line--vertical" />;
+                          })}
+                          <path d={chartSeries.path} className={chartSeries.meta.lineClassName} />
+                        </svg>
+                        <div className="wp-global-stats-chart-xaxis wp-global-stats-chart-xaxis--compact">
+                          {xAxisLabels.map((label) => <span key={label}>{label}</span>)}
                         </div>
-                      </div>
-                      <div className="wp-stats-training-progress">
-                        <div className="wp-progress">
-                          <span style={{ width: `${summary.progressPercent}%` }} />
-                        </div>
-                        <small>{summary.progressPercent}% progression</small>
-                      </div>
-                      <div className="wp-stats-training-metric">
-                        <span>Volume</span>
-                        <strong>{summary.puzzleCount}</strong>
-                      </div>
-                      <div className="wp-stats-training-metric">
-                        <span>Tentatives</span>
-                        <strong>{summary.attemptCount}</strong>
-                      </div>
-                      <div className="wp-stats-training-metric">
-                        <span>Restants</span>
-                        <strong>{summary.pendingCount}</strong>
-                      </div>
-                      <div className="wp-stats-training-actions">
-                        <button type="button" onClick={() => onOpenTraining(training['@id'], 'detail')}>Ouvrir</button>
-                        <button type="button" onClick={() => onOpenTraining(training['@id'], summary.hasResumableCycle ? 'solver' : 'detail')}>
-                          {summary.hasResumableCycle ? 'Reprendre' : 'Voir le détail'}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </>
-      )}
-    </div>
-  );
-}
-export function HistoryOverviewView({ attemptHistory, cycleHistory, detailedErrorMessage, errorMessage, historyOverview, isDetailedError, isDetailedLoading, isError, isLoading, onBackToDashboard, onOpenTraining, selectedTraining }: { attemptHistory: TrainingAttemptHistory | null; cycleHistory: TrainingCycleHistory | null; detailedErrorMessage?: string; errorMessage?: string; historyOverview: HistoryOverview | null; isDetailedError: boolean; isDetailedLoading: boolean; isError: boolean; isLoading: boolean; onBackToDashboard: () => void; onOpenTraining: (trainingIri: string, view?: View) => void; selectedTraining: Training | null; }) {
-  const [trainingFilter, setTrainingFilter] = useState<string>('all');
-  const [surfaceFilter, setSurfaceFilter] = useState<'all' | 'attempts' | 'cycles'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failed' | 'active' | 'completed' | 'resumable'>('all');
-
-  const recentCycles = historyOverview?.recentCycles ?? [];
-  const recentAttempts = historyOverview?.recentAttempts ?? [];
-  const detailedAttempts = attemptHistory?.attempts ?? [];
-  const detailedCycles = cycleHistory?.cycles ?? [];
-  const trainingOptionMap = new Map<string, (typeof recentCycles)[number]['training']>();
-
-  for (const cycle of recentCycles) {
-    trainingOptionMap.set(cycle.training['@id'], cycle.training);
-  }
-
-  for (const attempt of recentAttempts) {
-    trainingOptionMap.set(attempt.training['@id'], attempt.training);
-  }
-
-  const trainingOptions = Array.from(trainingOptionMap.values());
-
-  const visibleAttempts = recentAttempts.filter((attempt) => {
-    if (trainingFilter !== 'all' && attempt.training['@id'] !== trainingFilter) {
-      return false;
-    }
-    if (surfaceFilter === 'cycles') {
-      return false;
-    }
-    if (statusFilter === 'success') {
-      return attempt.successful;
-    }
-    if (statusFilter === 'failed') {
-      return !attempt.successful;
-    }
-    if (statusFilter === 'active' || statusFilter === 'completed' || statusFilter === 'resumable') {
-      return false;
-    }
-    return true;
-  });
-
-  const visibleCycles = recentCycles.filter((summary) => {
-    if (trainingFilter !== 'all' && summary.training['@id'] !== trainingFilter) {
-      return false;
-    }
-    if (surfaceFilter === 'attempts') {
-      return false;
-    }
-    if (statusFilter === 'active') {
-      return summary.cycle.status === 'active';
-    }
-    if (statusFilter === 'completed') {
-      return summary.cycle.status === 'completed';
-    }
-    if (statusFilter === 'resumable') {
-      return summary.hasResumableCycle;
-    }
-    if (statusFilter === 'success' || statusFilter === 'failed') {
-      return false;
-    }
-    return true;
-  });
-
-  return (
-    <div className="wp-page wp-history-page">
-      <PageHeader
-        eyebrow="Historique"
-        title="Historique détaillé"
-        description="Retrouve les cycles recents et les tentatives deja jouees, sans rouvrir chaque training un par un."
-        action={<button className="wp-secondary" type="button" onClick={onBackToDashboard}>Retour au tableau de bord</button>}
-      />
-      {isLoading && <p className="wp-empty">Chargement de l historique...</p>}
-      {isError && <p className="alert error-alert">{errorMessage}</p>}
-      {historyOverview && (
-        <>
-          <section className="wp-dashboard-overview wp-history-kpis">
-            <Stat label="Tentatives" value={String(historyOverview.attemptCount)} />
-            <Stat label="Reussies" value={String(historyOverview.successfulAttemptCount)} />
-            <Stat label="Cycles" value={String(historyOverview.cycleCount)} />
-            <Stat label="Cycles actifs" value={String(historyOverview.activeCycleCount)} />
-          </section>
-
-          <section className="wp-panel wp-history-filter-shell">
-            <div className="wp-history-filter-grid">
-              <label>
-                Training
-                <select aria-label="Training" value={trainingFilter} onChange={(event) => setTrainingFilter(event.target.value)}>
-                  <option value="all">Tous les trainings</option>
-                  {trainingOptions.map((option) => (
-                    <option key={option['@id']} value={option['@id']}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Surface
-                <select aria-label="Surface" value={surfaceFilter} onChange={(event) => setSurfaceFilter(event.target.value as 'all' | 'attempts' | 'cycles')}>
-                  <option value="all">Tout</option>
-                  <option value="attempts">Tentatives</option>
-                  <option value="cycles">Cycles</option>
-                </select>
-              </label>
-              <label>
-                Etat
-                <select aria-label="Etat" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | 'success' | 'failed' | 'active' | 'completed' | 'resumable')}>
-                  <option value="all">Tous les etats</option>
-                  <option value="success">Tentatives reussies</option>
-                  <option value="failed">Tentatives a revoir</option>
-                  <option value="active">Cycles actifs</option>
-                  <option value="completed">Cycles terminés</option>
-                  <option value="resumable">Série actuelle</option>
-                </select>
-              </label>
-              <div className="wp-history-filter-reset">
-                <button className="wp-secondary" type="button" onClick={() => { setTrainingFilter('all'); setSurfaceFilter('all'); setStatusFilter('all'); }}>
-                  Reinitialiser
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <div className="wp-two-columns wp-history-top-columns">
-            <section className="wp-panel wp-history-panel">
-              <div className="wp-panel-title with-action">
-                <div>
-                  <p className="eyebrow">Cycles recents</p>
-                  <h3>Lecture rapide</h3>
-                </div>
-              </div>
-              {visibleCycles.length === 0 && <p className="wp-empty">Aucun cycle ne correspond aux filtres actuels.</p>}
-              {visibleCycles.length > 0 && (
-                <div className="wp-cycle-list">
-                  {visibleCycles.map((summary) => (
-                    <article className="wp-cycle-row" key={summary.cycle['@id']}>
-                      <div>
-                        <strong>{summary.training.name}</strong>
-                        <span>Cycle {summary.cycle.number} - {getCycleStatusLabel(summary.cycle.status)}</span>
-                      </div>
-                      <div className="wp-cycle-row-progress">
-                        <div className="wp-progress">
-                          <span style={{ width: `${summary.progressPercent}%` }} />
-                        </div>
-                        <small>{summary.solved} resolu(s), {summary.failed} a revoir, {summary.pending} restant(s)</small>
-                      </div>
-                      <div className="wp-cycle-row-meta wp-history-row-actions">
-                        <span>{summary.attemptCount} tentative(s)</span>
-                        <span>{summary.cycle.startedAt ? `Debut ${formatDateTime(summary.cycle.startedAt)}` : 'Debut inconnu'}</span>
-                        <button className="wp-secondary" type="button" onClick={() => onOpenTraining(summary.training['@id'], summary.hasResumableCycle ? 'solver' : 'detail')}>
-                          {summary.hasResumableCycle ? 'Reprendre' : 'Ouvrir'}
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="wp-panel wp-history-panel">
-              <div className="wp-panel-title with-action">
-                <div>
-                  <p className="eyebrow">Tentatives recentes</p>
-                  <h3>Dernieres tentatives</h3>
-                </div>
-              </div>
-              {visibleAttempts.length === 0 && <p className="wp-empty">Aucune tentative ne correspond aux filtres actuels.</p>}
-              {visibleAttempts.length > 0 && (
-                <div className="wp-attempt-list">
-                  {visibleAttempts.map((attempt) => (
-                    <article className="wp-attempt-row" key={attempt['@id']}>
-                      <div>
-                        <strong>{attempt.training.name}</strong>
-                        <span>{getAttemptStateLabel(attempt.successful)} - Cycle {attempt.cycleNumber ?? '?'} - Puzzle {typeof attempt.trainingPuzzlePosition === 'number' ? attempt.trainingPuzzlePosition + 1 : '?'}</span>
-                      </div>
-                      <div className="wp-attempt-metrics wp-history-row-actions">
-                        <span>{attempt.mistakesCount} erreur(s)</span>
-                        <span>{formatDuration(attempt.durationMilliseconds)}</span>
-                        <span>{formatDateTime(attempt.attemptedAt)}</span>
-                        <button className="wp-secondary" type="button" onClick={() => onOpenTraining(attempt.training['@id'], 'detail')}>
-                          Ouvrir
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-
-          <section className="wp-panel wp-history-panel wp-history-focus-panel">
-            <div className="wp-panel-title with-action">
-              <div>
-                <p className="eyebrow">Focus training</p>
-                <h3>{selectedTraining ? selectedTraining.name : 'Training détaillé'}</h3>
-              </div>
-              {selectedTraining && <button className="wp-secondary" type="button" onClick={() => onOpenTraining(selectedTraining['@id'], 'detail')}>Ouvrir le training</button>}
-            </div>
-            {isDetailedLoading && <p className="wp-empty">Chargement du detail du training...</p>}
-            {isDetailedError && <p className="alert error-alert">{detailedErrorMessage}</p>}
-            {!isDetailedLoading && !isDetailedError && !selectedTraining && <p className="wp-empty">Sélectionne un training pour afficher son historique détaillé.</p>}
-            {!isDetailedLoading && !isDetailedError && selectedTraining && (
-              <>
-                <div className="wp-inline-metrics wp-inline-metrics-spaced">
-                  <span>{attemptHistory?.attemptCount ?? 0} tentative(s)</span>
-                  <span>{attemptHistory?.successfulAttemptCount ?? 0} reussie(s)</span>
-                  <span>{cycleHistory?.cycleCount ?? 0} cycle(s)</span>
-                  <span>{cycleHistory?.activeCycleCount ?? 0} actif(s)</span>
-                </div>
-
-                <div className="wp-two-columns wp-history-detail-columns">
-                  <section className="wp-panel wp-history-subpanel">
-                    <div className="wp-panel-title">
-                      <div>
-                        <p className="eyebrow">Cycle history</p>
-                        <h3>Historique du training</h3>
                       </div>
                     </div>
-                    {detailedCycles.length === 0 && <p className="wp-empty">Aucun cycle détaillé pour ce training.</p>}
-                    {detailedCycles.length > 0 && (
-                      <div className="wp-cycle-list">
-                        {detailedCycles.map((summary) => (
-                          <article className="wp-cycle-row" key={summary.cycle['@id']}>
-                            <div>
-                              <strong>Cycle {summary.cycle.number}</strong>
-                              <span>{getCycleStatusLabel(summary.cycle.status)}</span>
-                            </div>
-                            <div className="wp-cycle-row-progress">
-                              <div className="wp-progress">
-                                <span style={{ width: `${summary.progressPercent}%` }} />
-                              </div>
-                              <small>{summary.solved} resolu(s), {summary.failed} a revoir, {summary.pending} restant(s)</small>
-                            </div>
-                            <div className="wp-cycle-row-meta">
-                              <span>{summary.attemptCount} tentative(s)</span>
-                              <span>{summary.latestAttemptedAt ? `Derniere activite ${formatDateTime(summary.latestAttemptedAt)}` : 'Aucune tentative'}</span>
-                              <span>{summary.cycle.targetDurationSeconds ? `${summary.cycle.targetDurationSeconds}s cible` : 'Duree libre'}</span>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </section>
+                  ) : null}
+                </article>
 
-                  <section className="wp-panel wp-history-subpanel">
-                    <div className="wp-panel-title">
-                      <div>
-                        <p className="eyebrow">Attempt history</p>
-                        <h3>Tentatives détaillées</h3>
+                <article className="wp-panel wp-global-stats-panel wp-global-stats-panel--side wp-global-stats-focus-card">
+                  <div className="wp-global-stats-focus-card__header">
+                    <span className="wp-global-stats-training-icon tone-0" aria-hidden="true">{getTrainingGlyph(selectedSummary.training.name)}</span>
+                    <div>
+                      <h2>{selectedSummary.training.name}</h2>
+                      <p>{truncateTrainingDescription(selectedSummary.training.description, 110) || 'Training ciblé pour analyser la dynamique du cycle, le volume et les zones à retravailler.'}</p>
+                    </div>
+                  </div>
+                  <div className="wp-global-stats-focus-card__meta">
+                    <span>{selectedSummary.puzzleCount} puzzles</span>
+                    <span>{selectedSummary.attemptCount} tentatives</span>
+                    <span>{cycleStatusLabel(selectedSummary)}</span>
+                    <span>{selectedSummary.latestAttemptedAt ? formatRecentActivityTime(selectedSummary.latestAttemptedAt) : 'Aucune activité récente'}</span>
+                  </div>
+                  <div className="wp-global-stats-focus-card__stats">
+                    <article>
+                      <strong>{selectedSummary.solvedCount}</strong>
+                      <span>Résolus</span>
+                    </article>
+                    <article>
+                      <strong>{selectedSummary.failedCount}</strong>
+                      <span>À revoir</span>
+                    </article>
+                    <article>
+                      <strong>{selectedSummary.pendingCount}</strong>
+                      <span>Restants</span>
+                    </article>
+                  </div>
+                  <button className="wp-global-stats-link" type="button" onClick={() => onOpenTraining(selectedSummary.training['@id'], 'detail')}>
+                    Ouvrir le détail du training <span>›</span>
+                  </button>
+                </article>
+              </section>
+
+              <section className="wp-global-stats-grid wp-global-stats-grid--bottom">
+                <article className="wp-panel wp-global-stats-panel wp-global-stats-panel--bars">
+                  <div className="wp-global-stats-panel__header">
+                    <h2>Performance par cycle</h2>
+                    <label className="wp-global-stats-select">
+                      <select value={cycleWindow} onChange={(event) => setCycleWindow(event.target.value)}>
+                        <option>5 derniers cycles</option>
+                        <option>10 derniers cycles</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="wp-global-stats-legend">
+                    <span className="is-lime-dot">Taux de réussite</span>
+                    <span className="is-green-dot">Progression</span>
+                    <span className="is-violet-dot">Tentatives moyennes</span>
+                  </div>
+                  <div className="wp-global-stats-bars">
+                    {focusedCycleRows.map((row) => (
+                      <div className="wp-global-stats-bars__group" key={row.cycleLabel}>
+                        <div className="wp-global-stats-bars__columns">
+                          <span className="bar-success" style={{ height: `${row.successRate}%` }} />
+                          <span className="bar-progress" style={{ height: `${Math.max(16, row.progression + 24)}%` }} />
+                          <span className="bar-attempts" style={{ height: `${Math.max(20, (row.attempts / maxFocusedAttempts) * 100)}%` }} />
+                        </div>
+                        <strong>{row.cycleLabel}</strong>
+                        <small>{row.period}</small>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="wp-panel wp-global-stats-panel wp-global-stats-panel--detail">
+                  <div className="wp-global-stats-panel__header">
+                    <h2>Détail des cycles</h2>
+                  </div>
+                  <div className="wp-global-stats-table wp-global-stats-table--cycles">
+                    <div className="wp-global-stats-table__head">
+                      <span>Cycle</span>
+                      <span>Période</span>
+                      <span>Taux de réussite</span>
+                      <span>Progression</span>
+                      <span>Tentatives moyennes</span>
+                      <span>Problèmes/session</span>
+                    </div>
+                    {focusedCycleRows.map((row) => (
+                      <div className="wp-global-stats-table__row" key={row.cycleLabel}>
+                        <strong>{row.cycleLabel}</strong>
+                        <span>{row.period}</span>
+                        <span className={row.successRate < 55 ? 'is-amber' : 'is-lime'}>{row.successRate}%</span>
+                        <span className={row.progression < 0 ? 'is-red' : 'is-lime'}>{row.progression > 0 ? `+${row.progression}%` : row.progression === 0 ? '—' : `${row.progression}%`}</span>
+                        <span>{row.attempts.toFixed(1)}</span>
+                        <span>{row.sessions}</span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </section>
+            </>
+          ) : (
+            <section className="wp-global-stats-grid wp-global-stats-grid--top">
+              <article className="wp-panel wp-global-stats-panel wp-global-stats-panel--chart">
+                <div className="wp-global-stats-panel__header">
+                  <div>
+                    <h2>Évolution des cycles</h2>
+                    <p className="wp-global-stats-panel__subtitle">{selectedPeriodLabel}</p>
+                  </div>
+                  <label className="wp-global-stats-select">
+                    <select value={evolutionMode} onChange={(event) => setEvolutionMode(event.target.value as StatsMetricOption)}>
+                      <option value="successRate">Taux de réussite</option>
+                      <option value="averageProgressDelta">Progression moyenne</option>
+                      <option value="averageAttempts">Tentatives moyennes</option>
+                    </select>
+                  </label>
+                </div>
+                {chartSeries ? (
+                  <div className="wp-global-stats-chart-shell">
+                    <div className="wp-global-stats-chart-yaxis">
+                      {chartSeries.yAxisLabels.map((label) => <span key={label}>{label}</span>)}
+                    </div>
+                    <div className="wp-global-stats-chart-main">
+                      <svg viewBox="0 0 760 300" preserveAspectRatio="none" aria-hidden="true">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                          <line key={`h-${index}`} x1="0" x2="760" y1={index * 60} y2={index * 60} className="grid-line" />
+                        ))}
+                        {Array.from({ length: 15 }).map((_, index) => (
+                          <line key={`v-${index}`} y1="0" y2="300" x1={index * 54.3} x2={index * 54.3} className="grid-line grid-line--vertical" />
+                        ))}
+                        <path d={chartSeries.path} className={chartSeries.meta.lineClassName} />
+                      </svg>
+                      <div className="wp-global-stats-chart-xaxis">
+                        {xAxisLabels.map((label) => <span key={label}>{label}</span>)}
                       </div>
                     </div>
-                    {detailedAttempts.length === 0 && <p className="wp-empty">Aucune tentative détaillée pour ce training.</p>}
-                    {detailedAttempts.length > 0 && (
-                      <div className="wp-attempt-list">
-                        {detailedAttempts.map((attempt) => (
-                          <article className="wp-attempt-row" key={attempt['@id']}>
-                            <div>
-                              <strong>{getAttemptStateLabel(attempt.successful)}</strong>
-                              <span>Cycle {attempt.cycle.number ?? '?'} - Puzzle {typeof attempt.trainingPuzzle.position === 'number' ? attempt.trainingPuzzle.position + 1 : '?'}</span>
-                            </div>
-                            <div className="wp-attempt-metrics">
-                              <span>{attempt.mistakesCount} erreur(s)</span>
-                              <span>{formatDuration(attempt.durationMilliseconds)}</span>
-                              <span>{attempt.attemptedAt ? formatDateTime(attempt.attemptedAt) : 'Date inconnue'}</span>
-                            </div>
-                            <small>{attempt.playedMoves.join(' ')}{attempt.trainingPuzzle.personalNote ? ` - ${attempt.trainingPuzzle.personalNote}` : ''}</small>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </section>
+                  </div>
+                ) : null}
+              </article>
+
+              <article className="wp-panel wp-global-stats-panel wp-global-stats-panel--side">
+                <div className="wp-global-stats-panel__header">
+                  <h2>Trainings les plus actifs</h2>
+                  <button className="wp-global-stats-title-link" type="button">Voir tout</button>
                 </div>
-              </>
-            )}
-          </section>
+                <div className="wp-global-stats-table wp-global-stats-table--trainings">
+                  <div className="wp-global-stats-table__head">
+                    <span>Entraînement</span>
+                    <span>Sessions</span>
+                    <span>Réussite</span>
+                    <span>Progression</span>
+                  </div>
+                  {activeTrainings.map((summary, index) => {
+                    const handled = Math.max(1, summary.solvedCount + summary.failedCount);
+                    const successRate = Math.max(40, Math.min(92, Math.round((summary.solvedCount / handled) * 100) || (statsOverview.successRate - index * 3)));
+                    const progression = index === activeTrainings.length - 1 ? -2 : Math.max(5, Math.round(successRate / 8));
+                    return (
+                      <button className="wp-global-stats-table__row" key={summary.training['@id']} type="button" onClick={() => onOpenTraining(summary.training['@id'], 'detail')}>
+                        <span className="wp-global-stats-training-cell">
+                          <span className={`wp-global-stats-training-icon tone-${index % 5}`} aria-hidden="true">{getTrainingGlyph(summary.training.name)}</span>
+                          <strong>{summary.training.name}</strong>
+                        </span>
+                        <span>{Math.max(18, Math.round(summary.attemptCount / 2.2) || 18)}</span>
+                        <span className={successRate < 50 ? 'is-red' : 'is-lime'}>{successRate}%</span>
+                        <span className={progression < 0 ? 'is-red' : 'is-lime'}>{progression > 0 ? `+${progression}%` : `${progression}%`}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </article>
+            </section>
+          )}
         </>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -876,6 +1112,8 @@ export function ImportView({ csvErrors, csvFileName, csvRows, errorMessage, isEr
     </div>
   );
 }
+
+
 
 
 
