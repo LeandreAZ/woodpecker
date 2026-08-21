@@ -1,7 +1,7 @@
 import type { AppRoute } from '../../shared/routing/appRouter';
 import type { AuthSession } from '../auth/authStorage';
 import TrainingsAppShell from './layout/TrainingsAppShell';
-import { TrainingsPanelContentScreen } from './TrainingsPanelContentScreen';
+import TrainingsPanelContentScreen from './TrainingsPanelContent';
 import { useTrainingsPanelState } from './useTrainingsPanelState';
 import { useTrainingsPanelRouting } from './useTrainingsPanelRouting';
 import type { View } from './trainingsTypes';
@@ -82,5 +82,7 @@ function viewFromRoute(route: AppRoute): View {
 export type { TrainingsPanelProps };
 export { TrainingsPanelView };
 export default TrainingsPanelView;
+
+
 
 

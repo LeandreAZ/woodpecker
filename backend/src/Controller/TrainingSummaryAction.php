@@ -59,14 +59,36 @@ final class TrainingSummaryAction
         }
 
         $attemptsByCyclePuzzle = [];
+        $dailyActivity = [];
         foreach ($attempts as $attempt) {
             $cyclePuzzleId = $attempt->getCyclePuzzle()?->getId();
-            if (null === $cyclePuzzleId) {
+            if (null !== $cyclePuzzleId) {
+                $attemptsByCyclePuzzle[$cyclePuzzleId][] = $attempt;
+            }
+
+            $day = $attempt->getAttemptedAt()?->format('Y-m-d');
+            if (null === $day) {
                 continue;
             }
 
-            $attemptsByCyclePuzzle[$cyclePuzzleId][] = $attempt;
+            if (!isset($dailyActivity[$day])) {
+                $dailyActivity[$day] = [
+                    'attemptCount' => 0,
+                    'date' => $day,
+                    'durationMilliseconds' => 0,
+                    'handledPuzzleIds' => [],
+                    'successfulAttemptCount' => 0,
+                ];
+            }
+
+            $dailyActivity[$day]['attemptCount'] += 1;
+            $dailyActivity[$day]['durationMilliseconds'] += $attempt->getDurationMilliseconds();
+            $dailyActivity[$day]['successfulAttemptCount'] += $attempt->isSuccessful() ? 1 : 0;
+            if (null !== $cyclePuzzleId) {
+                $dailyActivity[$day]['handledPuzzleIds'][$cyclePuzzleId] = true;
+            }
         }
+        ksort($dailyActivity);
 
         $cycleSummaries = array_map(
             fn (Cycle $cycle): array => $this->buildCycleSummary(
@@ -102,6 +124,16 @@ final class TrainingSummaryAction
                     $attempts,
                 )) / count($attempts), 1)
                 : 0,
+            'dailyActivity' => array_map(
+                fn (array $point): array => [
+                    'attemptCount' => $point['attemptCount'],
+                    'date' => $point['date'],
+                    'durationMilliseconds' => $point['durationMilliseconds'],
+                    'handledPuzzleCount' => count($point['handledPuzzleIds']),
+                    'successfulAttemptCount' => $point['successfulAttemptCount'],
+                ],
+                array_values($dailyActivity),
+            ),
             'latestCycleSummary' => $cycleSummaries[0] ?? null,
             'cycleSummaries' => $cycleSummaries,
             'latestAttempts' => array_map(
@@ -134,9 +166,24 @@ final class TrainingSummaryAction
             fn (CyclePuzzle $cyclePuzzle): bool => 'pending' === $cyclePuzzle->getStatus(),
         ));
         $attemptCount = 0;
+        $successfulAttemptCount = 0;
+        $durationMilliseconds = 0;
+        $handledCyclePuzzleIds = [];
 
         foreach ($cyclePuzzles as $cyclePuzzle) {
-            $attemptCount += count($attemptsByCyclePuzzle[$cyclePuzzle->getId() ?? 0] ?? []);
+            $cyclePuzzleId = $cyclePuzzle->getId() ?? 0;
+            $cycleAttempts = $attemptsByCyclePuzzle[$cyclePuzzleId] ?? [];
+            if (count($cycleAttempts) > 0) {
+                $handledCyclePuzzleIds[$cyclePuzzleId] = true;
+            }
+
+            foreach ($cycleAttempts as $attempt) {
+                $attemptCount += 1;
+                $durationMilliseconds += $attempt->getDurationMilliseconds();
+                if ($attempt->isSuccessful()) {
+                    $successfulAttemptCount += 1;
+                }
+            }
         }
 
         $total = count($cyclePuzzles);
@@ -149,6 +196,9 @@ final class TrainingSummaryAction
             'total' => $total,
             'progressPercent' => $total > 0 ? (int) round(($solved / $total) * 100) : 0,
             'attemptCount' => $attemptCount,
+            'averageAttempts' => count($handledCyclePuzzleIds) > 0 ? round($attemptCount / count($handledCyclePuzzleIds), 1) : 0,
+            'durationMilliseconds' => $durationMilliseconds,
+            'successRate' => $attemptCount > 0 ? (int) round(($successfulAttemptCount / $attemptCount) * 100) : 0,
         ];
     }
 
@@ -198,4 +248,3 @@ final class TrainingSummaryAction
         return $dateTime?->format(DATE_ATOM);
     }
 }
-

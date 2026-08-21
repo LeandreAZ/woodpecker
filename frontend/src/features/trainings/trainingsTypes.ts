@@ -18,6 +18,7 @@ export type Training = {
   name: string;
   description?: string | null;
   icon?: string | null;
+  logo?: string | null;
   mistakeLimit: number;
   status: string;
   createdAt: string;
@@ -29,6 +30,7 @@ export type TrainingReference = {
   name: string;
   description?: string | null;
   icon?: string | null;
+  logo?: string | null;
   status: string;
 };
 
@@ -38,6 +40,14 @@ export type UserReference = {
   email: string;
   roles: string[];
   createdAt?: string | null;
+};
+
+export type DailyActivityPoint = {
+  attemptCount: number;
+  date: string;
+  durationMilliseconds: number;
+  handledPuzzleCount: number;
+  successfulAttemptCount: number;
 };
 
 export type Puzzle = {
@@ -106,11 +116,14 @@ export type TrainingOverview = {
 
 export type TrainingCycleSummary = {
   attemptCount: number;
+  averageAttempts?: number;
   cycle: Cycle;
+  durationMilliseconds?: number;
   failed: number;
   pending: number;
   progressPercent: number;
   solved: number;
+  successRate?: number;
   total: number;
 };
 
@@ -133,6 +146,7 @@ export type TrainingSummary = {
   attemptCount: number;
   solvedAttemptCount: number;
   averageMistakes: number;
+  dailyActivity?: DailyActivityPoint[];
   latestCycleSummary: TrainingCycleSummary | null;
   cycleSummaries: TrainingCycleSummary[];
   latestAttempts: TrainingAttemptSummary[];
@@ -169,8 +183,14 @@ export type TrainingDashboardSummary = {
   training: Training;
   puzzleCount: number;
   attemptCount: number;
+  averageAttempts?: number;
+  dailyActivity?: DailyActivityPoint[];
+  durationMilliseconds?: number;
   progressPercent: number;
+  progressDelta?: number;
   solvedCount: number;
+  successfulAttemptCount?: number;
+  successRate?: number;
   failedCount: number;
   pendingCount: number;
   latestCycleNumber?: number | null;
@@ -184,6 +204,7 @@ export type StatsOverview = {
   trainingCount: number;
   puzzleCount: number;
   attemptCount: number;
+  totalDurationMilliseconds?: number;
   successfulAttemptCount: number;
   successRate: number;
   averageMistakes: number;
@@ -352,4 +373,3 @@ export type ImportPreview = {
   csvFileName: string;
   csvRows: PuzzleCsvRow[];
 };
-

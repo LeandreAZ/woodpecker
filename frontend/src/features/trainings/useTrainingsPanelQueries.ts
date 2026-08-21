@@ -111,7 +111,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
   const effectiveMistakeLimit = uiState.mistakeLimitOverride ?? selectedTraining?.mistakeLimit ?? 3;
   const needsTrainingOverview =
     uiState.activeView === 'detail' || uiState.activeView === 'import' || uiState.activeView === 'solver';
-  const needsTrainingSummary = uiState.activeView === 'detail';
+  const needsTrainingSummary = uiState.activeView === 'detail' || uiState.activeView === 'stats';
   const needsTrainingAnalytics = uiState.activeView === 'detail';
 
   const trainingOverviewQuery = useQuery({
@@ -271,3 +271,4 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     userSettingsOverviewQuery,
   };
 }
+

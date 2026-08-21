@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactElement, type SVGProps } from 'react';
+import { TrainingLogoBadge } from '../TrainingBranding';
 import type { StatsOverview, Training, TrainingDashboardSummary, View } from '../trainingsTypes';
 import './dashboard.css';
 
@@ -142,59 +143,6 @@ function MoreIcon(props: IconProps) {
   );
 }
 
-function QueenIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <circle cx="6.2" cy="7" r="1.1" />
-      <circle cx="12" cy="5.5" r="1.1" />
-      <circle cx="17.8" cy="7" r="1.1" />
-      <path d="m6.2 8.6 1.7 6.4h8.2l1.7-6.4-3.1 2.1L12 8.7l-2.7 2-3.1-2.1Z" />
-      <path d="M7.5 16.2h9" />
-      <path d="M6.8 18.5h10.4" />
-    </svg>
-  );
-}
-
-function KnightIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M8 18.5h8.8" />
-      <path d="M8.8 18.5c.2-4 1.5-6 3.8-7.6l-1.5-2.6 1.6-2.8h3.2l.9 2.3-1.3 2.1c.9 1 1.5 2.4 1.7 4.6" />
-      <path d="M12.8 8.4h2.6" />
-    </svg>
-  );
-}
-
-function BishopIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M12 5.1a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2Z" />
-      <path d="m12 9.4-2.8 4.2a2.8 2.8 0 0 0 2.3 4.4h1a2.8 2.8 0 0 0 2.3-4.4Z" />
-      <path d="M9 18.5h6" />
-      <path d="m10.5 7 3 3" />
-    </svg>
-  );
-}
-
-function RookIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M7.2 6.2h2.1v2H11V6.2h2v2h1.7v-2h2.1v2.6l-1.3 2.3.8 6.5H7.7l.8-6.5-1.3-2.3Z" />
-      <path d="M7 19h10" />
-    </svg>
-  );
-}
-
-function PawnIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <circle cx="12" cy="8.2" r="2.1" />
-      <path d="M10.4 11.1h3.2a2.5 2.5 0 0 1 2.5 2.5c0 1.3-.7 2.3-1.6 3.1h-5c-.9-.8-1.6-1.8-1.6-3.1a2.5 2.5 0 0 1 2.5-2.5Z" />
-      <path d="M8.8 18.4h6.4" />
-    </svg>
-  );
-}
-
 function truncate(value?: string | null, maxLength = 96) {
   const normalized = value?.trim() ?? '';
   if (!normalized) {
@@ -241,21 +189,6 @@ function buildFallbackSummaries(trainings: Training[]): TrainingDashboardSummary
     solvedCount: 0,
     training,
   }));
-}
-
-function TrainingPieceIcon({ icon, ...props }: IconProps & { icon?: string | null }) {
-  switch (icon) {
-    case 'knight':
-      return <KnightIcon {...props} />;
-    case 'bishop':
-      return <BishopIcon {...props} />;
-    case 'rook':
-      return <RookIcon {...props} />;
-    case 'pawn':
-      return <PawnIcon {...props} />;
-    default:
-      return <QueenIcon {...props} />;
-  }
 }
 
 function getOverviewMetrics(summaries: TrainingDashboardSummary[], statsOverview: StatsOverview | null): OverviewMetric[] {
@@ -387,7 +320,7 @@ function DashboardOverviewView({
             <>
               <div className="dashboard-page__featured-top">
                 <div className="dashboard-page__training-glyph">
-                  <TrainingPieceIcon icon={selectedSummary.training.icon} />
+                  <TrainingLogoBadge size="lg" training={selectedSummary.training} />
                 </div>
                 <div className="dashboard-page__featured-copy">
                   <strong>{selectedSummary.training.name}</strong>
@@ -467,7 +400,7 @@ function DashboardOverviewView({
               <article className="dashboard-page__list-row" key={summary.training['@id']}>
                 <button className="dashboard-page__list-main" type="button" onClick={() => onOpenTraining(summary.training['@id'], 'detail')}>
                   <span className="dashboard-page__list-glyph">
-                    <TrainingPieceIcon icon={summary.training.icon} />
+                    <TrainingLogoBadge size="sm" training={summary.training} />
                   </span>
                   <span className="dashboard-page__list-copy">
                     <strong>{summary.training.name}</strong>
@@ -521,4 +454,5 @@ function DashboardOverviewView({
 export type { DashboardPageProps };
 export { DashboardOverviewView };
 export default DashboardOverviewView;
+
 

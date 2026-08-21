@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
 import * as AppIcons from '../../shared/AppIcons';
 import { PageHeader } from './TrainingsViewPrimitives';
+import { TrainingLogoBadge } from './TrainingBranding';
 import { formatDateTime } from './trainingsUtils';
 import type {
   CycleStats,
@@ -86,21 +87,6 @@ const PIECE_SYMBOLS: Record<string, string> = {
   n: '♞',
   p: '♟',
 };
-
-function getTrainingIcon(icon?: string | null) {
-  switch (icon) {
-    case 'knight':
-      return 'N';
-    case 'bishop':
-      return 'B';
-    case 'rook':
-      return 'R';
-    case 'pawn':
-      return 'P';
-    default:
-      return <AppIcons.QueenIcon />;
-  }
-}
 
 function formatCompactDate(value?: string | null) {
   if (!value) {
@@ -291,8 +277,7 @@ function DetailView({
       </div>
     );
   }
-
-  const trainingIcon = getTrainingIcon(selectedTraining.icon);
+
   const cycleSummaries = summary?.cycleSummaries ?? [];
   const latestCycleSummary = summary?.latestCycleSummary ?? cycleSummaries[0] ?? null;
   const latestAttempts = summary?.latestAttempts ?? [];
@@ -315,7 +300,7 @@ function DetailView({
       <header className="wp-detail-hero-v2">
         <div className="wp-detail-hero-v2__identity">
           <div className="wp-detail-hero-v2__badge">
-            {trainingIcon}
+            <TrainingLogoBadge size="lg" training={selectedTraining} />
           </div>
           <div className="wp-detail-hero-v2__copy">
             <h1>{selectedTraining.name}</h1>
@@ -620,3 +605,5 @@ function DetailView({
 
 export { DetailView };
 export default DetailView;
+
+

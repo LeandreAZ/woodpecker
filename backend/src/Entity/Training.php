@@ -89,6 +89,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 class Training
 {
+    private const ALLOWED_ICONS = ['queen', 'knight', 'bishop', 'rook', 'pawn'];
+    private const LOGO_PALETTES = ['cobalt', 'lime', 'violet', 'amber', 'teal'];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -104,6 +107,12 @@ class Training
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['training:read', 'training:write'])]
     private ?string $description = null;
+
+    #[ORM\Column(length: 32, nullable: true)]
+    #[Groups(['training:read', 'training:write'])]
+    private ?string $icon = null;
+
+    private ?string $logo = null;
 
     #[ORM\Column(length: 20, enumType: TrainingStatus::class)]
     #[Groups(['training:read', 'training:write'])]
@@ -183,6 +192,31 @@ class Training
     public function setDescription(?string $description): self
     {
         $this->description = $description;
+
+        return $this;
+    }
+
+    public function getIcon(): string
+    {
+        return $this->normalizeIcon($this->icon);
+    }
+
+    public function setIcon(?string $icon): self
+    {
+        $this->icon = $this->normalizeIcon($icon);
+
+        return $this;
+    }
+
+    #[Groups(['training:read'])]
+    public function getLogo(): string
+    {
+        return $this->logo ?? $this->buildDefaultLogo();
+    }
+
+    public function setLogo(?string $logo): self
+    {
+        $this->logo = null === $logo || '' === trim($logo) ? null : trim($logo);
 
         return $this;
     }
@@ -327,6 +361,7 @@ class Training
     public function initializeTimestamps(): void
     {
         $now = new \DateTimeImmutable();
+        $this->ensureBranding();
         $this->createdAt = $now;
         $this->updatedAt = $now;
     }
@@ -334,6 +369,28 @@ class Training
     #[ORM\PreUpdate]
     public function refreshUpdatedAt(): void
     {
+        $this->ensureBranding();
         $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    private function ensureBranding(): void
+    {
+        $this->icon = $this->normalizeIcon($this->icon);
+        $this->logo ??= $this->buildDefaultLogo();
+    }
+
+    private function buildDefaultLogo(): string
+    {
+        $seed = sprintf('%s-%s-%s', $this->name ?? 'training', $this->icon ?? 'queen', $this->id ?? 'new');
+        $paletteIndex = abs(crc32($seed)) % count(self::LOGO_PALETTES);
+
+        return sprintf('%s-%s', self::LOGO_PALETTES[$paletteIndex], $this->normalizeIcon($this->icon));
+    }
+
+    private function normalizeIcon(?string $icon): string
+    {
+        $normalized = strtolower(trim($icon ?? ''));
+
+        return in_array($normalized, self::ALLOWED_ICONS, true) ? $normalized : 'queen';
     }
 }

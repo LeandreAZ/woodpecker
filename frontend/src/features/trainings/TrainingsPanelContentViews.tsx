@@ -98,6 +98,31 @@ function getLatestSessionLabel(summary: TrainingDashboardSummary) {
   return formatDateTime(summary.latestAttemptedAt);
 }
 
+function InfoHint({ description, label }: { description: string; label: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <span
+      className={isOpen ? 'wp-create-training-info is-open' : 'wp-create-training-info'}
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        aria-expanded={isOpen}
+        aria-label={label}
+        className="wp-create-training-card__hint wp-create-training-card__hint--button"
+        type="button"
+        onBlur={() => setIsOpen(false)}
+        onClick={() => setIsOpen((current) => !current)}
+        onFocus={() => setIsOpen(true)}
+      >
+        i
+      </button>
+      <span className="wp-create-training-info__bubble" role="tooltip">{description}</span>
+    </span>
+  );
+}
+
 export function DashboardView({
   dashboardSummaries,
   deleteTrainingMutation,
@@ -329,36 +354,166 @@ export function CreateTrainingView({
   onNameChange: (value: string) => void;
   onSubmit: () => void;
 }) {
+  const [mistakeLimit, setMistakeLimit] = useState<'3' | '2' | '1'>('3');
+  const [difficulty, setDifficulty] = useState('intermediaire');
+  const [puzzleCount, setPuzzleCount] = useState('100');
+  const [source, setSource] = useState('lichess');
+
+  const toleranceCards = [
+    { value: '3', title: '3 erreurs', subtitle: 'Tolérant' },
+    { value: '2', title: '2 erreurs', subtitle: 'Standard' },
+    { value: '1', title: '1 erreur', subtitle: 'Strict' },
+  ] as const;
+
   return (
-    <div className="wp-page narrow">
-      <PageHeader eyebrow="Création" title="Créer un entraînement" description="Donne un nom clair à ton set et ajoute une description simple." />
-      <form className="wp-form-card" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
-        <label>
-          Titre de l'entraînement
-          <input value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Ex : Mat en 2" />
-        </label>
-        <label>
-          Icône de l'entraînement
-          <select value={icon} onChange={(event) => onIconChange(event.target.value)}>
-            <option value="queen">Reine</option>
-            <option value="knight">Cavalier</option>
-            <option value="bishop">Fou</option>
-            <option value="rook">Tour</option>
-            <option value="pawn">Pion</option>
-          </select>
-        </label>
-        <label>
-          Description
-          <textarea rows={5} value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
-        </label>
+    <div className="wp-page wp-create-training-page">
+      <header className="wp-create-training-page__header">
+        <div>
+          <h1>Créer un entraînement</h1>
+          <p>Configurez votre entraînement sur mesure et lancez votre progression.</p>
+        </div>
+      </header>
+
+      <form className="wp-create-training-layout" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
+        <section className="wp-create-training-card">
+          <div className="wp-create-training-card__section">
+            <h3>Informations générales</h3>
+
+            <label>
+              Nom de l'entraînement
+              <input
+                value={name}
+                onChange={(event) => onNameChange(event.target.value)}
+                placeholder="Ex. : Maîtrise des finales de tours"
+              />
+            </label>
+
+            <label>
+              Description
+              <textarea
+                rows={5}
+                maxLength={500}
+                value={description}
+                onChange={(event) => onDescriptionChange(event.target.value)}
+                placeholder="Décrivez l'objectif de cet entraînement, votre approche et ce que vous souhaitez améliorer..."
+              />
+              <small className="wp-create-training-card__counter">{description.length}/500</small>
+            </label>
+          </div>
+
+          <div className="wp-create-training-card__section wp-create-training-card__section--bordered">
+            <h3>Paramètres de l'entraînement</h3>
+
+            <div className="wp-create-training-card__label-row">
+              <label className="wp-create-training-card__plain-label">Tolérance des erreurs</label>
+              <InfoHint description="Choisissez combien d'erreurs sont acceptées avant qu'un puzzle bascule à revoir pendant le cycle." label="Informations sur la tolérance des erreurs" />
+            </div>
+
+            <div className="wp-create-training-tolerance-grid">
+              {toleranceCards.map((card) => (
+                <button
+                  key={card.value}
+                  className={card.value === mistakeLimit ? 'wp-create-training-tolerance is-active' : 'wp-create-training-tolerance'}
+                  type="button"
+                  onClick={() => setMistakeLimit(card.value)}
+                >
+                  <span className="wp-create-training-tolerance__check">
+                    {card.value === mistakeLimit ? <AppIcons.CheckCircleIcon /> : <span className="wp-create-training-tolerance__dot" />}
+                  </span>
+                  <span className="wp-create-training-tolerance__copy">
+                    <strong>{card.title}</strong>
+                    <small>{card.subtitle}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="wp-create-training-fields">
+              <label>
+                <span className="wp-create-training-field__label-row">
+                  <span>Difficulté cible</span>
+                  <InfoHint description="Définissez le niveau cible pour obtenir une sélection de puzzles cohérente avec votre objectif d'entraînement." label="Informations sur la difficulté cible" />
+                </span>
+                <span className="wp-create-training-select-shell">
+                  <span className="wp-create-training-select-shell__icon tone-green"><AppIcons.TrendUpIcon /></span>
+                  <select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
+                    <option value="debutant">Débutant</option>
+                    <option value="intermediaire">Intermédiaire</option>
+                    <option value="avance">Avancé</option>
+                  </select>
+                </span>
+              </label>
+
+              <label>
+                <span className="wp-create-training-field__label-row">
+                  <span>Nombre de puzzles</span>
+                  <InfoHint description="Choisissez le volume de puzzles à intégrer dans la première version de votre entraînement." label="Informations sur le nombre de puzzles" />
+                </span>
+                <span className="wp-create-training-select-shell">
+                  <span className="wp-create-training-select-shell__icon tone-amber"><AppIcons.BarsIcon /></span>
+                  <select value={puzzleCount} onChange={(event) => setPuzzleCount(event.target.value)}>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="150">150</option>
+                  </select>
+                </span>
+              </label>
+
+              <label>
+                <span className="wp-create-training-field__label-row">
+                  <span>Source</span>
+                  <InfoHint description="Sélectionnez si votre base de puzzles provient de Lichess ou d'un import CSV préparé par vos soins." label="Informations sur la source" />
+                </span>
+                <span className="wp-create-training-select-shell">
+                  <span className="wp-create-training-select-shell__icon tone-blue"><AppIcons.TargetIcon /></span>
+                  <select value={source} onChange={(event) => setSource(event.target.value)}>
+                    <option value="lichess">Lichess</option>
+                    <option value="csv">CSV</option>
+                  </select>
+                </span>
+              </label>
+
+              <label>
+                <span className="wp-create-training-field__label-row">
+                  <span>Icône de l'entraînement</span>
+                  <InfoHint description="L'icône facilite le repérage rapide de l'entraînement dans vos vues tableau de bord et détail." label="Informations sur l'icône de l'entraînement" />
+                </span>
+                <span className="wp-create-training-select-shell">
+                  <span className="wp-create-training-select-shell__icon tone-violet"><AppIcons.QueenIcon /></span>
+                  <select value={icon} onChange={(event) => onIconChange(event.target.value)}>
+                    <option value="queen">Reine</option>
+                    <option value="knight">Cavalier</option>
+                    <option value="bishop">Fou</option>
+                    <option value="rook">Tour</option>
+                    <option value="pawn">Pion</option>
+                  </select>
+                </span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section className="wp-create-training-footer">
+          <div className="wp-create-training-footer__note">
+            <span className="wp-create-training-footer__note-icon"><AppIcons.AlertIcon /></span>
+            <div>
+              <strong>Bon à savoir</strong>
+              <p>Vous pourrez modifier la tolérance des erreurs et d'autres paramètres entre chaque cycle selon vos besoins et vos progrès.</p>
+            </div>
+          </div>
+
+          <button className="wp-primary wp-create-training-footer__submit" disabled={isPending || !name.trim()} type="submit">
+            {isPending ? 'Création...' : "Créer l'entraînement"}
+          </button>
+        </section>
+
         {isError && errorMessage ? <p className="wp-empty">Une partie des données est temporairement indisponible.</p> : null}
-        <button className="wp-primary" disabled={isPending || !name.trim()} type="submit">
-          {isPending ? 'Création...' : "Créer l'entraînement"}
-        </button>
       </form>
     </div>
   );
 }
+
 
 export function ImportView({
   csvErrors,
@@ -424,34 +579,134 @@ export function StatsOverviewView({
   onOpenTraining: (trainingIri: string, view?: View) => void;
   statsOverview: StatsOverview | null;
 }) {
+  const [selectedTrainingIri, setSelectedTrainingIri] = useState('all');
+  const trainingBreakdown = statsOverview?.trainingBreakdown ?? [];
+  const selectedSummary = selectedTrainingIri === 'all'
+    ? null
+    : trainingBreakdown.find((summary) => summary.training['@id'] === selectedTrainingIri) ?? null;
+  const visibleSummaries = selectedSummary ? [selectedSummary] : trainingBreakdown.slice(0, 5);
+  const globalRows = getGlobalRows(statsOverview, trainingBreakdown).slice(0, 4);
+  const totalCycles = (statsOverview?.activeCycleCount ?? 0) + (statsOverview?.completedCycleCount ?? 0);
+  const totalHandled = (statsOverview?.solvedCyclePuzzleCount ?? 0) + (statsOverview?.failedCyclePuzzleCount ?? 0);
+  const totalPending = statsOverview?.pendingCyclePuzzleCount ?? 0;
+  const averageAttempts = statsOverview?.averageMistakes ?? 0;
+  const chartRows = visibleSummaries.length > 0 ? visibleSummaries : trainingBreakdown.slice(0, 5);
+  const maxProgress = Math.max(1, ...chartRows.map((summary) => summary.progressPercent));
+
   return (
-    <div className="wp-page">
-      <PageHeader eyebrow="Statistiques" title="Statistiques globales" description="Vue d'ensemble des performances et des entraînements." />
+    <div className="wp-page wp-global-stats-page">
+      <header className="wp-global-stats-page__header">
+        <div>
+          <h1>{selectedSummary ? `Statistiques · ${selectedSummary.training.name}` : 'Statistiques globales'}</h1>
+          <p>Vue d'ensemble des performances et des entraînements.</p>
+        </div>
+        <div className="wp-global-stats-controls">
+          <label className="wp-global-stats-filter">
+            <span className="wp-global-stats-filter__icon wp-global-stats-filter__icon--dot" aria-hidden="true"></span>
+            <select value={selectedTrainingIri} onChange={(event) => setSelectedTrainingIri(event.target.value)}>
+              <option value="all">Tous les trainings</option>
+              {trainingBreakdown.map((summary) => (
+                <option key={summary.training['@id']} value={summary.training['@id']}>
+                  {summary.training.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </header>
+
       {isLoading ? <p className="wp-empty">Chargement des statistiques...</p> : null}
       {isError && errorMessage ? <p className="wp-empty">Une partie des données est temporairement indisponible.</p> : null}
+
       {statsOverview ? (
-        <section className="wp-dashboard-overview">
-          <Stat label="Entraînements" value={String(statsOverview.trainingCount)} />
-          <Stat label="Puzzles" value={String(statsOverview.puzzleCount)} />
-          <Stat label="Tentatives" value={String(statsOverview.attemptCount)} />
-          <Stat label="Réussite" value={`${Math.round(statsOverview.successRate)}%`} />
-          <Stat label="Cycles actifs" value={String(statsOverview.activeCycleCount)} />
-        </section>
-      ) : null}
-      {statsOverview && statsOverview.trainingBreakdown.length > 0 ? (
-        <section className="wp-panel">
-          {statsOverview.trainingBreakdown.map((summary) => (
-            <button key={summary.training['@id']} className="wp-list-row" type="button" onClick={() => onOpenTraining(summary.training['@id'], 'detail')}>
-              <span>{summary.training.name}</span>
-              <strong>{summary.progressPercent}%</strong>
-            </button>
-          ))}
-        </section>
+        <>
+          <section className="wp-global-stats-kpis">
+            {globalRows.map((item, index) => (
+              <article className="wp-panel wp-global-stats-kpi" key={item.label}>
+                <div className="wp-global-stats-kpi__header">
+                  <span className={`wp-global-stats-kpi__icon is-tone-${index + 1}`} aria-hidden="true">{index + 1}</span>
+                  <span>{item.label}</span>
+                </div>
+                <strong>{item.value}</strong>
+                <small>{item.delta}</small>
+              </article>
+            ))}
+          </section>
+
+          <section className="wp-global-stats-grid wp-global-stats-grid--top">
+            <article className="wp-panel wp-global-stats-panel">
+              <div className="wp-global-stats-panel__header">
+                <div>
+                  <h2>Évolution récente</h2>
+                  <p className="wp-global-stats-panel__subtitle">Lecture rapide de la progression par entraînement.</p>
+                </div>
+              </div>
+              <div className="wp-global-stats-mini-chart">
+                <div className="wp-global-stats-mini-chart__legend">
+                  <span>Progression</span>
+                  <span>Volume traité</span>
+                </div>
+                <div className="wp-global-stats-mini-chart__rows">
+                  {chartRows.map((summary) => (
+                    <div className="wp-global-stats-mini-chart__row" key={summary.training['@id']}>
+                      <div className="wp-global-stats-mini-chart__label">
+                        <strong>{summary.training.name}</strong>
+                        <small>{summary.latestAttemptedAt ? formatDateTime(summary.latestAttemptedAt) : 'Aucune activité récente'}</small>
+                      </div>
+                      <div className="wp-global-stats-mini-chart__bars">
+                        <span
+                          className="wp-global-stats-mini-chart__bar is-primary"
+                          style={{ width: `${Math.max(12, (summary.progressPercent / maxProgress) * 100)}%` }}
+                        />
+                        <span
+                          className="wp-global-stats-mini-chart__bar is-secondary"
+                          style={{ width: `${Math.max(10, Math.min(100, ((summary.solvedCount + summary.failedCount) / Math.max(1, summary.puzzleCount)) * 100))}%` }}
+                        />
+                      </div>
+                      <span className="wp-global-stats-mini-chart__value">{summary.progressPercent}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="wp-dashboard-overview wp-dashboard-overview--stats">
+                <Stat label="Cycles" value={String(totalCycles)} />
+                <Stat label="Puzzles traités" value={String(totalHandled)} />
+                <Stat label="Restants" value={String(totalPending)} />
+                <Stat label="Tentatives moyennes" value={averageAttempts.toFixed(1)} />
+              </div>
+            </article>
+
+            <article className="wp-panel wp-global-stats-panel wp-global-stats-panel--side">
+              <div className="wp-global-stats-panel__header">
+                <h2>{selectedSummary ? 'Training sélectionné' : 'Trainings les plus actifs'}</h2>
+              </div>
+              <div className="wp-global-stats-table wp-global-stats-table--trainings">
+                <div className="wp-global-stats-table__head">
+                  <span>Entraînement</span>
+                  <span>Réussite</span>
+                  <span>Progression</span>
+                </div>
+                {visibleSummaries.map((summary) => (
+                  <button className="wp-global-stats-table__row" key={summary.training['@id']} type="button" onClick={() => onOpenTraining(summary.training['@id'], 'detail')}>
+                    <span className="wp-global-stats-training-cell">
+                      <span className="wp-global-stats-training-icon tone-0" aria-hidden="true">{(summary.training.name ?? 'TR').slice(0, 2).toUpperCase()}</span>
+                      <span>
+                        <strong>{summary.training.name}</strong>
+                        <small>{summary.latestAttemptedAt ? formatDateTime(summary.latestAttemptedAt) : 'Aucune activité récente'}</small>
+                      </span>
+                    </span>
+                    <span className="is-lime">{summary.progressPercent}%</span>
+                    <span>{summary.solvedCount}/{Math.max(1, summary.puzzleCount)}</span>
+                  </button>
+                ))}
+              </div>
+            </article>
+          </section>
+        </>
       ) : null}
     </div>
   );
 }
-
 export function HistoryOverviewView({
   attemptHistory,
   cycleHistory,
@@ -543,6 +798,9 @@ export function SettingsOverviewView({
     </div>
   );
 }
+
+
+
 
 
 

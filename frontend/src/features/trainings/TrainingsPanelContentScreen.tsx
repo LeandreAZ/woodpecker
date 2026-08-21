@@ -1,8 +1,8 @@
 import type { CyclePuzzle, TrainingPuzzle, View } from './trainingsTypes';
 import { DashboardOverviewView } from './dashboard/DashboardOverviewView';
 import { DetailView } from './TrainingsDetailView';
-import { StatsOverviewView as RichStatsOverviewView } from './TrainingsPanelViews';
 import { SolverView } from './TrainingsSolverView';
+import TrainingsStatsView from './TrainingsStatsView';
 import type { useTrainingsPanelState } from './useTrainingsPanelState';
 import './trainings-common.css';
 import {
@@ -25,7 +25,7 @@ const emptyCyclePuzzles: CyclePuzzle[] = [];
 const emptyTrainingPuzzles: TrainingPuzzle[] = [];
 const emptySolverTrainingPuzzles: TrainingPuzzle[] = [];
 
-function TrainingsPanelContentScreen({
+export function TrainingsPanelContentScreen({
   navigateToPuzzleSolver,
   navigateToTraining,
   navigateToView,
@@ -192,12 +192,18 @@ function TrainingsPanelContentScreen({
       )}
 
       {state.activeView === 'stats' && (
-        <RichStatsOverviewView
+        <TrainingsStatsView
           errorMessage={state.statsOverviewQuery.error?.message}
           isError={state.statsOverviewQuery.isError}
           isLoading={state.statsOverviewQuery.isLoading}
           onOpenTraining={navigateToTraining}
+          onSelectTrainingIri={state.setSelectedTrainingIri}
+          selectedTrainingIri={state.effectiveSelectedTrainingIri}
           statsOverview={state.statsOverviewQuery.data ?? null}
+          summary={state.trainingSummaryQuery.data ?? null}
+          summaryError={state.trainingSummaryQuery.error?.message}
+          summaryIsError={state.trainingSummaryQuery.isError}
+          summaryIsLoading={state.trainingSummaryQuery.isLoading}
         />
       )}
 
@@ -231,6 +237,4 @@ function TrainingsPanelContentScreen({
   );
 }
 
-export { TrainingsPanelContentScreen };
 export default TrainingsPanelContentScreen;
-
