@@ -1,0 +1,495 @@
+.wp-training-icon-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.wp-training-icon-modal__overlay {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(3, 8, 20, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.wp-training-icon-modal__surface {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 920px);
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #1e2f4d;
+  border-radius: 18px;
+  background: #0f1a2e;
+  box-shadow: 0 28px 80px rgba(3, 8, 18, 0.48);
+}
+
+.wp-training-icon-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.wp-training-icon-modal__header h2,
+.wp-training-icon-modal__section h3 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.wp-training-icon-modal__header h2 {
+  font-size: 1.95rem;
+  letter-spacing: -0.03em;
+}
+
+.wp-training-icon-modal__header p {
+  margin: 10px 0 0;
+  color: #bac6d9;
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.wp-training-icon-modal__close {
+  width: 40px;
+  height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #f8fafc;
+}
+
+.wp-training-icon-modal__section {
+  display: grid;
+  gap: 16px;
+}
+
+.wp-training-icon-modal__pieces {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wp-training-icon-modal__piece {
+  min-height: 104px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 14px 10px;
+  border: 1px solid #28406a;
+  border-radius: 16px;
+  background: #0a1222;
+  color: #f8fafc;
+}
+
+.wp-training-icon-modal__piece.is-active {
+  border-color: #4e7dff;
+  box-shadow: inset 0 0 0 1px rgba(86, 133, 255, 0.24), 0 0 0 1px rgba(86, 133, 255, 0.16);
+  background: rgba(18, 31, 58, 0.96);
+}
+
+.wp-training-icon-modal__piece-preview {
+  width: 48px;
+  height: 48px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.wp-training-icon-modal__piece-glyph {
+  width: 34px;
+  height: 34px;
+  color: #ffffff;
+}
+
+.wp-training-icon-modal__section--colors {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid #1e2f4d;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(150px, 184px);
+  gap: 0;
+  align-items: stretch;
+}
+
+.wp-training-icon-modal__color-block,
+.wp-training-icon-modal__preview-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.wp-training-icon-modal__color-block {
+  padding-right: 24px;
+}
+
+.wp-training-icon-modal__color-block--secondary,
+.wp-training-icon-modal__preview-panel {
+  padding-left: 24px;
+  border-left: 1px solid #1e2f4d;
+}
+
+.wp-training-icon-modal__preview-panel {
+  padding-right: 0;
+}
+
+.wp-training-icon-modal__color-grid,
+.wp-training-icon-modal__color-grid--compact {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 14px;
+}
+
+.wp-training-icon-modal__color-wheel,
+.wp-training-icon-modal__color-wheel--small {
+  position: relative;
+  width: 176px;
+  height: 176px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border-radius: 999px;
+  background: conic-gradient(from 180deg, #ff3b30, #ff9500, #ffcc00, #34c759, #32ade6, #007aff, #5856d6, #af52de, #ff2d55, #ff3b30);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.wp-training-icon-modal__color-wheel::before,
+.wp-training-icon-modal__color-wheel--small::before {
+  content: '';
+  position: absolute;
+  inset: 16px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(7, 14, 26, 0.1) 0%, rgba(7, 14, 26, 0.72) 72%, rgba(7, 14, 26, 0.9) 100%);
+}
+
+.wp-training-icon-modal__color-wheel-core,
+.wp-training-icon-modal__color-wheel-core--icon {
+  position: relative;
+  z-index: 1;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.wp-training-icon-modal__color-wheel input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.wp-training-icon-modal__color-form {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+}
+
+.wp-training-icon-modal__color-form label {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.wp-training-icon-modal__hex-row {
+  width: min(100%, 240px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 10px;
+  align-items: center;
+}
+
+.wp-training-icon-modal__hex-row input {
+  width: 100%;
+  min-width: 0;
+  font-family: 'Roboto Mono', 'SFMono-Regular', Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.wp-training-icon-modal__hex-row button {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #28406a;
+  border-radius: 14px;
+  background: rgba(10, 18, 34, 0.92);
+  color: #f8fafc;
+}
+
+.wp-training-icon-modal__color-form small,
+.wp-training-icon-modal__preview-panel p {
+  margin: 0;
+  color: #bac6d9;
+  line-height: 1.5;
+}
+
+.wp-training-icon-modal__preview-box {
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: start;
+}
+
+.wp-training-icon-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid #1e2f4d;
+}
+
+.wp-training-icon-modal__footer-button {
+  min-width: 168px;
+}
+
+.wp-training-icon-modal__footer .wp-secondary {
+  border-color: #28406a;
+  background: rgba(10, 18, 34, 0.92);
+  color: #f8fafc;
+}
+
+.wp-training-icon-modal__footer .wp-primary.wp-training-icon-modal__footer-button--apply {
+  border-color: rgba(77, 134, 255, 0.34);
+  color: #f8fbff;
+  background: linear-gradient(135deg, #2e6cff 0%, #1f5de6 100%);
+  box-shadow: 0 18px 34px rgba(26, 85, 214, 0.26);
+}
+
+.wp-training-icon-modal__footer .wp-primary.wp-training-icon-modal__footer-button--apply:hover:not(:disabled) {
+  border-color: rgba(110, 158, 255, 0.44);
+  background: linear-gradient(135deg, #3b78ff 0%, #2c68ee 100%);
+}
+
+@media (max-width: 1180px) {
+  .wp-training-icon-modal__surface {
+    width: min(100%, 860px);
+  }
+
+  .wp-training-icon-modal__section--colors {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 22px;
+  }
+
+  .wp-training-icon-modal__preview-panel {
+    grid-column: 1 / -1;
+    margin-top: 18px;
+    padding-top: 18px;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid #1e2f4d;
+  }
+}
+
+@media (max-width: 900px) {
+  .wp-training-icon-modal {
+    place-items: stretch;
+    padding: 16px;
+  }
+
+  .wp-training-icon-modal__surface {
+    width: calc(100% - 8px);
+    margin: auto;
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .wp-training-icon-modal__header h2 {
+    font-size: 1.75rem;
+  }
+
+  .wp-training-icon-modal__pieces {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .wp-training-icon-modal__color-block {
+    padding-right: 0;
+  }
+
+  .wp-training-icon-modal__color-block--secondary {
+    padding-left: 22px;
+  }
+
+  .wp-training-icon-modal__preview-panel {
+    margin-top: 16px;
+    padding-top: 18px;
+  }
+
+  .wp-training-icon-modal__color-wheel,
+  .wp-training-icon-modal__color-wheel--small {
+    width: 160px;
+    height: 160px;
+  }
+
+  .wp-training-icon-modal__color-wheel::before,
+  .wp-training-icon-modal__color-wheel--small::before {
+    inset: 14px;
+  }
+
+  .wp-training-icon-modal__color-wheel-core,
+  .wp-training-icon-modal__color-wheel-core--icon {
+    width: 76px;
+    height: 76px;
+  }
+}
+
+@media (max-width: 640px) {
+  .wp-training-icon-modal {
+    padding: 10px;
+  }
+
+  .wp-training-icon-modal__surface {
+    width: calc(100% - 4px);
+    max-height: calc(100dvh - 20px);
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .wp-training-icon-modal__header {
+    margin-bottom: 18px;
+  }
+
+  .wp-training-icon-modal__header h2 {
+    font-size: 1.45rem;
+  }
+
+  .wp-training-icon-modal__header p {
+    margin-top: 8px;
+    font-size: 0.98rem;
+  }
+
+  .wp-training-icon-modal__section {
+    gap: 14px;
+  }
+
+  .wp-training-icon-modal__pieces {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .wp-training-icon-modal__piece {
+    min-height: 82px;
+    gap: 7px;
+    padding: 10px 8px;
+    border-radius: 14px;
+  }
+
+  .wp-training-icon-modal__piece-preview {
+    width: 36px;
+    height: 36px;
+  }
+
+  .wp-training-icon-modal__piece-glyph {
+    width: 26px;
+    height: 26px;
+  }
+
+  .wp-training-icon-modal__section--colors {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin-top: 18px;
+    padding-top: 18px;
+  }
+
+  .wp-training-icon-modal__color-block,
+  .wp-training-icon-modal__preview-panel {
+    gap: 12px;
+  }
+
+  .wp-training-icon-modal__color-block--secondary,
+  .wp-training-icon-modal__preview-panel {
+    margin-top: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .wp-training-icon-modal__color-block--secondary,
+  .wp-training-icon-modal__preview-panel {
+    padding-top: 18px;
+    border-top: 1px solid #223454;
+  }
+
+  .wp-training-icon-modal__color-wheel,
+  .wp-training-icon-modal__color-wheel--small {
+    width: 128px;
+    height: 128px;
+    margin: 0;
+  }
+
+  .wp-training-icon-modal__color-wheel::before,
+  .wp-training-icon-modal__color-wheel--small::before {
+    inset: 12px;
+  }
+
+  .wp-training-icon-modal__color-wheel-core,
+  .wp-training-icon-modal__color-wheel-core--icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+  }
+
+  .wp-training-icon-modal__hex-row {
+    width: min(100%, 240px);
+  }
+
+  .wp-training-icon-modal__preview-box {
+    width: 96px;
+    height: 96px;
+    margin: 0;
+  }
+
+  .wp-training-icon-modal__footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 18px;
+  }
+
+  .wp-training-icon-modal__footer-button {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .wp-training-icon-modal__header {
+    gap: 12px;
+  }
+
+  .wp-training-icon-modal__pieces {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .wp-training-icon-modal__color-wheel,
+  .wp-training-icon-modal__color-wheel--small {
+    width: 116px;
+    height: 116px;
+  }
+
+  .wp-training-icon-modal__color-wheel::before,
+  .wp-training-icon-modal__color-wheel--small::before {
+    inset: 11px;
+  }
+
+  .wp-training-icon-modal__color-wheel-core,
+  .wp-training-icon-modal__color-wheel-core--icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .wp-training-icon-modal__preview-box {
+    width: 92px;
+    height: 92px;
+  }
+}

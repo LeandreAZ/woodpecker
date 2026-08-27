@@ -1,0 +1,1 @@
+export const OFFICIAL_WOODPECKER_LOGO = '/brand/woodpecker-logo.png';

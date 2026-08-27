@@ -1,0 +1,196 @@
+:root {
+  --app-nav-desktop-width: 200px;
+  --app-nav-mobile-height: 68px;
+  --app-nav-shell-edge: var(--space-4);
+}
+
+.wp-app-navigation {
+  font-family: var(--font-family-primary);
+}
+
+.wp-app-navigation--desktop {
+  position: fixed;
+  top: var(--app-nav-shell-edge);
+  left: var(--app-nav-shell-edge);
+  bottom: var(--app-nav-shell-edge);
+  width: var(--app-nav-desktop-width);
+  z-index: 40;
+}
+
+.wp-app-navigation__panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-large);
+  background: var(--color-background);
+}
+
+.wp-app-navigation__logo-link {
+  appearance: none;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.wp-app-navigation__logo {
+  width: min(100%, 148px);
+  height: auto;
+  display: block;
+}
+
+.wp-app-navigation__menu {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.wp-app-navigation__item,
+.wp-app-navigation__logout,
+.wp-app-navigation-mobile__item,
+.wp-app-navigation-mobile__logout {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.wp-app-navigation__item,
+.wp-app-navigation__logout {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: var(--radius-medium);
+  text-align: left;
+}
+
+.wp-app-navigation__item span,
+.wp-app-navigation__logout span {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.wp-app-navigation__item:hover:not(:disabled),
+.wp-app-navigation__logout:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.wp-app-navigation__item.is-active {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.wp-app-navigation__item.is-active svg {
+  color: var(--color-primary);
+}
+
+.wp-app-navigation__item:disabled,
+.wp-app-navigation-mobile__item:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.wp-app-navigation__footer {
+  margin-top: auto;
+}
+
+.wp-app-navigation__logout {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.wp-app-navigation__logout:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.wp-app-navigation__item:focus-visible,
+.wp-app-navigation__logout:focus-visible,
+.wp-app-navigation-mobile__item:focus-visible,
+.wp-app-navigation-mobile__logout:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.wp-app-navigation--mobile {
+  position: fixed;
+  top: var(--app-nav-shell-edge);
+  left: var(--app-nav-shell-edge);
+  right: var(--app-nav-shell-edge);
+  z-index: 45;
+  display: none;
+}
+
+.wp-app-navigation-mobile__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-large);
+  background: var(--color-background);
+}
+
+.wp-app-navigation-mobile__items {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(44px, 1fr));
+  gap: var(--space-2);
+  flex: 1 1 auto;
+}
+
+.wp-app-navigation-mobile__item,
+.wp-app-navigation-mobile__logout {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-medium);
+}
+
+.wp-app-navigation-mobile__item:hover:not(:disabled),
+.wp-app-navigation-mobile__logout:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.wp-app-navigation-mobile__item.is-active {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.wp-app-navigation-mobile__logout {
+  flex: 0 0 auto;
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 1023px) {
+  .wp-app-navigation--desktop {
+    display: none;
+  }
+
+  .wp-app-navigation--mobile {
+    display: block;
+  }
+}

@@ -17,14 +17,13 @@ class CyclePuzzleRepository extends ServiceEntityRepository
         parent::__construct($registry, CyclePuzzle::class);
     }
 
-    public function hasPendingCyclePuzzleForCycle(int $cycleId): bool
+    public function hasIncompleteCyclePuzzleForCycle(int $cycleId): bool
     {
         return (int) $this->createQueryBuilder('cyclePuzzle')
             ->select('COUNT(cyclePuzzle.id)')
             ->andWhere('cyclePuzzle.cycle = :cycleId')
-            ->andWhere('cyclePuzzle.status = :status')
+            ->andWhere('cyclePuzzle.completedAt IS NULL')
             ->setParameter('cycleId', $cycleId)
-            ->setParameter('status', 'pending')
             ->getQuery()
             ->getSingleScalarResult() > 0;
     }
@@ -37,10 +36,14 @@ class CyclePuzzleRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('cyclePuzzle')
             ->innerJoin('cyclePuzzle.cycle', 'cycle')
             ->addSelect('cycle')
+            ->leftJoin('cyclePuzzle.attempts', 'attempts')
+            ->addSelect('attempts')
             ->andWhere('cycle.training = :training')
             ->setParameter('training', $training)
             ->orderBy('cycle.number', 'ASC')
             ->addOrderBy('cyclePuzzle.position', 'ASC')
+            ->addOrderBy('attempts.attemptNumber', 'ASC')
+            ->addOrderBy('attempts.id', 'ASC')
             ->getQuery()
             ->getResult();
     }

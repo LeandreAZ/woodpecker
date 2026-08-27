@@ -1,12 +1,15 @@
+import { useEffect, useRef } from 'react';
 import type { CyclePuzzle, TrainingPuzzle, View } from './trainingsTypes';
 import { DashboardOverviewView } from './dashboard/DashboardOverviewView';
 import { DetailView } from './TrainingsDetailView';
-import { SolverView } from './TrainingsSolverView';
+import CreateTrainingView from './TrainingsCreateView';
+import EditTrainingView from './TrainingsEditView';
+import SolverView from './TrainingsSolverView';
 import TrainingsStatsView from './TrainingsStatsView';
 import type { useTrainingsPanelState } from './useTrainingsPanelState';
 import './trainings-common.css';
+import './detail.css';
 import {
-  CreateTrainingView,
   HistoryOverviewView,
   ImportView,
   SettingsOverviewView,
@@ -31,16 +34,42 @@ export function TrainingsPanelContentScreen({
   navigateToView,
   state,
 }: TrainingsPanelContentProps) {
-  const trainings = state.trainingsQuery.data ?? [];
+  const {
+    activeView,
+    hydrateTrainingDraft,
+    selectedTraining,
+    trainingsQuery,
+  } = state;
+  const trainings = trainingsQuery.data ?? [];
+  const hydratedEditTrainingIriRef = useRef<string | null>(null);
+  const isEditLoading = activeView === 'edit' && !selectedTraining && (trainingsQuery.isLoading || trainingsQuery.isFetching);
+
+  useEffect(() => {
+    if (activeView !== 'edit') {
+      hydratedEditTrainingIriRef.current = null;
+      return;
+    }
+
+    if (!selectedTraining) {
+      return;
+    }
+
+    if (hydratedEditTrainingIriRef.current === selectedTraining['@id']) {
+      return;
+    }
+
+    hydrateTrainingDraft(selectedTraining);
+    hydratedEditTrainingIriRef.current = selectedTraining['@id'];
+  }, [activeView, hydrateTrainingDraft, selectedTraining]);
 
   return (
-    <section className="wp-main">
+    <>
+      <section className="wp-main">
       {state.activeView === 'dashboard' && (
         <DashboardOverviewView
           dashboardSummaries={state.dashboardSummariesQuery.data ?? []}
-          deleteTrainingMutation={state.deleteTrainingMutation}
-          errorMessage={state.dashboardSummariesQuery.error?.message ?? state.trainingsQuery.error?.message}
-          isError={state.dashboardSummariesQuery.isError || state.trainingsQuery.isError}
+          errorMessage={state.dashboardSummariesQuery.error?.message ?? state.trainingsQuery.error?.message ?? state.statsOverviewQuery.error?.message}
+          isError={state.dashboardSummariesQuery.isError || state.trainingsQuery.isError || state.statsOverviewQuery.isError}
           isSummariesLoading={state.dashboardSummariesQuery.isLoading || state.dashboardSummariesQuery.isFetching}
           isTrainingsLoading={state.trainingsQuery.isLoading || state.trainingsQuery.isFetching}
           onCreate={() => navigateToView('create')}
@@ -56,13 +85,38 @@ export function TrainingsPanelContentScreen({
           description={state.description}
           errorMessage={state.createTrainingMutation.error?.message}
           icon={state.icon}
+          iconBackgroundColor={state.iconBackgroundColor}
+          iconColor={state.iconColor}
           isError={state.createTrainingMutation.isError}
           isPending={state.createTrainingMutation.isPending}
           name={state.name}
           onDescriptionChange={state.setDescription}
+          onIconBackgroundColorChange={state.setIconBackgroundColor}
           onIconChange={state.setIcon}
+          onIconColorChange={state.setIconColor}
           onNameChange={state.setName}
+          onResetDraft={state.resetTrainingDraft}
           onSubmit={() => state.createTrainingMutation.mutate()}
+        />
+      )}
+
+      {state.activeView === 'edit' && (
+        <EditTrainingView
+          description={state.description}
+          errorMessage={state.updateTrainingMutation.error?.message}
+          icon={state.icon}
+          iconBackgroundColor={state.iconBackgroundColor}
+          iconColor={state.iconColor}
+          isError={state.updateTrainingMutation.isError}
+          isLoading={isEditLoading}
+          isPending={state.updateTrainingMutation.isPending}
+          name={state.name}
+          onDescriptionChange={state.setDescription}
+          onIconBackgroundColorChange={state.setIconBackgroundColor}
+          onIconChange={state.setIcon}
+          onIconColorChange={state.setIconColor}
+          onNameChange={state.setName}
+          onSubmit={() => state.updateTrainingMutation.mutate()}
         />
       )}
 
@@ -73,6 +127,8 @@ export function TrainingsPanelContentScreen({
           analyticsIsError={state.trainingAnalyticsQuery.isError}
           analyticsIsLoading={state.trainingAnalyticsQuery.isLoading}
           createPuzzleMutation={state.createPuzzleMutation}
+          currentCycle={state.currentCycle}
+          cyclePuzzles={state.cyclePuzzlesQuery.data ?? emptyCyclePuzzles}
           cycleStats={state.cycleStats}
           cycleStatusLabel={state.currentCycleStatusLabel}
           deletePuzzleError={state.deleteTrainingPuzzleMutation.error?.message}
@@ -84,6 +140,7 @@ export function TrainingsPanelContentScreen({
           movePuzzleIsError={state.moveTrainingPuzzleMutation.isError}
           movePuzzleIsPending={state.moveTrainingPuzzleMutation.isPending}
           onBackToDashboard={() => navigateToView('dashboard')}
+          onEditTraining={() => navigateToView('edit')}
           onFenChange={state.setFen}
           onImport={() => navigateToView('import')}
           onOpenSolver={() => navigateToView('solver')}
@@ -143,28 +200,29 @@ export function TrainingsPanelContentScreen({
 
       {state.activeView === 'solver' && (
         <SolverView
-          attemptError={state.recordAttemptMutation.error?.message}
-          attemptIsError={state.recordAttemptMutation.isError}
-          attemptIsPending={state.recordAttemptMutation.isPending}
+          activeTrainingSessionIri={state.effectiveActiveTrainingSessionIri}
+          attemptError={state.recordAttemptMutation.error?.message ?? state.saveCyclePuzzleProgressMutation.error?.message}
+          attemptIsError={state.recordAttemptMutation.isError || state.saveCyclePuzzleProgressMutation.isError}
+          attemptIsPending={state.recordAttemptMutation.isPending || state.saveCyclePuzzleProgressMutation.isPending}
           currentCyclePuzzle={state.selectedCyclePuzzle}
+          currentCycle={state.currentCycle}
           cycleIsFinished={state.currentCycleIsFinished}
           cyclePuzzles={state.cyclePuzzlesQuery.data ?? emptyCyclePuzzles}
           cycleStats={state.cycleStats}
           failedCyclePuzzleIris={state.failedCyclePuzzleIris}
           hasActiveCycle={Boolean(state.effectiveActiveCycleIri && state.effectiveActiveTrainingSessionIri)}
-          mistakeLimit={state.effectiveMistakeLimit}
-          mistakeLimitError={state.updateMistakeLimitMutation.error?.message}
-          mistakeLimitIsError={state.updateMistakeLimitMutation.isError}
-          mistakeLimitIsPending={state.updateMistakeLimitMutation.isPending}
           onBackToDashboard={() => navigateToView('dashboard')}
           onBackToDetail={() => navigateToView('detail')}
-          onMistakeLimitChange={(nextMistakeLimit) => state.updateMistakeLimitMutation.mutate(nextMistakeLimit)}
           onPuzzleCompleted={(result) => {
             if (!state.selectedCyclePuzzle || !state.effectiveActiveTrainingSessionIri || state.selectedCyclePuzzleIsSaved) {
               return;
             }
-            state.recordAttemptMutation.mutate({
+            void state.recordSolverAttempt({
+              attemptNumber: result.attemptNumber,
+              clientRequestId: result.clientRequestId,
               cyclePuzzle: state.selectedCyclePuzzle,
+              cyclePuzzleDurationMilliseconds: result.cyclePuzzleDurationMilliseconds,
+              durationMilliseconds: result.durationMilliseconds,
               result,
               successful: true,
               trainingSession: state.effectiveActiveTrainingSessionIri,
@@ -174,13 +232,18 @@ export function TrainingsPanelContentScreen({
             if (!state.selectedCyclePuzzle || !state.effectiveActiveTrainingSessionIri || state.selectedCyclePuzzleIsSaved) {
               return;
             }
-            state.recordAttemptMutation.mutate({
+            void state.recordSolverAttempt({
+              attemptNumber: result.attemptNumber,
+              clientRequestId: result.clientRequestId,
               cyclePuzzle: state.selectedCyclePuzzle,
+              cyclePuzzleDurationMilliseconds: result.cyclePuzzleDurationMilliseconds,
+              durationMilliseconds: result.durationMilliseconds,
               result,
               successful: false,
               trainingSession: state.effectiveActiveTrainingSessionIri,
             });
           }}
+          onPuzzleProgress={(value) => state.persistSolverProgress(value)}
           onPuzzleSelect={state.setSelectedTrainingPuzzleIri}
           savedCyclePuzzleIris={state.savedCyclePuzzleIris}
           selectedPuzzle={state.selectedPuzzle}
@@ -233,8 +296,20 @@ export function TrainingsPanelContentScreen({
           settingsOverview={state.userSettingsOverviewQuery.data ?? null}
         />
       )}
-    </section>
+      </section>
+    </>
   );
 }
 
 export default TrainingsPanelContentScreen;
+
+
+
+
+
+
+
+
+
+
+

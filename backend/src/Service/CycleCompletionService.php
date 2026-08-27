@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
 use App\Enum\CycleStatus;
+use App\Repository\AttemptRepository;
 use App\Repository\CyclePuzzleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -12,6 +13,7 @@ final class CycleCompletionService
 {
     public function __construct(
         private readonly CyclePuzzleRepository $cyclePuzzleRepository,
+        private readonly AttemptRepository $attemptRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -20,13 +22,15 @@ final class CycleCompletionService
     {
         $hasChanges = false;
         $status = $cyclePuzzle->getStatus();
+        $hasSolvedAttempt = $this->attemptRepository->hasSolvedAttemptForCyclePuzzle($cyclePuzzle);
+        $isTerminal = 'solved' === $status || ('failed' === $status && $hasSolvedAttempt);
 
-        if ('pending' === $status && null !== $cyclePuzzle->getCompletedAt()) {
+        if (!$isTerminal && null !== $cyclePuzzle->getCompletedAt()) {
             $cyclePuzzle->setCompletedAt(null);
             $hasChanges = true;
         }
 
-        if ('pending' !== $status && null === $cyclePuzzle->getCompletedAt()) {
+        if ($isTerminal && null === $cyclePuzzle->getCompletedAt()) {
             $cyclePuzzle->setCompletedAt(new \DateTimeImmutable());
             $hasChanges = true;
         }
@@ -49,7 +53,7 @@ final class CycleCompletionService
             return false;
         }
 
-        if ($this->cyclePuzzleRepository->hasPendingCyclePuzzleForCycle($cycle->getId())) {
+        if ($this->cyclePuzzleRepository->hasIncompleteCyclePuzzleForCycle($cycle->getId())) {
             if ($hasChanges) {
                 $this->entityManager->flush();
             }
@@ -61,7 +65,6 @@ final class CycleCompletionService
             ->setStatus(CycleStatus::Completed)
             ->setCompletedAt($cycle->getCompletedAt() ?? new \DateTimeImmutable());
 
-        $hasChanges = true;
         $this->entityManager->flush();
 
         return true;

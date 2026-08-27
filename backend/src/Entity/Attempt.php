@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use App\Enum\AttemptStatus;
 use App\Repository\AttemptRepository;
 use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\ORM\Mapping as ORM;
@@ -13,6 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Index(name: 'idx_attempt_cycle_puzzle', columns: ['cycle_puzzle_id'])]
 #[ORM\Index(name: 'idx_attempt_training_session', columns: ['training_session_id'])]
+#[ORM\Index(name: 'idx_attempt_client_request_id', columns: ['client_request_id'])]
 #[ApiResource(
     normalizationContext: ['groups' => ['attempt:read']],
     denormalizationContext: ['groups' => ['attempt:write']],
@@ -37,6 +39,15 @@ class Attempt
     private ?TrainingSession $trainingSession = null;
 
     #[ORM\Column]
+    #[Assert\Positive]
+    #[Groups(['attempt:read', 'attempt:write'])]
+    private int $attemptNumber = 1;
+
+    #[ORM\Column(length: 20, enumType: AttemptStatus::class)]
+    #[Groups(['attempt:read', 'attempt:write'])]
+    private AttemptStatus $status = AttemptStatus::InProgress;
+
+    #[ORM\Column]
     #[Groups(['attempt:read', 'attempt:write'])]
     private array $playedMoves = [];
 
@@ -54,7 +65,19 @@ class Attempt
     #[Groups(['attempt:read', 'attempt:write'])]
     private int $durationMilliseconds = 0;
 
+    #[ORM\Column(length: 64, nullable: true)]
+    #[Groups(['attempt:read', 'attempt:write'])]
+    private ?string $clientRequestId = null;
+
     #[ORM\Column]
+    #[Groups(['attempt:read', 'attempt:write'])]
+    private ?\DateTimeImmutable $startedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Groups(['attempt:read', 'attempt:write'])]
+    private ?\DateTimeImmutable $completedAt = null;
+
+    #[ORM\Column(nullable: true)]
     #[Groups(['attempt:read'])]
     private ?\DateTimeImmutable $attemptedAt = null;
 
@@ -83,6 +106,30 @@ class Attempt
     public function setTrainingSession(?TrainingSession $trainingSession): self
     {
         $this->trainingSession = $trainingSession;
+
+        return $this;
+    }
+
+    public function getAttemptNumber(): int
+    {
+        return $this->attemptNumber;
+    }
+
+    public function setAttemptNumber(int $attemptNumber): self
+    {
+        $this->attemptNumber = max(1, $attemptNumber);
+
+        return $this;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status->value;
+    }
+
+    public function setStatus(AttemptStatus|string $status): self
+    {
+        $this->status = $status instanceof AttemptStatus ? $status : AttemptStatus::from($status);
 
         return $this;
     }
@@ -118,7 +165,7 @@ class Attempt
 
     public function setMistakesCount(int $mistakesCount): self
     {
-        $this->mistakesCount = $mistakesCount;
+        $this->mistakesCount = max(0, $mistakesCount);
 
         return $this;
     }
@@ -130,7 +177,43 @@ class Attempt
 
     public function setDurationMilliseconds(int $durationMilliseconds): self
     {
-        $this->durationMilliseconds = $durationMilliseconds;
+        $this->durationMilliseconds = max(0, $durationMilliseconds);
+
+        return $this;
+    }
+
+    public function getClientRequestId(): ?string
+    {
+        return $this->clientRequestId;
+    }
+
+    public function setClientRequestId(?string $clientRequestId): self
+    {
+        $this->clientRequestId = $clientRequestId;
+
+        return $this;
+    }
+
+    public function getStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->startedAt;
+    }
+
+    public function setStartedAt(?\DateTimeImmutable $startedAt): self
+    {
+        $this->startedAt = $startedAt;
+
+        return $this;
+    }
+
+    public function getCompletedAt(): ?\DateTimeImmutable
+    {
+        return $this->completedAt;
+    }
+
+    public function setCompletedAt(?\DateTimeImmutable $completedAt): self
+    {
+        $this->completedAt = $completedAt;
 
         return $this;
     }
@@ -140,7 +223,7 @@ class Attempt
         return $this->attemptedAt;
     }
 
-    public function setAttemptedAt(\DateTimeImmutable $attemptedAt): self
+    public function setAttemptedAt(?\DateTimeImmutable $attemptedAt): self
     {
         $this->attemptedAt = $attemptedAt;
 
@@ -148,8 +231,9 @@ class Attempt
     }
 
     #[ORM\PrePersist]
-    public function initializeAttemptedAt(): void
+    public function initializeDates(): void
     {
-        $this->attemptedAt ??= new \DateTimeImmutable();
+        $this->startedAt ??= new \DateTimeImmutable();
+        $this->attemptedAt ??= $this->completedAt ?? $this->startedAt;
     }
 }

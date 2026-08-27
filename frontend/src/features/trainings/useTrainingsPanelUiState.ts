@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import type { PuzzleCsvRow } from './csvImport';
+import { DEFAULT_TRAINING_BRANDING } from './TrainingBranding';
 import type { View } from './trainingsTypes';
 
 export function useTrainingsPanelUiState(initialView: View) {
   const [activeView, setActiveView] = useState<View>(initialView);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [icon, setIcon] = useState('queen');
+  const [icon, setIcon] = useState(DEFAULT_TRAINING_BRANDING.icon);
+  const [iconBackgroundColor, setIconBackgroundColor] = useState(DEFAULT_TRAINING_BRANDING.iconBackgroundColor);
+  const [iconColor, setIconColor] = useState(DEFAULT_TRAINING_BRANDING.iconColor);
   const [selectedTrainingIri, setSelectedTrainingIri] = useState<string | null>(null);
   const [fen, setFen] = useState('');
   const [solutionText, setSolutionText] = useState('');
@@ -21,7 +24,6 @@ export function useTrainingsPanelUiState(initialView: View) {
   const [activeTrainingSessionIri, setActiveTrainingSessionIri] = useState<string | null>(null);
   const [savedCyclePuzzleIris, setSavedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
   const [failedCyclePuzzleIris, setFailedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
-  const [mistakeLimitOverride, setMistakeLimitOverride] = useState<number | null>(null);
 
   return {
     activeCycleIri,
@@ -31,10 +33,11 @@ export function useTrainingsPanelUiState(initialView: View) {
     csvFileName,
     csvRows,
     description,
-    icon,
     failedCyclePuzzleIris,
     fen,
-    mistakeLimitOverride,
+    icon,
+    iconBackgroundColor,
+    iconColor,
     name,
     personalNote,
     rating,
@@ -48,10 +51,11 @@ export function useTrainingsPanelUiState(initialView: View) {
     setCsvFileName,
     setCsvRows,
     setDescription,
-    setIcon,
     setFailedCyclePuzzleIris,
     setFen,
-    setMistakeLimitOverride,
+    setIcon,
+    setIconBackgroundColor,
+    setIconColor,
     setName,
     setPersonalNote,
     setRating,

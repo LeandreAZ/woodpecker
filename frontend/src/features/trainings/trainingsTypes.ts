@@ -1,8 +1,29 @@
+export type CollectionView = {
+  '@id'?: string;
+  first?: string;
+  last?: string;
+  next?: string;
+  previous?: string;
+  'hydra:first'?: string;
+  'hydra:last'?: string;
+  'hydra:next'?: string;
+  'hydra:previous'?: string;
+};
+
+export type ApiCollection<Item> = {
+  member?: Item[];
+  totalItems?: number;
+  view?: CollectionView;
+  'hydra:member'?: Item[];
+  'hydra:totalItems'?: number;
+  'hydra:view'?: CollectionView;
+};
 import type { PuzzleCsvRow } from './csvImport';
 
 export type View =
   | 'dashboard'
   | 'create'
+  | 'edit'
   | 'detail'
   | 'import'
   | 'solver'
@@ -10,16 +31,16 @@ export type View =
   | 'history'
   | 'settings';
 
-export const mistakeLimitOptions = [0, 1, 2, 3, 4, 5];
-
 export type Training = {
   '@id': string;
   id: number;
   name: string;
   description?: string | null;
   icon?: string | null;
+  iconBackgroundColor?: string | null;
+  iconColor?: string | null;
   logo?: string | null;
-  mistakeLimit: number;
+  mistakeLimit?: number | null;
   status: string;
   createdAt: string;
 };
@@ -30,6 +51,8 @@ export type TrainingReference = {
   name: string;
   description?: string | null;
   icon?: string | null;
+  iconBackgroundColor?: string | null;
+  iconColor?: string | null;
   logo?: string | null;
   status: string;
 };
@@ -78,6 +101,8 @@ export type Cycle = {
   completedAt?: string | null;
 };
 
+export type AttemptStatus = 'in_progress' | 'failed' | 'solved';
+
 export type CyclePuzzle = {
   '@id': string;
   id: number;
@@ -85,6 +110,15 @@ export type CyclePuzzle = {
   trainingPuzzle: string;
   position: number;
   status: string;
+  attemptCount?: number;
+  durationMilliseconds?: number;
+  finallySolved?: boolean;
+  completedAt?: string | null;
+  attempts?: Attempt[];
+  activeAttempt?: Attempt | null;
+  completedAttemptCount?: number;
+  completedDurationMilliseconds?: number;
+  hasSolvedAttempt?: boolean;
 };
 
 export type TrainingSession = {
@@ -98,13 +132,18 @@ export type TrainingSession = {
 export type Attempt = {
   '@id': string;
   id: number;
+  clientRequestId?: string | null;
   cyclePuzzle: string;
   trainingSession: string;
+  attemptNumber: number;
+  status: AttemptStatus;
   playedMoves: string[];
   successful: boolean;
   mistakesCount: number;
   durationMilliseconds: number;
-  attemptedAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  attemptedAt?: string | null;
 };
 
 export type TrainingOverview = {
@@ -260,116 +299,56 @@ export type DetailedAttemptHistoryItem = {
   successful: boolean;
   mistakesCount: number;
   durationMilliseconds: number;
-  playedMoves: string[];
-  attemptedAt?: string | null;
-  cycle: {
-    '@id': string | null;
-    id: number | null;
-    number: number | null;
-    status: string | null;
-  };
-  cyclePuzzle: {
-    '@id': string | null;
-    id: number | null;
-    position: number | null;
-    status: string | null;
-  };
-  trainingPuzzle: {
-    '@id': string | null;
-    id: number | null;
-    position: number | null;
-    personalNote?: string | null;
-  };
-  puzzle: Puzzle | null;
+  attemptedAt: string;
+  trainingSession?: string | null;
+  cyclePuzzle?: string | null;
 };
 
 export type TrainingAttemptHistory = {
-  training: Training;
-  attemptCount: number;
-  successfulAttemptCount: number;
-  failedAttemptCount: number;
-  latestAttemptedAt?: string | null;
+  training: TrainingReference;
   attempts: DetailedAttemptHistoryItem[];
 };
 
 export type DetailedCycleHistoryItem = {
-  cycle: Cycle & {
-    targetDurationSeconds?: number | null;
-  };
+  cycle: Cycle;
   solved: number;
   failed: number;
   pending: number;
   total: number;
   progressPercent: number;
   attemptCount: number;
-  latestAttemptedAt?: string | null;
-  hasResumableCycle: boolean;
-  cyclePuzzles: Array<{
-    '@id': string;
-    id: number;
-    position: number;
-    status: string;
-    completedAt?: string | null;
-    trainingPuzzle: {
-      '@id': string | null;
-      id: number | null;
-      position: number | null;
-      personalNote?: string | null;
-    } | null;
-  }>;
+  averageAttempts?: number;
+  durationMilliseconds?: number;
 };
 
 export type TrainingCycleHistory = {
-  training: Training;
-  cycleCount: number;
-  activeCycleCount: number;
-  completedCycleCount: number;
+  training: TrainingReference;
   cycles: DetailedCycleHistoryItem[];
 };
 
 export type UserSettingsOverview = {
-  user: UserReference;
-  workspace: {
-    trainingCount: number;
-    activeTrainingCount: number;
-    archivedTrainingCount: number;
-    puzzleCount: number;
-    latestTrainingName?: string | null;
-  };
-  preferencesPreview: {
-    defaultMistakeLimit: number;
-    lockTrainingAfterCycle: boolean;
-    trackedSolverByDefault: boolean;
-  };
-  integrations: {
-    lichessConnected: boolean;
-    chessComConnected: boolean;
-    exportReady: boolean;
+  connectedProviders: Array<{
+    key: string;
+    label: string;
+    connected: boolean;
+  }>;
+  preferences: {
+    language: string;
+    timezone: string;
   };
 };
 
 export type CycleStats = {
+  total: number;
+  solved: number;
   failed: number;
   pending: number;
   progressPercent: number;
-  solved: number;
-  total: number;
 };
 
-export type ApiCollection<Item> = {
-  member?: Item[];
-  'hydra:member'?: Item[];
-  view?: CollectionView;
-  'hydra:view'?: CollectionView;
+export type ParsedCsvPayload = {
+  errors: string[];
+  fileName: string;
+  rows: PuzzleCsvRow[];
 };
 
-export type CollectionView = {
-  next?: string;
-  'hydra:next'?: string;
-};
-
-export type ImportPreview = {
-  csvErrors: string[];
-  csvFileName: string;
-  csvRows: PuzzleCsvRow[];
-};

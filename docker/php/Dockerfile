@@ -23,5 +23,4 @@ RUN chmod +x /usr/local/bin/woodpecker-php-entrypoint
 
 WORKDIR /var/www/html
 
-CMD ["woodpecker-php-entrypoint"]
-
+CMD ["/usr/local/bin/woodpecker-php-entrypoint"]

@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactElement } from 'react';
 import * as AppIcons from '../../shared/AppIcons';
-import { TrainingLogoBadge } from './TrainingBranding';
+import { TrainingLogoBadge, resolveTrainingBranding } from './TrainingBranding';
 import { formatDuration } from './trainingsUtils';
 import type {
   DailyActivityPoint,
@@ -10,8 +10,7 @@ import type {
   TrainingSummary,
   View,
 } from './trainingsTypes';
-
-type StatsMetricKey = 'averageAttempts' | 'progressPercent' | 'successRate';
+import './stats.css';
 
 type TrainingsStatsViewProps = {
   errorMessage?: string;
@@ -27,26 +26,15 @@ type TrainingsStatsViewProps = {
   summaryIsLoading: boolean;
 };
 
+type StatsMetricKey = 'successRate' | 'progressPercent';
+
 type WindowActivitySummary = {
   activeDays: number;
-  attemptCount: number;
   averageAttempts: number;
   durationMilliseconds: number;
   handledPuzzleCount: number;
   progressPercent: number;
-  successfulAttemptCount: number;
   successRate: number;
-};
-
-type ChartPoint = {
-  label: string;
-  value: number;
-};
-
-type StackedPoint = {
-  label: string;
-  primary: number;
-  secondary: number;
 };
 
 type CardDefinition = {
@@ -57,11 +45,18 @@ type CardDefinition = {
   value: string;
 };
 
-const PERIOD_OPTIONS = [7, 14, 30, 60, 90] as const;
-const CYCLE_METRICS: Array<{ key: StatsMetricKey; label: string; unit: 'count' | 'percent' }> = [
-  { key: 'successRate', label: 'Taux de réussite', unit: 'percent' },
-  { key: 'progressPercent', label: 'Progression globale', unit: 'percent' },
-  { key: 'averageAttempts', label: 'Tentatives moyennes', unit: 'count' },
+type CycleSlot = {
+  cycle: TrainingCycleSummary | null;
+  label: string;
+  value: number | null;
+};
+
+const PERIOD_OPTIONS = [7, 14, 30, 90] as const;
+const PERCENT_GRID = [0, 25, 50, 75, 100] as const;
+const SLOT_COUNT = 5;
+const METRIC_OPTIONS: Array<{ key: StatsMetricKey; label: string }> = [
+  { key: 'successRate', label: 'Taux de réussite' },
+  { key: 'progressPercent', label: 'Progression' },
 ];
 
 function iconElement(element: ReactElement) {
@@ -99,96 +94,6 @@ function differenceInDays(from: Date, to: Date) {
   return Math.max(1, Math.floor((startOfDay(to).getTime() - startOfDay(from).getTime()) / 86400000) + 1);
 }
 
-function formatDayLabel(value: string) {
-  const date = new Date(value);
-  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(date);
-}
-
-function formatCompactDate(value?: string | null) {
-  if (!value) {
-    return 'Aucune date';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Aucune date';
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-function formatDelta(value: number, unit: 'count' | 'duration' | 'percent') {
-  const rounded = unit === 'count' ? Math.round(value * 10) / 10 : Math.round(value);
-  if (rounded === 0) {
-    return 'Stable sur la période précédente';
-  }
-
-  const prefix = rounded > 0 ? '+' : '-';
-  const absolute = Math.abs(rounded);
-
-  if (unit === 'duration') {
-    return `${prefix}${formatDuration(absolute)}`;
-  }
-
-  if (unit === 'percent') {
-    return `${prefix}${absolute}%`;
-  }
-
-  return `${prefix}${absolute}`;
-}
-
-function getDeltaTone(value: number): 'is-negative' | 'is-neutral' | 'is-positive' {
-  if (value > 0) {
-    return 'is-positive';
-  }
-  if (value < 0) {
-    return 'is-negative';
-  }
-  return 'is-neutral';
-}
-
-function sumDuration(points: DailyActivityPoint[]) {
-  return points.reduce((total, point) => total + (point.durationMilliseconds ?? 0), 0);
-}
-
-function sumAttempts(points: DailyActivityPoint[]) {
-  return points.reduce((total, point) => total + (point.attemptCount ?? 0), 0);
-}
-
-function sumSuccessful(points: DailyActivityPoint[]) {
-  return points.reduce((total, point) => total + (point.successfulAttemptCount ?? 0), 0);
-}
-
-function sumHandled(points: DailyActivityPoint[]) {
-  return points.reduce((total, point) => total + (point.handledPuzzleCount ?? 0), 0);
-}
-
-function buildWindowSummary(points: DailyActivityPoint[], puzzleCount: number): WindowActivitySummary {
-  const attemptCount = sumAttempts(points);
-  const successfulAttemptCount = sumSuccessful(points);
-  const handledPuzzleCount = sumHandled(points);
-  const durationMilliseconds = sumDuration(points);
-  const progressPercent = puzzleCount > 0 ? clampPercent((handledPuzzleCount / puzzleCount) * 100) : 0;
-  const averageAttempts = handledPuzzleCount > 0 ? Math.round((attemptCount / handledPuzzleCount) * 10) / 10 : 0;
-  const successRate = attemptCount > 0 ? clampPercent((successfulAttemptCount / attemptCount) * 100) : 0;
-  const activeDays = points.filter((point) => (point.attemptCount ?? 0) > 0 || (point.durationMilliseconds ?? 0) > 0).length;
-
-  return {
-    activeDays,
-    attemptCount,
-    averageAttempts,
-    durationMilliseconds,
-    handledPuzzleCount,
-    progressPercent,
-    successfulAttemptCount,
-    successRate,
-  };
-}
-
 function buildRange(points: DailyActivityPoint[], startDate: Date, endDate: Date) {
   const startKey = toDateKey(startDate.toISOString())!;
   const endKey = toDateKey(endDate.toISOString())!;
@@ -216,6 +121,75 @@ function resolveAvailableDays(allDates: Array<string | null | undefined>, fallba
   return differenceInDays(earliest, new Date());
 }
 
+function buildWindowSummary(points: DailyActivityPoint[], puzzleCount: number): WindowActivitySummary {
+  const attemptCount = points.reduce((total, point) => total + (point.attemptCount ?? 0), 0);
+  const successfulAttemptCount = points.reduce((total, point) => total + (point.successfulAttemptCount ?? 0), 0);
+  const handledPuzzleCount = points.reduce((total, point) => total + (point.handledPuzzleCount ?? 0), 0);
+  const durationMilliseconds = points.reduce((total, point) => total + (point.durationMilliseconds ?? 0), 0);
+  const progressPercent = puzzleCount > 0 ? clampPercent((handledPuzzleCount / puzzleCount) * 100) : 0;
+  const averageAttempts = handledPuzzleCount > 0 ? Math.round((attemptCount / handledPuzzleCount) * 10) / 10 : 0;
+  const successRate = attemptCount > 0 ? clampPercent((successfulAttemptCount / attemptCount) * 100) : 0;
+  const activeDays = points.filter((point) => (point.attemptCount ?? 0) > 0 || (point.durationMilliseconds ?? 0) > 0).length;
+
+  return {
+    activeDays,
+    averageAttempts,
+    durationMilliseconds,
+    handledPuzzleCount,
+    progressPercent,
+    successRate,
+  };
+}
+
+function formatCompactDate(value?: string | null) {
+  if (!value) {
+    return 'Aucune date';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Aucune date';
+  }
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatCyclePeriod(cycle: TrainingCycleSummary) {
+  const started = formatCompactDate(cycle.cycle.startedAt);
+  const completed = cycle.cycle.completedAt ? formatCompactDate(cycle.cycle.completedAt) : null;
+  return completed ? `${started} - ${completed}` : started;
+}
+
+function formatDelta(value: number, unit: 'count' | 'duration' | 'percent') {
+  const rounded = unit === 'count' ? Math.round(value * 10) / 10 : Math.round(value);
+  if (rounded === 0) {
+    return 'Stable';
+  }
+
+  const prefix = rounded > 0 ? '+' : '-';
+  const absolute = Math.abs(rounded);
+
+  if (unit === 'duration') {
+    return `${prefix}${formatDuration(absolute)}`;
+  }
+
+  if (unit === 'percent') {
+    return `${prefix}${absolute}%`;
+  }
+
+  return `${prefix}${absolute}`;
+}
+
+function getDeltaTone(value: number): 'is-negative' | 'is-neutral' | 'is-positive' {
+  if (value > 0) return 'is-positive';
+  if (value < 0) return 'is-negative';
+  return 'is-neutral';
+}
+
 function buildCard(label: string, value: string, deltaValue: number, deltaUnit: 'count' | 'duration' | 'percent', icon: ReactElement): CardDefinition {
   return {
     deltaLabel: formatDelta(deltaValue, deltaUnit),
@@ -226,55 +200,74 @@ function buildCard(label: string, value: string, deltaValue: number, deltaUnit: 
   };
 }
 
-function buildChartPath(points: ChartPoint[], width: number, height: number) {
-  if (points.length === 0) {
-    return '';
+function truncateLabel(value: string, maxLength = 18) {
+  if (value.length <= maxLength) {
+    return value;
   }
-
-  const max = Math.max(...points.map((point) => point.value), 1);
-  const stepX = points.length === 1 ? 0 : width / (points.length - 1);
-
-  return points
-    .map((point, index) => {
-      const x = stepX * index;
-      const y = height - (point.value / max) * height;
-      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
-    })
-    .join(' ');
+  return `${value.slice(0, maxLength - 3)}...`;
 }
 
-function buildCycleChartPoints(cycles: TrainingCycleSummary[], metric: StatsMetricKey) {
-  const visibleCycles = [...cycles].reverse();
-  return visibleCycles.map((cycle) => ({
-    label: `Cycle ${cycle.cycle.number}`,
-    value:
-      metric === 'averageAttempts'
-        ? cycle.averageAttempts ?? 0
-        : metric === 'successRate'
-          ? cycle.successRate ?? 0
-          : cycle.progressPercent ?? 0,
-  }));
+function formatAveragePuzzleTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0s';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return remainingSeconds > 0 ? `${minutes}m${remainingSeconds}s` : `${minutes}m`;
 }
 
-function buildAverageTimePoints(cycles: TrainingCycleSummary[]) {
-  const visibleCycles = [...cycles].reverse();
-  return visibleCycles.map((cycle) => {
-    const handled = Math.max(cycle.solved + cycle.failed, 1);
-    const durationPerPuzzle = (cycle.durationMilliseconds ?? 0) / handled;
+function formatAxisDuration(seconds: number) {
+  if (seconds <= 0) return '0s';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = seconds / 60;
+  return minutes >= 10 || Number.isInteger(minutes) ? `${Math.round(minutes)}m` : `${minutes.toFixed(1)}m`;
+}
+
+function getAdaptiveTimeMax(values: number[]) {
+  const maxValue = Math.max(...values.filter((value) => value > 0), 0);
+  if (maxValue <= 0) return 60;
+  const padded = maxValue * 1.2;
+  if (padded <= 30) return 30;
+  if (padded <= 60) return 60;
+  if (padded <= 120) return 120;
+  if (padded <= 180) return 180;
+  if (padded <= 300) return 300;
+  return Math.ceil(padded / 60) * 60;
+}
+
+function buildCycleRows(summary: TrainingSummary | null, windowStartDate: Date) {
+  const source = [...(summary?.cycleSummaries ?? [])].sort((left, right) => left.cycle.number - right.cycle.number);
+  const filtered = source.filter((item) => {
+    const startedAt = item.cycle.startedAt ?? item.cycle.completedAt;
+    if (!startedAt) {
+      return false;
+    }
+    const date = new Date(startedAt);
+    return !Number.isNaN(date.getTime()) && date >= windowStartDate;
+  });
+  return (filtered.length > 0 ? filtered : source).slice(-SLOT_COUNT);
+}
+
+function buildCycleSlots(rows: TrainingCycleSummary[], metric: StatsMetricKey): CycleSlot[] {
+  return Array.from({ length: SLOT_COUNT }, (_, index) => {
+    const cycle = rows[index] ?? null;
     return {
-      label: `Cycle ${cycle.cycle.number}`,
-      value: Math.round(durationPerPuzzle / 1000),
+      cycle,
+      label: cycle ? `Cycle ${cycle.cycle.number}` : `Cycle ${index + 1}`,
+      value: cycle ? (metric === 'successRate' ? cycle.successRate ?? 0 : cycle.progressPercent ?? 0) : null,
     };
   });
 }
 
-function buildResolutionFlowPoints(cycles: TrainingCycleSummary[]) {
-  const visibleCycles = [...cycles].reverse();
-  return visibleCycles.map((cycle) => ({
-    label: `Cycle ${cycle.cycle.number}`,
-    primary: cycle.solved,
-    secondary: cycle.failed,
-  }));
+function buildTimeSlots(rows: TrainingCycleSummary[]): CycleSlot[] {
+  return Array.from({ length: SLOT_COUNT }, (_, index) => {
+    const cycle = rows[index] ?? null;
+    const handled = cycle ? Math.max(cycle.solved + cycle.failed, 1) : 1;
+    return {
+      cycle,
+      label: cycle ? `Cycle ${cycle.cycle.number}` : `Cycle ${index + 1}`,
+      value: cycle ? (cycle.durationMilliseconds ?? 0) / handled / 1000 : null,
+    };
+  });
 }
 
 function buildAllTrainingsActivityRows(summaries: TrainingDashboardSummary[], days: number) {
@@ -287,111 +280,162 @@ function buildAllTrainingsActivityRows(summaries: TrainingDashboardSummary[], da
     const progressPerHour = stats.durationMilliseconds > 0
       ? Math.round((stats.progressPercent / (stats.durationMilliseconds / 3600000)) * 10) / 10
       : 0;
-    const minutesPerPoint = stats.progressPercent > 0
-      ? Math.round((stats.durationMilliseconds / 60000 / stats.progressPercent) * 10) / 10
-      : 0;
 
-    return {
-      minutesPerPoint,
-      progressPerHour,
-      stats,
-      summary,
-    };
+    return { progressPerHour, stats, summary };
   });
 }
-
-function formatMinutesPerPoint(value: number) {
-  if (!value || !Number.isFinite(value)) {
-    return '—';
-  }
-
-  return `${value.toFixed(1)} min / 1%`;
+function ChartEmpty({ message }: { message: string }) {
+  return <div className="wp-training-stats-chart__empty">{message}</div>;
 }
 
-function formatProgressRate(value: number) {
-  if (!value || !Number.isFinite(value)) {
-    return '0% / h';
-  }
+function PercentLineChart({ emptyMessage, metricLabel, slots }: { emptyMessage: string; metricLabel: string; slots: CycleSlot[] }) {
+  const viewBoxWidth = 520;
+  const viewBoxHeight = 260;
+  const paddingLeft = 52;
+  const paddingRight = 24;
+  const paddingTop = 18;
+  const paddingBottom = 36;
+  const chartWidth = viewBoxWidth - paddingLeft - paddingRight;
+  const chartHeight = viewBoxHeight - paddingTop - paddingBottom;
+  const zoneWidth = chartWidth / SLOT_COUNT;
+  const points = slots
+    .map((slot, index) => {
+      if (slot.value === null) {
+        return null;
+      }
+      const x = paddingLeft + zoneWidth * index + zoneWidth / 2;
+      const y = paddingTop + chartHeight - (slot.value / 100) * chartHeight;
+      return { x, y, label: slot.label };
+    })
+    .filter((point): point is { x: number; y: number; label: string } => point !== null);
 
-  return `${value.toFixed(1)}% / h`;
-}
-
-function StatsLineChart({ accentClassName, points, unit }: { accentClassName: string; points: ChartPoint[]; unit: 'count' | 'percent' }) {
-  const width = 640;
-  const height = 220;
-  const path = buildChartPath(points, width, height);
-  const max = Math.max(...points.map((point) => point.value), 1);
+  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
 
   return (
-    <div className="wp-stats-v2-chart">
-      <div className="wp-stats-v2-chart__main">
-        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Évolution graphique">
-          {[0, 0.25, 0.5, 0.75, 1].map((step) => (
-            <line
-              key={step}
-              className="wp-stats-v2-chart__grid"
-              x1="0"
-              x2={String(width)}
-              y1={String(height - height * step)}
-              y2={String(height - height * step)}
-            />
-          ))}
-          {path ? <path className={`wp-stats-v2-chart__line ${accentClassName}`} d={path} /> : null}
-          {points.map((point, index) => {
-            const x = points.length === 1 ? width / 2 : (width / Math.max(points.length - 1, 1)) * index;
-            const y = height - (point.value / max) * height;
-            return <circle key={`${point.label}-${index}`} className={`wp-stats-v2-chart__dot ${accentClassName}`} cx={x} cy={y} r="4" />;
+    <div className="wp-training-stats-chart">
+      <div className="wp-training-stats-chart__header-inline">{metricLabel}</div>
+      <div className="wp-training-stats-chart__canvas">
+        <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} preserveAspectRatio="none" aria-label={metricLabel}>
+          {PERCENT_GRID.map((tick) => {
+            const y = paddingTop + chartHeight - (tick / 100) * chartHeight;
+            return (
+              <g key={tick}>
+                <line className="wp-training-stats-chart__grid" x1={paddingLeft} x2={viewBoxWidth - paddingRight} y1={y} y2={y} />
+                <text className="wp-training-stats-chart__axis-label" x={8} y={y + 4}>{tick}%</text>
+              </g>
+            );
           })}
+
+          {slots.map((slot, index) => {
+            const x = paddingLeft + zoneWidth * index + zoneWidth / 2;
+            return <line key={slot.label} className="wp-training-stats-chart__axis" x1={x} x2={x} y1={paddingTop} y2={paddingTop + chartHeight} />;
+          })}
+
+          {points.length > 1 ? <path className="wp-training-stats-chart__line" d={path} /> : null}
+          {points.map((point) => <circle key={point.label} className="wp-training-stats-chart__dot" cx={point.x} cy={point.y} r="5" />)}
+
+          {points.length === 0 ? (
+            <foreignObject x={paddingLeft} y={paddingTop} width={chartWidth} height={chartHeight}>
+              <ChartEmpty message={emptyMessage} />
+            </foreignObject>
+          ) : null}
         </svg>
       </div>
-      <div className="wp-stats-v2-chart__labels">
-        {points.map((point) => (
-          <span key={point.label}>{point.label}</span>
-        ))}
-      </div>
-      <div className="wp-stats-v2-chart__meta">
-        <span>{unit === 'percent' ? '0%' : '0'}</span>
-        <span>{unit === 'percent' ? `${Math.round(max)}%` : `${Math.round(max * 10) / 10}`}</span>
+      <div className="wp-training-stats-chart__x-axis">
+        {slots.map((slot) => <span key={slot.label}>{slot.label}</span>)}
       </div>
     </div>
   );
 }
 
-function StatsStackedChart({ points }: { points: StackedPoint[] }) {
-  const max = Math.max(...points.map((point) => point.primary + point.secondary), 1);
+function AverageTimeBarChart({ emptyMessage, slots }: { emptyMessage: string; slots: CycleSlot[] }) {
+  const values = slots.map((slot) => slot.value ?? 0);
+  const maxSeconds = getAdaptiveTimeMax(values);
+  const ticks = [0, maxSeconds * 0.25, maxSeconds * 0.5, maxSeconds * 0.75, maxSeconds];
 
   return (
-    <div className="wp-stats-v2-stack-chart">
-      {points.map((point) => {
-        const primaryWidth = `${Math.max(8, (point.primary / max) * 100)}%`;
-        const secondaryWidth = point.secondary > 0 ? `${Math.max(6, (point.secondary / max) * 100)}%` : '0%';
-        return (
-          <div className="wp-stats-v2-stack-chart__row" key={point.label}>
-            <div className="wp-stats-v2-stack-chart__label">
-              <strong>{point.label}</strong>
-              <small>{`${point.primary} résolus · ${point.secondary} à revoir`}</small>
-            </div>
-            <div className="wp-stats-v2-stack-chart__bars">
-              <span className="is-primary" style={{ width: primaryWidth }} />
-              {point.secondary > 0 ? <span className="is-secondary" style={{ width: secondaryWidth }} /> : null}
-            </div>
+    <div className="wp-training-stats-bars">
+      <div className="wp-training-stats-bars__plot">
+        <div className="wp-training-stats-bars__y-axis">
+          {ticks.slice().reverse().map((tick) => <span key={tick}>{formatAxisDuration(tick)}</span>)}
+        </div>
+        <div className="wp-training-stats-bars__grid">
+          {ticks.slice().reverse().map((tick) => <span key={tick} className="wp-training-stats-bars__grid-line" />)}
+          {slots.every((slot) => slot.value === null) ? <ChartEmpty message={emptyMessage} /> : null}
+          <div className="wp-training-stats-bars__columns">
+            {slots.map((slot) => {
+              const heightPercent = slot.value === null ? 0 : Math.max(0, Math.min(100, (slot.value / maxSeconds) * 100));
+              const style = { '--bar-height': `${heightPercent}%` } as CSSProperties;
+              return (
+                <div className="wp-training-stats-bars__column" key={slot.label}>
+                  <span className="wp-training-stats-bars__value">{slot.value === null ? '' : formatAveragePuzzleTime(slot.value)}</span>
+                  <span className="wp-training-stats-bars__bar" style={style} />
+                  <strong>{slot.label}</strong>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScatterPlot({ rows }: { rows: ReturnType<typeof buildAllTrainingsActivityRows> }) {
+  const plottedRows = rows.filter((row) => row.stats.durationMilliseconds > 0 || row.stats.progressPercent > 0);
+  const maxDuration = Math.max(...plottedRows.map((row) => row.stats.durationMilliseconds), 1);
+
+  return (
+    <div className="wp-training-stats-scatter">
+      <svg viewBox="0 0 620 260" preserveAspectRatio="none" aria-label="Temps investi et progression obtenue">
+        <line className="wp-training-stats-scatter__axis" x1="52" x2="52" y1="20" y2="220" />
+        <line className="wp-training-stats-scatter__axis" x1="52" x2="590" y1="220" y2="220" />
+        {PERCENT_GRID.map((tick) => {
+          const y = 220 - tick * 2;
+          return (
+            <g key={tick}>
+              <line className="wp-training-stats-scatter__grid" x1="52" x2="590" y1={y} y2={y} />
+              <text className="wp-training-stats-scatter__label" x="8" y={y + 4}>{tick}%</text>
+            </g>
+          );
+        })}
+
+        {plottedRows.map(({ stats, summary }) => {
+          const x = 52 + (stats.durationMilliseconds / maxDuration) * 538;
+          const y = 220 - stats.progressPercent * 2;
+          const color = resolveTrainingBranding(summary.training).iconBackgroundColor;
+          return (
+            <g key={summary.training['@id']}>
+              <circle cx={x} cy={y} r="6" fill={color} />
+              <text className="wp-training-stats-scatter__name" x={Math.min(540, x + 10)} y={Math.max(24, y - 8)}>{truncateLabel(summary.training.name, 16)}</text>
+              <title>{`${summary.training.name} · ${formatDuration(stats.durationMilliseconds)} · ${stats.progressPercent}%`}</title>
+            </g>
+          );
+        })}
+
+        {plottedRows.length === 0 ? (
+          <foreignObject x="52" y="20" width="538" height="200">
+            <ChartEmpty message="Aucune donnée exploitable sur cette période." />
+          </foreignObject>
+        ) : null}
+      </svg>
+      <div className="wp-training-stats-scatter__meta">
+        <span>Progression obtenue</span>
+        <span>Temps investi</span>
+      </div>
     </div>
   );
 }
 
 function TrainingCell({ training }: { training: TrainingDashboardSummary['training'] }) {
   return (
-    <span className="wp-stats-v2-training-cell">
+    <span className="wp-training-stats-training-cell">
       <TrainingLogoBadge size="sm" training={training} />
-      <strong>{training.name}</strong>
+      <strong title={training.name}>{truncateLabel(training.name, 28)}</strong>
     </span>
   );
 }
-
-function TrainingsStatsView({
+export function TrainingsStatsView({
   errorMessage,
   isError,
   isLoading,
@@ -428,42 +472,35 @@ function TrainingsStatsView({
   const previousEndDate = addDays(windowStartDate, -1);
   const previousStartDate = addDays(previousEndDate, -(effectiveDays - 1));
 
-  const activeTrainings = useMemo(
-    () =>
-      trainingBreakdown.map((item) => {
-        const currentPoints = buildRange(item.dailyActivity ?? [], windowStartDate, endDate);
-        const previousPoints = buildRange(item.dailyActivity ?? [], previousStartDate, previousEndDate);
-        return {
-          current: buildWindowSummary(currentPoints, item.puzzleCount ?? 0),
-          previous: buildWindowSummary(previousPoints, item.puzzleCount ?? 0),
-          summary: item,
-        };
-      }),
-    [endDate, previousEndDate, previousStartDate, trainingBreakdown, windowStartDate],
-  );
+  const allRows = useMemo(() => buildAllTrainingsActivityRows(trainingBreakdown, effectiveDays), [effectiveDays, trainingBreakdown]);
 
   const allModeCards = useMemo(() => {
-    if (activeTrainings.length === 0) {
+    if (allRows.length === 0) {
       return [] as CardDefinition[];
     }
 
-    const averagePair = (extractor: (item: (typeof activeTrainings)[number]) => number) => ({
-      current: activeTrainings.reduce((total, item) => total + extractor(item), 0) / activeTrainings.length,
-      previous: activeTrainings.reduce((total, item) => total + extractor({ ...item, current: item.previous, previous: item.previous }), 0) / activeTrainings.length,
+    const currentSuccess = allRows.reduce((total, item) => total + item.stats.successRate, 0) / allRows.length;
+    const currentProgress = allRows.reduce((total, item) => total + item.stats.progressPercent, 0) / allRows.length;
+    const currentDuration = allRows.reduce((total, item) => total + item.stats.durationMilliseconds, 0) / allRows.length;
+    const currentAttempts = allRows.reduce((total, item) => total + item.stats.averageAttempts, 0) / allRows.length;
+
+    const previousRows = trainingBreakdown.map((item) => {
+      const previousPoints = buildRange(item.dailyActivity ?? [], previousStartDate, previousEndDate);
+      return buildWindowSummary(previousPoints, item.puzzleCount ?? 0);
     });
 
-    const success = averagePair((item) => item.current.successRate);
-    const progress = averagePair((item) => item.current.progressPercent);
-    const duration = averagePair((item) => item.current.durationMilliseconds);
-    const attempts = averagePair((item) => item.current.averageAttempts);
+    const previousSuccess = previousRows.reduce((total, item) => total + item.successRate, 0) / Math.max(previousRows.length, 1);
+    const previousProgress = previousRows.reduce((total, item) => total + item.progressPercent, 0) / Math.max(previousRows.length, 1);
+    const previousDuration = previousRows.reduce((total, item) => total + item.durationMilliseconds, 0) / Math.max(previousRows.length, 1);
+    const previousAttempts = previousRows.reduce((total, item) => total + item.averageAttempts, 0) / Math.max(previousRows.length, 1);
 
     return [
-      buildCard('Taux de réussite', `${Math.round(success.current)}%`, success.current - success.previous, 'percent', iconElement(<AppIcons.TargetIcon width={20} height={20} />)),
-      buildCard('Progression globale', `${Math.round(progress.current)}%`, progress.current - progress.previous, 'percent', iconElement(<AppIcons.TrendUpIcon width={20} height={20} />)),
-      buildCard("Temps d'entraînement", formatDuration(duration.current), duration.current - duration.previous, 'duration', iconElement(<AppIcons.HistoryIcon width={20} height={20} />)),
-      buildCard('Tentatives moyennes', `${Math.round(attempts.current * 10) / 10}`, attempts.current - attempts.previous, 'count', iconElement(<AppIcons.RepeatIcon width={20} height={20} />)),
+      buildCard('Taux de réussite', `${Math.round(currentSuccess)}%`, currentSuccess - previousSuccess, 'percent', iconElement(<AppIcons.TargetIcon width={20} height={20} />)),
+      buildCard('Progression globale', `${Math.round(currentProgress)}%`, currentProgress - previousProgress, 'percent', iconElement(<AppIcons.TrendUpIcon width={20} height={20} />)),
+      buildCard("Temps d'entraînement", formatDuration(currentDuration), currentDuration - previousDuration, 'duration', iconElement(<AppIcons.HistoryIcon width={20} height={20} />)),
+      buildCard('Tentatives moyennes', `${Math.round(currentAttempts * 10) / 10}`, currentAttempts - previousAttempts, 'count', iconElement(<AppIcons.RepeatIcon width={20} height={20} />)),
     ];
-  }, [activeTrainings]);
+  }, [allRows, previousEndDate, previousStartDate, trainingBreakdown]);
 
   const selectedCurrent = selectedSummary
     ? buildWindowSummary(buildRange(summary?.dailyActivity ?? [], windowStartDate, endDate), summary?.puzzleCount ?? selectedSummary.puzzleCount ?? 0)
@@ -472,99 +509,62 @@ function TrainingsStatsView({
     ? buildWindowSummary(buildRange(summary?.dailyActivity ?? [], previousStartDate, previousEndDate), summary?.puzzleCount ?? selectedSummary.puzzleCount ?? 0)
     : null;
 
-  const selectedModeCards =
-    selectedSummary && selectedCurrent && selectedPrevious
-      ? [
-          buildCard('Taux de réussite', `${Math.round(selectedCurrent.successRate)}%`, selectedCurrent.successRate - selectedPrevious.successRate, 'percent', iconElement(<AppIcons.TargetIcon width={20} height={20} />)),
-          buildCard('Progression globale', `${Math.round(selectedCurrent.progressPercent)}%`, selectedCurrent.progressPercent - selectedPrevious.progressPercent, 'percent', iconElement(<AppIcons.TrendUpIcon width={20} height={20} />)),
-          buildCard("Temps d'entraînement", formatDuration(selectedCurrent.durationMilliseconds), selectedCurrent.durationMilliseconds - selectedPrevious.durationMilliseconds, 'duration', iconElement(<AppIcons.HistoryIcon width={20} height={20} />)),
-          buildCard('Tentatives moyennes', `${Math.round(selectedCurrent.averageAttempts * 10) / 10}`, selectedCurrent.averageAttempts - selectedPrevious.averageAttempts, 'count', iconElement(<AppIcons.RepeatIcon width={20} height={20} />)),
-        ]
-      : [];
+  const selectedModeCards = selectedSummary && selectedCurrent && selectedPrevious
+    ? [
+        buildCard('Taux de réussite', `${Math.round(selectedCurrent.successRate)}%`, selectedCurrent.successRate - selectedPrevious.successRate, 'percent', iconElement(<AppIcons.TargetIcon width={20} height={20} />)),
+        buildCard('Progression globale', `${Math.round(selectedCurrent.progressPercent)}%`, selectedCurrent.progressPercent - selectedPrevious.progressPercent, 'percent', iconElement(<AppIcons.TrendUpIcon width={20} height={20} />)),
+        buildCard("Temps d'entraînement", formatDuration(selectedCurrent.durationMilliseconds), selectedCurrent.durationMilliseconds - selectedPrevious.durationMilliseconds, 'duration', iconElement(<AppIcons.HistoryIcon width={20} height={20} />)),
+        buildCard('Tentatives moyennes', `${Math.round(selectedCurrent.averageAttempts * 10) / 10}`, selectedCurrent.averageAttempts - selectedPrevious.averageAttempts, 'count', iconElement(<AppIcons.RepeatIcon width={20} height={20} />)),
+      ]
+    : [];
 
-  const cycleRows = useMemo(() => {
-    const source = summary?.cycleSummaries ?? [];
-    const filtered = source.filter((item) => {
-      const startedAt = item.cycle.startedAt ?? item.cycle.completedAt;
-      if (!startedAt) {
-        return false;
-      }
-
-      const startedAtDate = new Date(startedAt);
-      return !Number.isNaN(startedAtDate.getTime()) && startedAtDate >= windowStartDate;
-    });
-
-    return (filtered.length > 0 ? filtered : source).slice(0, 5);
-  }, [summary?.cycleSummaries, windowStartDate]);
-
-  const cycleTrendPoints = useMemo(() => buildCycleChartPoints(cycleRows, selectedMetric), [cycleRows, selectedMetric]);
-  const averageTimePoints = useMemo(() => buildAverageTimePoints(cycleRows), [cycleRows]);
-  const resolutionFlowPoints = useMemo(() => buildResolutionFlowPoints(cycleRows), [cycleRows]);
-  const globalRows = useMemo(() => buildAllTrainingsActivityRows(trainingBreakdown, effectiveDays), [effectiveDays, trainingBreakdown]);
-  const topActiveTrainings = [...globalRows]
-    .sort((left, right) => right.stats.durationMilliseconds - left.stats.durationMilliseconds)
-    .slice(0, 5);
-  const topRegularTrainings = [...globalRows]
-    .sort((left, right) => right.stats.activeDays - left.stats.activeDays || right.stats.handledPuzzleCount - left.stats.handledPuzzleCount)
-    .slice(0, 5);
-  const timeVsProgressRows = [...globalRows]
-    .filter((item) => item.stats.durationMilliseconds > 0 || item.stats.progressPercent > 0)
-    .sort((left, right) => right.progressPerHour - left.progressPerHour)
-    .slice(0, 5);
-  const themeShareTotal = Math.max(globalRows.reduce((total, item) => total + item.stats.durationMilliseconds, 0), 1);
-  const themeDistributionRows = [...globalRows]
-    .filter((item) => item.stats.durationMilliseconds > 0)
-    .sort((left, right) => right.stats.durationMilliseconds - left.stats.durationMilliseconds)
-    .slice(0, 5)
-    .map((item) => ({
-      share: Math.round((item.stats.durationMilliseconds / themeShareTotal) * 100),
-      ...item,
-    }));
-  const activeMetric = CYCLE_METRICS.find((metric) => metric.key === selectedMetric) ?? CYCLE_METRICS[0];
+  const cycleRows = useMemo(() => buildCycleRows(summary, windowStartDate), [summary, windowStartDate]);
+  const cyclePercentSlots = useMemo(() => buildCycleSlots(cycleRows, selectedMetric), [cycleRows, selectedMetric]);
+  const cycleTimeSlots = useMemo(() => buildTimeSlots(cycleRows), [cycleRows]);
+  const mostActiveRows = [...allRows].sort((left, right) => right.stats.durationMilliseconds - left.stats.durationMilliseconds).slice(0, 5);
+  const regularRows = [...allRows].sort((left, right) => right.stats.activeDays - left.stats.activeDays || right.stats.handledPuzzleCount - left.stats.handledPuzzleCount).slice(0, 5);
+  const distributionTotal = Math.max(allRows.reduce((total, row) => total + row.stats.durationMilliseconds, 0), 1);
+  const distributionRows = [...allRows].filter((row) => row.stats.durationMilliseconds > 0).sort((left, right) => right.stats.durationMilliseconds - left.stats.durationMilliseconds).slice(0, 5);
+  const activeMetricLabel = METRIC_OPTIONS.find((option) => option.key === selectedMetric)?.label ?? 'Taux de réussite';
 
   return (
-    <div className="wp-page wp-stats-v2-page">
-      <header className="wp-stats-v2-header">
+    <div className="wp-page wp-training-stats-page">
+      <header className="wp-training-stats-page__header">
         <div>
-          <h1>{selectedSummary ? `Statistiques · ${selectedSummary.training.name}` : 'Statistiques globales'}</h1>
-          <p>Des repères concrets pour voir ce qui progresse, ce qui coûte du temps et ce qu il faut retravailler.</p>
+          <h1>{selectedSummary ? `Statistiques · ${selectedSummary.training.name}` : 'Statistiques · Tous les trainings'}</h1>
+          <p>Des repères concrets pour voir ce qui progresse, ce qui coûte du temps et ce qu'il faut retravailler.</p>
         </div>
-        <div className="wp-stats-v2-header__filters">
-          <label className="wp-stats-v2-select">
-            <span className="wp-stats-v2-select__icon"><AppIcons.BarsIcon width={18} height={18} /></span>
+
+        <div className="wp-training-stats-page__filters">
+          <label className="wp-training-stats-select">
+            <span><AppIcons.BarsIcon width={18} height={18} /></span>
             <select value={selectedTrainingIri ?? 'all'} onChange={(event) => onSelectTrainingIri(event.target.value === 'all' ? null : event.target.value)}>
               <option value="all">Tous les trainings</option>
               {trainingBreakdown.map((item) => (
-                <option key={item.training['@id']} value={item.training['@id']}>
-                  {item.training.name}
-                </option>
+                <option key={item.training['@id']} value={item.training['@id']}>{item.training.name}</option>
               ))}
             </select>
           </label>
 
-          <label className="wp-stats-v2-select">
-            <span className="wp-stats-v2-select__icon"><AppIcons.HistoryIcon width={18} height={18} /></span>
+          <label className="wp-training-stats-select">
+            <span><AppIcons.HistoryIcon width={18} height={18} /></span>
             <select value={String(selectedDays)} onChange={(event) => setSelectedDays(Number(event.target.value) as (typeof PERIOD_OPTIONS)[number])}>
-              {PERIOD_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option} jours</option>
-              ))}
+              {PERIOD_OPTIONS.map((option) => <option key={option} value={option}>{`${option} derniers jours`}</option>)}
             </select>
           </label>
         </div>
       </header>
 
       {isLoading ? <p className="wp-empty">Chargement des statistiques...</p> : null}
-      {isError && errorMessage ? <p className="wp-empty">{errorMessage}</p> : null}
-      {selectedSummary && summaryIsError && summaryError ? <p className="wp-empty">{summaryError}</p> : null}
+      {isError && errorMessage ? <p className="alert error-alert">{errorMessage}</p> : null}
       {selectedSummary && summaryIsLoading ? <p className="wp-empty">Chargement du détail de l'entraînement...</p> : null}
+      {selectedSummary && summaryIsError && summaryError ? <p className="alert error-alert">{summaryError}</p> : null}
 
-      <p className="wp-stats-v2-period-label">{`${effectiveDays} derniers jours`}</p>
-
-      <section className="wp-stats-v2-cards">
+      <section className="wp-training-stats-cards">
         {(selectedSummary ? selectedModeCards : allModeCards).map((card) => (
-          <article className="wp-panel wp-stats-v2-card" key={card.label}>
-            <div className="wp-stats-v2-card__top">
-              <span className="wp-stats-v2-card__icon">{card.icon}</span>
+          <article className="wp-training-stats-card" key={card.label}>
+            <div className="wp-training-stats-card__head">
+              <span className="wp-training-stats-card__icon">{card.icon}</span>
               <span>{card.label}</span>
             </div>
             <strong>{card.value}</strong>
@@ -574,179 +574,150 @@ function TrainingsStatsView({
       </section>
 
       {selectedSummary ? (
-        <section className="wp-stats-v2-grid wp-stats-v2-grid--quad">
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head">
+        <section className="wp-training-stats-grid wp-training-stats-grid--selected">
+          <article className="wp-training-stats-panel">
+            <div className="wp-training-stats-panel__head">
               <div>
                 <h2>Évolution des cycles</h2>
-                <p>{`${effectiveDays} derniers jours`}</p>
+                <p>Suivi de vos performances au fil des cycles.</p>
               </div>
-              <label className="wp-stats-v2-select wp-stats-v2-select--compact">
+              <label className="wp-training-stats-select wp-training-stats-select--compact">
                 <select value={selectedMetric} onChange={(event) => setSelectedMetric(event.target.value as StatsMetricKey)}>
-                  {CYCLE_METRICS.map((metric) => (
-                    <option key={metric.key} value={metric.key}>{metric.label}</option>
-                  ))}
+                  {METRIC_OPTIONS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
                 </select>
               </label>
             </div>
-            {cycleTrendPoints.length > 0 ? (
-              <StatsLineChart accentClassName="is-lime" points={cycleTrendPoints} unit={activeMetric.unit} />
-            ) : (
-              <p className="wp-empty">Aucun cycle disponible sur cette période.</p>
-            )}
+            <PercentLineChart emptyMessage="Aucun cycle disponible sur cette période." metricLabel={activeMetricLabel} slots={cyclePercentSlots} />
           </article>
 
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head">
+          <article className="wp-training-stats-panel">
+            <div className="wp-training-stats-panel__head">
               <div>
                 <h2>Détail des cycles</h2>
-                <p>Vue synthétique des cinq cycles les plus parlants.</p>
+                <p>Lecture détaillée des cycles visibles sur la période sélectionnée.</p>
               </div>
             </div>
-            <div className="wp-stats-v2-table wp-stats-v2-table--cycles">
-              <div className="wp-stats-v2-table__head">
-                <span>Cycle</span>
-                <span>Période</span>
-                <span>Réussite</span>
-                <span>Progression</span>
-                <span>Tentatives moy.</span>
-                <span>Durée</span>
-              </div>
-              {cycleRows.map((cycle) => (
-                <div className="wp-stats-v2-table__row" key={cycle.cycle['@id']}>
-                  <span>{`Cycle ${cycle.cycle.number}`}</span>
-                  <span>{`${formatCompactDate(cycle.cycle.startedAt)}${cycle.cycle.completedAt ? ` - ${formatCompactDate(cycle.cycle.completedAt)}` : ''}`}</span>
-                  <span className="is-lime">{`${Math.round(cycle.successRate ?? 0)}%`}</span>
-                  <span>{`${Math.round(cycle.progressPercent ?? 0)}%`}</span>
-                  <span>{`${Math.round((cycle.averageAttempts ?? 0) * 10) / 10}`}</span>
-                  <span>{formatDuration(cycle.durationMilliseconds ?? 0)}</span>
-                </div>
-              ))}
-            </div>
-          </article>
 
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head">
-              <div>
-                <h2>Temps moyen par puzzle</h2>
-                <p>Temps réellement investi sur chaque cycle.</p>
-              </div>
-            </div>
-            {averageTimePoints.length > 0 ? (
-              <StatsLineChart accentClassName="is-blue" points={averageTimePoints} unit="count" />
+            {cycleRows.length === 0 ? (
+              <div className="wp-training-stats-empty-block">Aucun cycle disponible sur cette période.</div>
             ) : (
-              <p className="wp-empty">Pas assez de données pour calculer cette moyenne.</p>
+              <div className="wp-training-stats-table-wrap">
+                <table className="wp-training-stats-table">
+                  <thead>
+                    <tr>
+                      <th>Cycle</th>
+                      <th>Période</th>
+                      <th>Réussite</th>
+                      <th>Progression</th>
+                      <th>Temps</th>
+                      <th>Tentatives moy.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cycleRows.map((cycle) => (
+                      <tr key={cycle.cycle['@id']}>
+                        <td>{`Cycle ${cycle.cycle.number}`}</td>
+                        <td>{formatCyclePeriod(cycle)}</td>
+                        <td>{`${Math.round(cycle.successRate ?? 0)}%`}</td>
+                        <td>{`${Math.round(cycle.progressPercent ?? 0)}%`}</td>
+                        <td>{formatDuration(cycle.durationMilliseconds ?? 0)}</td>
+                        <td>{`${Math.round((cycle.averageAttempts ?? 0) * 10) / 10}`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </article>
 
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head">
+          <article className="wp-training-stats-panel">
+            <div className="wp-training-stats-panel__head">
               <div>
-                <h2>À revoir vers résolu</h2>
-                <p>Équilibre entre puzzles verrouillés et puzzles convertis.</p>
+                <h2>Temps moyen par puzzle sur chaque cycle</h2>
+                <p>Évolution du temps moyen pour résoudre un puzzle par cycle.</p>
               </div>
             </div>
-            {resolutionFlowPoints.length > 0 ? (
-              <StatsStackedChart points={resolutionFlowPoints} />
-            ) : (
-              <p className="wp-empty">Aucun flux de résolution disponible pour le moment.</p>
-            )}
+            <AverageTimeBarChart emptyMessage="Pas assez de données pour calculer cette moyenne." slots={cycleTimeSlots} />
           </article>
         </section>
       ) : (
-        <section className="wp-stats-v2-grid wp-stats-v2-grid--quad">
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head with-link">
+        <section className="wp-training-stats-grid wp-training-stats-grid--global">
+          <article className="wp-training-stats-panel">
+            <div className="wp-training-stats-panel__head">
               <div>
                 <h2>Trainings les plus actifs</h2>
-                <p>Les cinq entraînements qui concentrent le plus de temps.</p>
+                <p>Les 5 entraînements qui concentrent le plus de temps sur la période.</p>
               </div>
-              <button className="wp-link-button" type="button">Voir tout</button>
             </div>
-            <div className="wp-stats-v2-table wp-stats-v2-table--trainings">
-              <div className="wp-stats-v2-table__head">
-                <span>Entraînement</span>
-                <span>Temps</span>
-                <span>Réussite</span>
-                <span>Progression</span>
-              </div>
-              {topActiveTrainings.map(({ stats, summary }) => (
-                <button className="wp-stats-v2-table__row wp-stats-v2-table__row--button" key={summary.training['@id']} type="button" onClick={() => onOpenTraining(summary.training['@id'], 'detail')}>
-                  <TrainingCell training={summary.training} />
-                  <span>{formatDuration(stats.durationMilliseconds)}</span>
-                  <span className="is-lime">{`${stats.successRate}%`}</span>
-                  <span>{`${stats.progressPercent}%`}</span>
+            <div className="wp-training-stats-list">
+              {mostActiveRows.length === 0 ? <div className="wp-training-stats-empty-block">Aucune activité sur cette période.</div> : mostActiveRows.map(({ stats, summary: row }) => (
+                <button className="wp-training-stats-list__row is-button" key={row.training['@id']} type="button" onClick={() => onOpenTraining(row.training['@id'], 'detail')}>
+                  <div className="wp-training-stats-list__main">
+                    <TrainingCell training={row.training} />
+                    <small>{formatDuration(stats.durationMilliseconds)}</small>
+                  </div>
+                  <div className="wp-training-stats-list__meta">
+                    <strong>{`${stats.successRate}%`}</strong>
+                    <span>{`${stats.progressPercent}%`}</span>
+                  </div>
                 </button>
               ))}
             </div>
           </article>
 
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head">
+          <article className="wp-training-stats-panel">
+            <div className="wp-training-stats-panel__head">
               <div>
                 <h2>Temps investi / progression obtenue</h2>
-                <p>Quels trainings transforment le mieux votre temps en progression.</p>
+                <p>Chaque point représente un entraînement sur la période choisie.</p>
               </div>
             </div>
-            <div className="wp-stats-v2-list">
-              {timeVsProgressRows.map(({ minutesPerPoint, progressPerHour, stats, summary }) => (
-                <div className="wp-stats-v2-list__row" key={summary.training['@id']}>
-                  <div className="wp-stats-v2-list__main">
-                    <TrainingCell training={summary.training} />
-                    <small>{`${formatDuration(stats.durationMilliseconds)} investis pour ${stats.progressPercent}% de progression`}</small>
-                  </div>
-                  <div className="wp-stats-v2-list__meta">
-                    <strong>{formatProgressRate(progressPerHour)}</strong>
-                    <span>{formatMinutesPerPoint(minutesPerPoint)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ScatterPlot rows={allRows} />
           </article>
 
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head">
+          <article className="wp-training-stats-panel">
+            <div className="wp-training-stats-panel__head">
               <div>
-                <h2>Répartition du temps par thème</h2>
-                <p>Lecture par entraînement, comme repère de vos thèmes du moment.</p>
+                <h2>Répartition du temps</h2>
+                <p>Comparaison du temps passé sur chaque entraînement.</p>
               </div>
             </div>
-            <div className="wp-stats-v2-share-list">
-              {themeDistributionRows.map(({ share, stats, summary }) => (
-                <div className="wp-stats-v2-share-list__row" key={summary.training['@id']}>
-                  <div className="wp-stats-v2-share-list__label">
-                    <TrainingCell training={summary.training} />
-                    <small>{formatDuration(stats.durationMilliseconds)}</small>
+            <div className="wp-training-stats-bars-list">
+              {distributionRows.length === 0 ? <div className="wp-training-stats-empty-block">Aucune répartition à afficher sur cette période.</div> : distributionRows.map(({ stats, summary: row }) => {
+                const share = Math.round((stats.durationMilliseconds / distributionTotal) * 100);
+                const color = resolveTrainingBranding(row.training).iconBackgroundColor;
+                const style = { '--training-share': `${Math.max(6, share)}%`, '--training-share-color': color } as CSSProperties;
+                return (
+                  <div className="wp-training-stats-bars-list__row" key={row.training['@id']}>
+                    <div className="wp-training-stats-bars-list__label"><TrainingCell training={row.training} /></div>
+                    <div className="wp-training-stats-bars-list__track"><span style={style} /></div>
+                    <strong>{`${share}%`}</strong>
                   </div>
-                  <div className="wp-stats-v2-share-list__bar">
-                    <span style={{ width: `${Math.max(10, share)}%` }} />
-                  </div>
-                  <strong>{`${share}%`}</strong>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </article>
 
-          <article className="wp-panel wp-stats-v2-panel">
-            <div className="wp-stats-v2-panel__head">
+          <article className="wp-training-stats-panel">
+            <div className="wp-training-stats-panel__head">
               <div>
                 <h2>Trainings les plus réguliers</h2>
                 <p>Ceux que vous travaillez le plus souvent sur la période choisie.</p>
               </div>
             </div>
-            <div className="wp-stats-v2-list">
-              {topRegularTrainings.map(({ stats, summary }) => (
-                <div className="wp-stats-v2-list__row" key={summary.training['@id']}>
-                  <div className="wp-stats-v2-list__main">
-                    <TrainingCell training={summary.training} />
-                    <small>{`${stats.activeDays} jour${stats.activeDays > 1 ? 's' : ''} actif${stats.activeDays > 1 ? 's' : ''}`}</small>
+            <div className="wp-training-stats-list">
+              {regularRows.length === 0 ? <div className="wp-training-stats-empty-block">Aucune régularité exploitable sur cette période.</div> : regularRows.map(({ stats, summary: row }) => {
+                const width = `${Math.max(8, (stats.activeDays / Math.max(effectiveDays, 1)) * 100)}%`;
+                return (
+                  <div className="wp-training-stats-list__row" key={row.training['@id']}>
+                    <div className="wp-training-stats-list__main">
+                      <TrainingCell training={row.training} />
+                      <small>{`${stats.activeDays} jour${stats.activeDays > 1 ? 's' : ''} actif${stats.activeDays > 1 ? 's' : ''}`}</small>
+                    </div>
+                    <div className="wp-training-stats-regularity"><span style={{ width }} /></div>
                   </div>
-                  <div className="wp-stats-v2-list__meta">
-                    <strong>{formatDuration(stats.durationMilliseconds)}</strong>
-                    <span>{`${stats.handledPuzzleCount} puzzles traités`}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </article>
         </section>
@@ -756,6 +727,6 @@ function TrainingsStatsView({
 }
 
 export type { TrainingsStatsViewProps };
-export { TrainingsStatsView };
 export default TrainingsStatsView;
+
 

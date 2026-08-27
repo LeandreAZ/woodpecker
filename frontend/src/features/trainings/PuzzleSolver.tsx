@@ -5,16 +5,26 @@ import './puzzle-solver.css';
 
 type PuzzleSolverProps = {
   fen?: string | null;
-  mistakeLimit: number;
+  initialEvaluationFailed?: boolean;
   onCompleted?: (result: PuzzleCompletionResult) => void;
   onFailed?: (result: PuzzleCompletionResult) => void;
+  onFirstMistake?: (result: PuzzleCompletionResult) => void;
+  onStateChange?: (snapshot: PuzzleSolverSnapshot) => void;
   solution: string[];
 };
 
 export type PuzzleCompletionResult = {
-  durationMilliseconds: number;
   mistakesCount: number;
   playedMoves: string[];
+};
+
+export type PuzzleSolverSnapshot = {
+  completed: boolean;
+  evaluationFailed: boolean;
+  feedback: Feedback;
+  mistakesCount: number;
+  playedMoves: string[];
+  resolved: boolean;
 };
 
 type Feedback = {
@@ -23,100 +33,122 @@ type Feedback = {
 };
 
 type SolverState = {
-  countedMistakeKeys: Set<string>;
-  game: Chess;
+  completed: boolean;
   currentFen: string;
+  evaluationFailed: boolean;
+  feedback: Feedback;
+  game: Chess;
+  mistakesCount: number;
   moveIndex: number;
   playedMoves: string[];
-  feedback: Feedback;
-  mistakesCount: number;
-  startedAt: number;
-  completedAt: number | null;
 };
 
 type ChessSquare = Parameters<Chess['get']>[0];
 
-function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: PuzzleSolverProps) {
+export function PuzzleSolver({
+  fen,
+  initialEvaluationFailed = false,
+  onCompleted,
+  onFailed,
+  onFirstMistake,
+  onStateChange,
+  solution,
+}: PuzzleSolverProps) {
   const initialFen = fen?.trim() || undefined;
   const normalizedSolution = useMemo(() => solution.map((move) => move.trim()).filter(Boolean), [solution]);
-  const [solverState, setSolverState] = useState(() => createInitialSolverState(initialFen));
+  const initialOrientation = useMemo(() => {
+    const game = createGame(initialFen);
+    return game.turn() === 'w' ? 'white' : 'black';
+  }, [initialFen]);
+  const [solverState, setSolverState] = useState(() => createInitialSolverState(initialFen, initialEvaluationFailed));
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [rightClickMarkers, setRightClickMarkers] = useState<Record<string, CSSProperties>>({});
 
-  const { countedMistakeKeys, game, currentFen, moveIndex, playedMoves, feedback, mistakesCount, startedAt, completedAt } = solverState;
-  const boardOrientation = game.turn() === 'w' ? 'white' : 'black';
+  const {
+    completed,
+    currentFen,
+    evaluationFailed,
+    feedback,
+    game,
+    mistakesCount,
+    moveIndex,
+    playedMoves,
+  } = solverState;
   const legalTargetSquares = selectedSquare ? getLegalTargetSquares(game, selectedSquare) : [];
   const squareStyles = getSquareStyles(selectedSquare, legalTargetSquares, rightClickMarkers);
-  const boardFeedbackClassName = ['wp-puzzle-solver-v2__board', feedback.kind === 'success' ? 'is-success' : '', feedback.kind === 'error' ? 'is-error' : '']
+  const boardFeedbackClassName = [
+    'wp-puzzle-solver-v2__board',
+    feedback.kind === 'success' ? 'is-success' : '',
+    feedback.kind === 'error' ? 'is-error' : '',
+  ]
     .filter(Boolean)
     .join(' ');
 
   useEffect(() => {
     setSelectedSquare(null);
     setRightClickMarkers({});
-    setSolverState(createInitialSolverState(initialFen));
-  }, [initialFen, normalizedSolution]);
+    setSolverState(createInitialSolverState(initialFen, initialEvaluationFailed));
+  }, [initialEvaluationFailed, initialFen, normalizedSolution]);
+
+  useEffect(() => {
+    onStateChange?.({
+      completed,
+      evaluationFailed,
+      feedback,
+      mistakesCount,
+      playedMoves,
+      resolved: completed,
+    });
+  }, [completed, evaluationFailed, feedback, mistakesCount, onStateChange, playedMoves]);
 
   function handlePieceDrop(sourceSquare: string, targetSquare: string | null): boolean {
-    if (completedAt || !targetSquare) {
+    if (completed || !sourceSquare || !targetSquare) {
       return false;
     }
 
     const expectedMove = normalizedSolution[moveIndex];
     if (!expectedMove) {
-      setSolverState({
-        ...solverState,
+      setSolverState((current) => ({
+        ...current,
+        completed: true,
         feedback: { kind: 'success', message: 'Séquence complétée.' },
-      });
+      }));
+      return false;
+    }
+
+    const legalMove = getLegalMove(game, sourceSquare, targetSquare);
+    if (!legalMove) {
       return false;
     }
 
     const attemptedMove = sourceSquare + targetSquare;
 
     if (!isExpectedMove(attemptedMove, expectedMove)) {
-      const mistakeKey = String(moveIndex) + ':' + attemptedMove.toLowerCase();
-      if (countedMistakeKeys.has(mistakeKey)) {
-        setSolverState({
-          ...solverState,
-          feedback: { kind: 'info', message: 'Cette erreur a déjà été comptée. Essayez une autre idée.' },
-        });
-        return false;
+      const failureResult = {
+        mistakesCount: mistakesCount + 1,
+        playedMoves: [...playedMoves, attemptedMove],
+      };
+      const hadAlreadyFailed = evaluationFailed;
+
+      setSolverState(createFailedSolverState(initialFen));
+      onFailed?.(failureResult);
+
+      if (!hadAlreadyFailed) {
+        onFirstMistake?.(failureResult);
       }
 
-      const nextCountedMistakeKeys = new Set(countedMistakeKeys);
-      nextCountedMistakeKeys.add(mistakeKey);
-      const nextMistakesCount = mistakesCount + 1;
-      const failedAt = nextMistakesCount >= mistakeLimit ? Date.now() : null;
-
-      setSolverState({
-        ...solverState,
-        countedMistakeKeys: nextCountedMistakeKeys,
-        mistakesCount: nextMistakesCount,
-        completedAt: failedAt,
-        feedback: {
-          kind: 'error',
-          message: failedAt ? 'Tentative échouée. Revenez au puzzle suivant.' : 'Mauvais coup. Continuez à chercher.',
-        },
-      });
-
-      if (failedAt) {
-        onFailed?.({
-          durationMilliseconds: failedAt - startedAt,
-          mistakesCount: nextMistakesCount,
-          playedMoves,
-        });
-      }
-
+      setSelectedSquare(null);
+      setRightClickMarkers({});
       return false;
     }
 
-    const playerMove = playMove(game, expectedMove);
+    const nextGame = createGame(currentFen);
+    const playerMove = playMove(nextGame, expectedMove);
     if (!playerMove) {
-      setSolverState({
-        ...solverState,
-        mistakesCount: mistakesCount + 1,
+      setSolverState((current) => ({
+        ...current,
         feedback: { kind: 'error', message: 'Le coup attendu n’est pas légal depuis cette position.' },
-      });
+      }));
       return false;
     }
 
@@ -124,16 +156,16 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
     let nextMoveIndex = moveIndex + 1;
 
     if (nextMoveIndex < normalizedSolution.length) {
-      const replyMove = playMove(game, normalizedSolution[nextMoveIndex]);
+      const replyMove = playMove(nextGame, normalizedSolution[nextMoveIndex]);
       if (!replyMove) {
-        setSolverState({
-          ...solverState,
-          game,
-          currentFen: game.fen(),
+        setSolverState((current) => ({
+          ...current,
+          currentFen: nextGame.fen(),
+          game: nextGame,
           moveIndex: nextMoveIndex,
           playedMoves: nextPlayedMoves,
           feedback: { kind: 'error', message: 'La réponse automatique n’est pas légale depuis cette position.' },
-        });
+        }));
         setSelectedSquare(null);
         return true;
       }
@@ -143,21 +175,30 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
     }
 
     const isCompleted = nextMoveIndex >= normalizedSolution.length;
-    const finishedAt = isCompleted ? Date.now() : null;
-    const durationMilliseconds = (finishedAt ?? Date.now()) - startedAt;
+    const nextEvaluationFailed = evaluationFailed;
 
-    setSolverState({
-      ...solverState,
-      game,
-      currentFen: game.fen(),
+    setSolverState((current) => ({
+      ...current,
+      completed: isCompleted,
+      currentFen: nextGame.fen(),
+      game: nextGame,
       moveIndex: nextMoveIndex,
       playedMoves: nextPlayedMoves,
-      completedAt: finishedAt,
-      feedback: isCompleted ? { kind: 'success', message: 'Bravo, solution trouvée.' } : { kind: 'info', message: 'Bon coup. Trouvez la suite.' },
-    });
+      feedback: isCompleted
+        ? nextEvaluationFailed
+          ? {
+              kind: 'info',
+              message: 'Solution trouvée. Le puzzle reste raté pour le cycle, mais il est maintenant figé.',
+            }
+          : { kind: 'success', message: 'Bravo, solution trouvée du premier coup.' }
+        : { kind: 'info', message: 'Bon coup. Trouvez la suite.' },
+    }));
 
     if (isCompleted) {
-      onCompleted?.({ durationMilliseconds, mistakesCount, playedMoves: nextPlayedMoves });
+      onCompleted?.({
+        mistakesCount,
+        playedMoves: nextPlayedMoves,
+      });
     }
 
     setSelectedSquare(null);
@@ -193,8 +234,8 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
         delete next[square];
       } else {
         next[square] = {
-          backgroundColor: 'rgba(232, 70, 70, 0.34)',
-          boxShadow: 'inset 0 0 0 3px rgba(232, 70, 70, 0.78)',
+          backgroundColor: 'rgba(239, 68, 68, 0.28)',
+          boxShadow: 'inset 0 0 0 2px rgba(239, 68, 68, 0.82)',
         };
       }
       return next;
@@ -208,7 +249,7 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
           options={{
             id: 'woodpecker-solver-board',
             position: currentFen,
-            boardOrientation,
+            boardOrientation: initialOrientation,
             allowDragging: true,
             allowDrawingArrows: true,
             showAnimations: true,
@@ -216,7 +257,7 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
             animationDurationInMs: 180,
             canDragPiece: (...args) => canDragCurrentTurnPiece(args[0], game),
             onPieceDrop: (...args) => {
-              const { sourceSquare, targetSquare } = normalizeDropArgs(args[0], args[1]);
+              const { sourceSquare, targetSquare } = normalizeDropArgs(args[0], undefined);
               return handlePieceDrop(sourceSquare, targetSquare);
             },
             onSquareClick: (...args) => {
@@ -233,9 +274,9 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
             },
             boardStyle: {
               aspectRatio: '1 / 1',
-              border: '1px solid rgba(238, 244, 251, 0.16)',
+              border: '1px solid rgba(238, 244, 251, 0.12)',
               borderRadius: '12px',
-              boxShadow: '0 22px 52px rgba(0, 0, 0, 0.36)',
+              boxShadow: '0 18px 42px rgba(0, 0, 0, 0.32)',
               height: 'auto',
               width: '100%',
               touchAction: 'none',
@@ -244,7 +285,7 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
             },
             darkSquareStyle: { backgroundColor: '#7f9f56' },
             lightSquareStyle: { backgroundColor: '#f0e6c8' },
-            dropSquareStyle: { boxShadow: 'inset 0 0 0 4px rgba(131, 228, 133, 0.52)' },
+            dropSquareStyle: { boxShadow: 'inset 0 0 0 4px rgba(59, 130, 246, 0.46)' },
             draggingPieceStyle: { cursor: 'grabbing', filter: 'drop-shadow(0 10px 12px rgba(0, 0, 0, 0.34))' },
             squareStyles,
           }}
@@ -254,19 +295,41 @@ function PuzzleSolver({ fen, mistakeLimit, onCompleted, onFailed, solution }: Pu
   );
 }
 
-function createInitialSolverState(fen: string | undefined): SolverState {
+function createInitialSolverState(fen: string | undefined, initialEvaluationFailed: boolean): SolverState {
   const game = createGame(fen);
 
   return {
-    countedMistakeKeys: new Set(),
-    game,
+    completed: false,
     currentFen: game.fen(),
+    evaluationFailed: initialEvaluationFailed,
+    feedback: initialEvaluationFailed
+      ? {
+          kind: 'info',
+          message: 'Ce puzzle est déjà raté pour ce cycle. Continuez à chercher librement la solution.',
+        }
+      : { kind: 'info', message: 'Trouvez le meilleur coup.' },
+    game,
+    mistakesCount: 0,
     moveIndex: 0,
     playedMoves: [],
-    feedback: { kind: 'info', message: 'Trouvez le meilleur coup.' },
+  };
+}
+
+function createFailedSolverState(fen: string | undefined): SolverState {
+  const game = createGame(fen);
+
+  return {
+    completed: false,
+    currentFen: game.fen(),
+    evaluationFailed: true,
+    feedback: {
+      kind: 'error',
+      message: 'Puzzle raté. Continuez à chercher mais les tentatives seront encore enregistrées.',
+    },
+    game,
     mistakesCount: 0,
-    startedAt: Date.now(),
-    completedAt: null,
+    moveIndex: 0,
+    playedMoves: [],
   };
 }
 
@@ -276,6 +339,11 @@ function createGame(fen: string | undefined): Chess {
   } catch {
     return new Chess();
   }
+}
+
+function getLegalMove(game: Chess, sourceSquare: string, targetSquare: string): Move | null {
+  const legalMoves = game.moves({ square: sourceSquare as ChessSquare, verbose: true });
+  return legalMoves.find((move) => move.to === targetSquare) ?? null;
 }
 
 function getLegalTargetSquares(game: Chess, square: string): string[] {
@@ -321,7 +389,7 @@ function canDragCurrentTurnPiece(arg: unknown, game: Chess): boolean {
   if (arg && typeof arg === 'object' && 'piece' in arg) {
     const piece = (arg as { piece?: unknown }).piece;
     if (piece && typeof piece === 'object' && 'pieceType' in piece && typeof (piece as { pieceType?: unknown }).pieceType === 'string') {
-      return ((piece as { pieceType: string }).pieceType[0]) === game.turn();
+      return (piece as { pieceType: string }).pieceType[0] === game.turn();
     }
 
     if (typeof piece === 'string') {
@@ -332,20 +400,26 @@ function canDragCurrentTurnPiece(arg: unknown, game: Chess): boolean {
   return true;
 }
 
-function getSquareStyles(selectedSquare: string | null, legalTargetSquares: string[], rightClickMarkers: Record<string, CSSProperties>): Record<string, CSSProperties> {
+function getSquareStyles(
+  selectedSquare: string | null,
+  legalTargetSquares: string[],
+  rightClickMarkers: Record<string, CSSProperties>,
+): Record<string, CSSProperties> {
   const styles: Record<string, CSSProperties> = { ...rightClickMarkers };
 
   if (selectedSquare) {
     styles[selectedSquare] = {
       ...styles[selectedSquare],
-      background: 'radial-gradient(circle, rgba(255, 213, 92, 0.72) 0%, rgba(255, 213, 92, 0.34) 55%, transparent 56%)',
+      backgroundColor: 'rgba(59, 130, 246, 0.28)',
+      boxShadow: 'inset 0 0 0 2px rgba(59, 130, 246, 0.76)',
     };
   }
 
   for (const square of legalTargetSquares) {
     styles[square] = {
       ...styles[square],
-      background: 'radial-gradient(circle, rgba(20, 31, 44, 0.34) 0%, rgba(20, 31, 44, 0.34) 18%, transparent 20%)',
+      background:
+        'radial-gradient(circle, rgba(20, 31, 44, 0.38) 0%, rgba(20, 31, 44, 0.38) 18%, transparent 20%)',
     };
   }
 
@@ -372,5 +446,4 @@ function moveToUci(move: Move): string {
   return move.from + move.to + (move.promotion ?? '');
 }
 
-export { PuzzleSolver };
 export default PuzzleSolver;

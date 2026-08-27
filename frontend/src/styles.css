@@ -1,7 +1,17 @@
+@import './styles/tokens/colors.css';
+@import './styles/tokens/typography.css';
+@import './styles/tokens/spacing.css';
+@import './styles/tokens/radius.css';
+@import './styles/components/buttons.css';
+@import './styles/components/cards.css';
+@import './styles/components/forms.css';
+@import './styles/components/badges.css';
+@import './styles/components/modals.css';
+@import './styles/components/states.css';
 :root {
   color: #eef4fb;
   background: #0b1220;
-  font-family: 'Plus Jakarta Sans', 'Manrope', 'Segoe UI', sans-serif;
+  font-family: var(--font-family-primary);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --bg: #0b1220;
@@ -36,23 +46,12 @@ body {
   margin: 0;
   min-width: 320px;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(69, 200, 120, 0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(127, 240, 173, 0.08), transparent 20%),
-    linear-gradient(180deg, #0a111d 0%, #0d1724 55%, #0b1220 100%);
+  background: #070E19;
+  font-family: var(--font-family-primary);
 }
 
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.2;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 32px 32px;
-  z-index: -1;
+  content: none;
 }
 
 button,
@@ -199,3 +198,4 @@ h4 {
     width: 100%;
   }
 }
+

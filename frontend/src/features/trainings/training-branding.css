@@ -1,0 +1,31 @@
+.wp-training-brand {
+  width: 100%;
+  height: 100%;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--training-brand-border, rgba(255, 255, 255, 0.14));
+  border-radius: 18px;
+  background: var(--training-brand-background, #3b82f6);
+  color: var(--training-brand-color, #ffffff);
+}
+
+.wp-training-brand svg {
+  width: 56%;
+  height: 56%;
+}
+
+.wp-training-brand.is-sm {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.wp-training-brand.is-md {
+  width: 54px;
+  height: 54px;
+}
+
+.wp-training-brand.is-lg {
+  width: 100%;
+  height: 100%;
+}

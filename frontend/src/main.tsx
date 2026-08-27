@@ -4,10 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
 import { AppErrorBoundary } from './shared/AppErrorBoundary';
 import './styles.css';
-import './features/auth/auth.css';
-import './features/trainings/trainings-common.css';
+import './components/navigation/app-navigation.css';
 import './features/trainings/layout/trainings-shell.css';
-import './features/trainings/dashboard/dashboard.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

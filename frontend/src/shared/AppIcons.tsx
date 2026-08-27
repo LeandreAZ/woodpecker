@@ -201,6 +201,18 @@ export function QueenIcon(props: IconProps) {
   );
 }
 
+export function KingIcon(props: IconProps) {
+  return (
+    <svg {...baseProps(props)}>
+      <path d="M8 18.7h8" />
+      <path d="M10.1 18.1 9.3 12a18.3 18.3 0 0 0 5.4 0l-.8 6.1" />
+      <path d="M9.6 12c0-2.9.9-4.5 2.4-5.8 1.5 1.3 2.4 2.9 2.4 5.8" />
+      <path d="M12 3.8v3.1" />
+      <path d="M10.4 5.4H13.6" />
+    </svg>
+  );
+}
+
 export function KnightIcon(props: IconProps) {
   return (
     <svg {...baseProps(props)}>

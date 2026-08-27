@@ -220,6 +220,8 @@ final class StatsOverviewAction
             'name' => $training->getName(),
             'description' => $training->getDescription(),
             'icon' => $training->getIcon(),
+            'iconBackgroundColor' => $training->getIconBackgroundColor(),
+            'iconColor' => $training->getIconColor(),
             'logo' => $training->getLogo(),
             'status' => $training->getStatus(),
             'mistakeLimit' => $training->getMistakeLimit(),

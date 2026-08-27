@@ -1,0 +1,348 @@
+.wp-training-form-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  gap: 14px;
+}
+
+.wp-training-form-page__header {
+  margin-bottom: 10px;
+}
+
+.wp-training-form-page__header h1 {
+  margin: 0 0 8px;
+  color: #f8fafc;
+  font-size: clamp(2.1rem, 3.6vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.wp-training-form-page__header p {
+  max-width: 720px;
+  margin: 0;
+  color: #bac6d9;
+  font-size: 1.02rem;
+  line-height: 1.45;
+}
+
+.wp-training-form-page__back {
+  margin: 0 0 14px;
+  justify-self: start;
+  color: #9db8ff;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.wp-training-form-page input:focus,
+.wp-training-form-page textarea:focus,
+.wp-training-form-page select:focus {
+  border-color: rgba(59, 130, 246, 0.56);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+  background: rgba(11, 20, 33, 0.96);
+}
+
+.wp-training-form-page input:-webkit-autofill,
+.wp-training-form-page input:-webkit-autofill:hover,
+.wp-training-form-page textarea:-webkit-autofill,
+.wp-training-form-page textarea:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  border: 1px solid rgba(170, 184, 199, 0.14);
+  -webkit-box-shadow: 0 0 0 1000px rgba(9, 17, 28, 0.88) inset;
+  box-shadow: 0 0 0 1000px rgba(9, 17, 28, 0.88) inset;
+  transition: background-color 9999s ease-in-out 0s, color 9999s ease-in-out 0s;
+}
+
+.wp-training-form-page input:-webkit-autofill:focus,
+.wp-training-form-page textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  border: 1px solid rgba(59, 130, 246, 0.56);
+  -webkit-box-shadow: 0 0 0 1000px rgba(11, 20, 33, 0.96) inset, 0 0 0 4px rgba(59, 130, 246, 0.14);
+  box-shadow: 0 0 0 1000px rgba(11, 20, 33, 0.96) inset, 0 0 0 4px rgba(59, 130, 246, 0.14);
+}
+
+.wp-training-identity-card {
+  width: 100%;
+  padding: 20px 24px 22px;
+  border: 1px solid #223454;
+  border-radius: 24px;
+  background: #0f1a2e;
+}
+
+.wp-training-identity-form {
+  display: grid;
+  gap: 18px;
+}
+
+.wp-training-identity-card__section-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.wp-training-identity-card__section-head h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.15rem;
+}
+
+.wp-training-identity-card__section-head p {
+  margin: 6px 0 0;
+  color: #bac6d9;
+  line-height: 1.45;
+}
+
+.wp-training-identity-card__section-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(139, 92, 246, 0.16);
+  color: #8b5cf6;
+}
+
+.wp-training-identity-card__section-icon--violet {
+  background: rgba(139, 92, 246, 0.16);
+  color: #8b5cf6;
+}
+
+.wp-training-identity-form__field {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-training-identity-form__field > span {
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.wp-training-identity-form__field > span strong {
+  color: #ef4444;
+}
+
+.wp-training-identity-form__field > small,
+.wp-training-identity-form__field-meta small,
+.wp-training-identity-icon-card__controls p {
+  color: #bac6d9;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.wp-training-identity-form__field textarea {
+  min-height: 94px;
+}
+
+.wp-training-identity-form__field-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.wp-training-identity-form__separator {
+  border-top: 1px solid #223454;
+}
+
+.wp-training-identity-icon-card {
+  display: grid;
+  gap: 16px;
+}
+
+.wp-training-identity-card__section-head--icon {
+  align-items: flex-start;
+}
+
+.wp-training-identity-icon-card__body {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.wp-training-identity-icon-card__preview {
+  width: 160px;
+  height: 160px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #223454;
+  border-radius: 16px;
+  background: #0a1222;
+}
+
+.wp-training-identity-icon-card__badge {
+  width: 120px !important;
+  height: 120px !important;
+}
+
+.wp-training-identity-icon-card__controls {
+  display: grid;
+  gap: 14px;
+  align-content: center;
+}
+
+.wp-training-identity-icon-card__toggle {
+  width: fit-content;
+  min-width: 272px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.wp-training-identity-form__submit {
+  min-height: 58px;
+  font-size: 1.04rem;
+}
+
+.wp-training-identity-form__submit.wp-training-identity-form__submit--create,
+.wp-training-identity-form__submit.wp-training-identity-form__submit--edit {
+  border-color: rgba(77, 134, 255, 0.34);
+  color: #f8fbff;
+  background: linear-gradient(135deg, #2e6cff 0%, #1f5de6 100%);
+  box-shadow: 0 18px 34px rgba(26, 85, 214, 0.26);
+}
+
+.wp-training-identity-form__submit.wp-training-identity-form__submit--create:hover:not(:disabled),
+.wp-training-identity-form__submit.wp-training-identity-form__submit--edit:hover:not(:disabled) {
+  border-color: rgba(110, 158, 255, 0.44);
+  background: linear-gradient(135deg, #3b78ff 0%, #2c68ee 100%);
+}
+
+.wp-training-form-page--create .wp-training-identity-card {
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .wp-training-identity-card {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .wp-training-identity-icon-card__body {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .wp-training-identity-icon-card__preview {
+    width: 148px;
+    height: 148px;
+    margin: 0 auto;
+  }
+
+  .wp-training-identity-icon-card__badge {
+    width: 108px !important;
+    height: 108px !important;
+  }
+
+  .wp-training-identity-icon-card__controls,
+  .wp-training-identity-icon-card__toggle {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .wp-training-form-page__header {
+    margin-bottom: 14px;
+  }
+
+  .wp-training-form-page__header h1 {
+    font-size: 2rem;
+  }
+
+  .wp-training-identity-card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .wp-training-identity-form {
+    gap: 18px;
+  }
+
+  .wp-training-identity-form__field-meta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .wp-training-identity-icon-card__preview {
+    width: 136px;
+    height: 136px;
+  }
+
+  .wp-training-identity-icon-card__badge {
+    width: 96px !important;
+    height: 96px !important;
+  }
+
+  .wp-training-identity-form__submit {
+    min-height: 56px;
+    font-size: 1rem;
+  }
+}
+
+
+.wp-training-identity-card--loading {
+  pointer-events: none;
+}
+
+.wp-training-identity-icon-card__preview--loading {
+  background: rgba(20, 35, 59, 0.7);
+}
+
+.wp-training-form-page__skeleton {
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(20, 35, 59, 0.76) 0%, rgba(30, 47, 77, 0.92) 50%, rgba(20, 35, 59, 0.76) 100%);
+  background-size: 200% 100%;
+  animation: wp-training-skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.wp-training-form-page__skeleton--title {
+  width: min(420px, 72%);
+  height: 48px;
+  margin-bottom: 12px;
+}
+
+.wp-training-form-page__skeleton--subtitle {
+  width: min(560px, 92%);
+  height: 22px;
+}
+
+.wp-training-form-page__skeleton--field {
+  width: 100%;
+  height: 56px;
+}
+
+.wp-training-form-page__skeleton--textarea {
+  width: 100%;
+  height: 144px;
+}
+
+.wp-training-form-page__skeleton--button {
+  width: min(272px, 100%);
+  height: 58px;
+}
+
+.wp-training-form-page__skeleton--copy {
+  width: min(380px, 100%);
+  height: 48px;
+}
+
+.wp-training-form-page__skeleton--submit {
+  width: 100%;
+  height: 58px;
+}
+
+@keyframes wp-training-skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}

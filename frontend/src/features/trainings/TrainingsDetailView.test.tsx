@@ -3,16 +3,24 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { UseMutationResult } from '@tanstack/react-query';
 import { DetailView } from './TrainingsDetailView';
-import type { CycleStats, Training, TrainingAnalytics, TrainingPuzzle, TrainingSummary } from './trainingsTypes';
+import type {
+  Cycle,
+  CyclePuzzle,
+  CycleStats,
+  Training,
+  TrainingAnalytics,
+  TrainingPuzzle,
+  TrainingSummary,
+} from './trainingsTypes';
 
 const training: Training = {
   '@id': '/api/trainings/1',
   createdAt: '2026-08-06T18:10:00+00:00',
-  description: 'Entraînement de mat en 2 coups',
+  description: 'Test des mats',
   icon: 'queen',
   id: 1,
   mistakeLimit: 3,
-  name: 'Mate en 2',
+  name: 'Mat',
   status: 'draft',
 };
 
@@ -23,6 +31,7 @@ const trainingPuzzle: TrainingPuzzle = {
   position: 0,
   puzzle: {
     '@id': '/api/puzzles/9',
+    fen: '6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1',
     id: 9,
     rating: 1500,
     solution: ['e2e4'],
@@ -31,34 +40,76 @@ const trainingPuzzle: TrainingPuzzle = {
   training: training['@id'],
 };
 
-const cycleStats: CycleStats = {
-  failed: 18,
-  pending: 16,
-  progressPercent: 72,
-  solved: 86,
-  total: 120,
+const currentCycle: Cycle = {
+  '@id': '/api/cycles/1',
+  completedAt: null,
+  id: 1,
+  number: 1,
+  startedAt: '2026-08-12T09:00:00+00:00',
+  status: 'active',
+  training: training['@id'],
+};
+
+const startedCyclePuzzles: CyclePuzzle[] = [
+  {
+    '@id': '/api/cycle_puzzles/1',
+    cycle: currentCycle['@id'],
+    id: 1,
+    position: 0,
+    status: 'solved',
+    trainingPuzzle: trainingPuzzle['@id'],
+  },
+];
+
+const cycleStatsIdle: CycleStats = {
+  failed: 0,
+  pending: 30,
+  progressPercent: 0,
+  solved: 0,
+  total: 30,
+};
+
+const cycleStatsStarted: CycleStats = {
+  failed: 3,
+  pending: 9,
+  progressPercent: 68,
+  solved: 18,
+  total: 30,
 };
 
 const summaryStarted: TrainingSummary = {
-  attemptCount: 256,
-  averageMistakes: 2.1,
+  attemptCount: 24,
+  averageMistakes: 1.4,
   cycleSummaries: [
     {
-      attemptCount: 120,
+      attemptCount: 24,
+      averageAttempts: 1.4,
+      cycle: currentCycle,
+      failed: 3,
+      pending: 9,
+      progressPercent: 68,
+      solved: 18,
+      successRate: 75,
+      total: 30,
+    },
+    {
+      attemptCount: 20,
+      averageAttempts: 1.2,
       cycle: {
-        '@id': '/api/cycles/1',
-        completedAt: null,
-        id: 1,
-        number: 1,
-        startedAt: '2026-08-12T09:00:00+00:00',
-        status: 'active',
+        '@id': '/api/cycles/0',
+        completedAt: '2026-08-03T09:00:00+00:00',
+        id: 2,
+        number: 0,
+        startedAt: '2026-07-27T09:00:00+00:00',
+        status: 'completed',
         training: training['@id'],
       },
-      failed: 18,
-      pending: 16,
-      progressPercent: 72,
-      solved: 86,
-      total: 120,
+      failed: 0,
+      pending: 0,
+      progressPercent: 56,
+      solved: 30,
+      successRate: 63,
+      total: 30,
     },
   ],
   latestAttempts: [
@@ -68,56 +119,50 @@ const summaryStarted: TrainingSummary = {
       cycleNumber: 1,
       durationMilliseconds: 12000,
       id: 1,
-      mistakesCount: 1,
+      mistakesCount: 0,
       successful: true,
       trainingPuzzlePosition: 0,
     },
   ],
   latestCycleSummary: {
-    attemptCount: 120,
-    cycle: {
-      '@id': '/api/cycles/1',
-      completedAt: null,
-      id: 1,
-      number: 1,
-      startedAt: '2026-08-12T09:00:00+00:00',
-      status: 'active',
-      training: training['@id'],
-    },
-    failed: 18,
-    pending: 16,
-    progressPercent: 72,
-    solved: 86,
-    total: 120,
+    attemptCount: 24,
+    averageAttempts: 1.4,
+    cycle: currentCycle,
+    failed: 3,
+    pending: 9,
+    progressPercent: 68,
+    solved: 18,
+    successRate: 75,
+    total: 30,
   },
   notedPuzzleCount: 1,
-  puzzleCount: 120,
+  puzzleCount: 30,
   ratedPuzzleCount: 1,
-  solvedAttemptCount: 86,
+  solvedAttemptCount: 18,
   themedPuzzleCount: 1,
 };
 
 const analytics: TrainingAnalytics = {
-  cycleTimeline: [summaryStarted.latestCycleSummary],
+  cycleTimeline: summaryStarted.cycleSummaries,
   performance: {
-    attemptCount: 256,
+    attemptCount: 24,
     averageDurationSeconds: 17,
-    averageMistakes: 2.1,
-    failedAttemptCount: 18,
+    averageMistakes: 1.4,
+    failedAttemptCount: 3,
     latestAttemptedAt: '2026-08-12T09:10:00+00:00',
-    solvedAttemptCount: 86,
-    successRate: 72,
+    solvedAttemptCount: 18,
+    successRate: 75,
   },
   progressionSnapshot: {
     activeCycleCount: 1,
-    bestCycleProgressPercent: 72,
-    completedCycleCount: 0,
-    latestCycleProgressPercent: 72,
+    bestCycleProgressPercent: 68,
+    completedCycleCount: 1,
+    latestCycleProgressPercent: 68,
     resumableCycle: true,
   },
   puzzleReadiness: {
     notedPuzzleCount: 1,
-    puzzleCount: 120,
+    puzzleCount: 30,
     ratedPuzzleCount: 1,
     themedPuzzleCount: 1,
   },
@@ -139,7 +184,9 @@ function renderDetailView(overrides: Partial<ComponentProps<typeof DetailView>> 
     analyticsIsError: false,
     analyticsIsLoading: false,
     createPuzzleMutation: createMutationMock(),
-    cycleStats,
+    currentCycle: null,
+    cyclePuzzles: [],
+    cycleStats: cycleStatsIdle,
     cycleStatusLabel: 'Aucun',
     deletePuzzleIsError: false,
     deletePuzzleIsPending: false,
@@ -148,6 +195,7 @@ function renderDetailView(overrides: Partial<ComponentProps<typeof DetailView>> 
     movePuzzleIsError: false,
     movePuzzleIsPending: false,
     onBackToDashboard: vi.fn(),
+    onEditTraining: vi.fn(),
     onFenChange: vi.fn(),
     onImport: vi.fn(),
     onOpenSolver: vi.fn(),
@@ -196,65 +244,80 @@ describe('DetailView', () => {
     expect(onBackToDashboard).toHaveBeenCalledTimes(1);
   });
 
-  it('affiche l etat pre-cycle avec le bouton demarrer et la tolerance des erreurs', () => {
+  it('affiche l etat cycle non demarre avec import, demarrage et sans solveur', () => {
     const onStartCycle = vi.fn();
     const onImport = vi.fn();
 
     renderDetailView({
+      cycleStats: cycleStatsIdle,
       onImport,
       onStartCycle,
-      puzzleListIsLocked: false,
+      puzzleCount: 30,
       summary: null,
-      hasResumableCycle: false,
+      trainingPuzzles: [trainingPuzzle],
     });
 
+    expect(screen.getByRole('button', { name: "Modifier l'entraînement" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Importer des puzzles' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Démarrer le cycle' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ajouter des puzzles' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Tolérance des erreurs' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Statut du cycle' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ouvrir le solveur' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Collection de problèmes' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Statut du cycle' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Historique des cycles' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Dernières tentatives' })).not.toBeInTheDocument();
+    expect(screen.getByText("Aucun cycle n'a encore été démarré.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Démarrer le cycle' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Ajouter des puzzles' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Importer des puzzles' }));
 
     expect(onStartCycle).toHaveBeenCalledTimes(1);
     expect(onImport).toHaveBeenCalledTimes(1);
   });
 
-  it('affiche l etat cycle demarre avec le solveur, le statut du cycle et les sections laterales', () => {
+  it('affiche l etat cycle demarre avec solveur, statut, historique et tentatives', () => {
     const onOpenSolver = vi.fn();
 
     renderDetailView({
       analytics,
+      currentCycle,
+      cyclePuzzles: startedCyclePuzzles,
+      cycleStats: cycleStatsStarted,
       cycleStatusLabel: 'Actif',
       hasResumableCycle: true,
       onOpenSolver,
-      puzzleCount: 120,
+      puzzleCount: 30,
       puzzleListIsLocked: true,
       summary: summaryStarted,
     });
 
+    expect(screen.getByRole('button', { name: "Modifier l'entraînement" })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ouvrir le solveur' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Importer des puzzles' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Statut du cycle' })).toBeInTheDocument();
     expect(screen.getByText('Collection verrouillée')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Historique des cycles' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Dernières tentatives' })).toBeInTheDocument();
-    expect(screen.getByText('72%')).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(screen.getByText('+12%')).toBeInTheDocument();
+    expect(screen.getByText('1,4')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le solveur' }));
 
     expect(onOpenSolver).toHaveBeenCalledTimes(1);
   });
 
-  it('affiche les etats de chargement et les erreurs utiles sans masquer les sections', () => {
+  it('affiche les etats de chargement et les erreurs utiles sans masquer la page', () => {
     renderDetailView({
       analyticsError: 'Analytics indisponibles.',
       analyticsIsError: true,
       analyticsIsLoading: true,
+      currentCycle,
+      cyclePuzzles: startedCyclePuzzles,
+      cycleStats: cycleStatsStarted,
+      hasResumableCycle: true,
       startCycleError: 'Démarrage impossible.',
       startCycleIsError: true,
+      summary: summaryStarted,
       summaryError: 'Résumé indisponible.',
       summaryIsError: true,
       summaryIsLoading: true,
@@ -263,13 +326,13 @@ describe('DetailView', () => {
       trainingPuzzlesIsLoading: true,
     });
 
-    expect(screen.getByText('Chargement des analytics...')).toBeInTheDocument();
-    expect(screen.getByText('Analytics indisponibles.')).toBeInTheDocument();
     expect(screen.getByText('Chargement des problèmes...')).toBeInTheDocument();
-    expect(screen.getByText('Chargement des cycles...')).toBeInTheDocument();
-    expect(screen.getByText('Chargement des tentatives...')).toBeInTheDocument();
+    expect(screen.getByText('Chargement du cycle...')).toBeInTheDocument();
+    expect(screen.getByText('Chargement des statistiques détaillées...')).toBeInTheDocument();
+    expect(screen.getByText('Analytics indisponibles.')).toBeInTheDocument();
     expect(screen.getByText('Démarrage impossible.')).toBeInTheDocument();
     expect(screen.getByText('Chargement des puzzles impossible.')).toBeInTheDocument();
-    expect(screen.getAllByText('Résumé indisponible.').length).toBe(2);
+    expect(screen.getByText('Résumé indisponible.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Collection de problèmes' })).toBeInTheDocument();
   });
 });

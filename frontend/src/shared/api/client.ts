@@ -6,6 +6,7 @@ type ApiRequestOptions = {
   token?: string;
   body?: unknown;
   contentType?: string;
+  keepalive?: boolean;
 };
 
 export class ApiError extends Error {
@@ -34,6 +35,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     method: options.method ?? 'GET',
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    keepalive: options.keepalive,
   });
 
   if (!response.ok) {

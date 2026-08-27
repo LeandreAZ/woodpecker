@@ -1363,38 +1363,7 @@
 
 
 
-.wp-training-brand {
-  width: 100%;
-  height: 100%;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid var(--training-brand-border, rgba(92, 148, 255, 0.34));
-  border-radius: 18px;
-  background: var(--training-brand-background, linear-gradient(180deg, rgba(32, 73, 154, 0.94), rgba(18, 45, 96, 0.98)));
-  box-shadow: var(--training-brand-shadow, 0 18px 36px rgba(13, 31, 70, 0.28));
-  color: var(--training-brand-color, #86b5ff);
-}
 
-.wp-training-brand svg {
-  width: 56%;
-  height: 56%;
-}
-
-.wp-training-brand.is-sm {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-}
-
-.wp-training-brand.is-md {
-  width: 54px;
-  height: 54px;
-}
-
-.wp-training-brand.is-lg {
-  width: 100%;
-  height: 100%;
-}
 
 .wp-stats-v2-page {
   gap: 18px;
@@ -1896,3 +1865,6 @@
     text-align: left;
   }
 }
+
+
+

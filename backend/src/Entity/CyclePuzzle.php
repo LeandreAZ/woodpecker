@@ -49,6 +49,20 @@ class CyclePuzzle
     #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private CyclePuzzleStatus $status = CyclePuzzleStatus::Pending;
 
+    #[ORM\Column]
+    #[Assert\PositiveOrZero]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
+    private int $attemptCount = 0;
+
+    #[ORM\Column]
+    #[Assert\PositiveOrZero]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
+    private int $durationMilliseconds = 0;
+
+    #[ORM\Column(options: ['default' => false])]
+    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
+    private bool $finallySolved = false;
+
     #[ORM\Column(nullable: true)]
     #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private ?\DateTimeImmutable $completedAt = null;
@@ -125,6 +139,42 @@ class CyclePuzzle
     public function setCompletedAt(?\DateTimeImmutable $completedAt): self
     {
         $this->completedAt = $completedAt;
+
+        return $this;
+    }
+
+    public function getAttemptCount(): int
+    {
+        return $this->attemptCount;
+    }
+
+    public function setAttemptCount(int $attemptCount): self
+    {
+        $this->attemptCount = max(0, $attemptCount);
+
+        return $this;
+    }
+
+    public function getDurationMilliseconds(): int
+    {
+        return $this->durationMilliseconds;
+    }
+
+    public function setDurationMilliseconds(int $durationMilliseconds): self
+    {
+        $this->durationMilliseconds = max(0, $durationMilliseconds);
+
+        return $this;
+    }
+
+    public function isFinallySolved(): bool
+    {
+        return $this->finallySolved;
+    }
+
+    public function setFinallySolved(bool $finallySolved): self
+    {
+        $this->finallySolved = $finallySolved;
 
         return $this;
     }

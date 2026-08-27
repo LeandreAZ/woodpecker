@@ -39,10 +39,17 @@ function parseExports(code) {
 }
 
 function resolveImport(fromFile, specifier) {
-  const base = path.resolve(path.dirname(fromFile), specifier);
+  const cleanSpecifier = specifier.split('?')[0];
+  const direct = path.resolve(path.dirname(fromFile), cleanSpecifier);
+
+  if (fs.existsSync(direct)) {
+    return direct;
+  }
+
+  const base = path.resolve(path.dirname(fromFile), cleanSpecifier);
   const candidates = [
-    ...exts.map((ext) => `${base}${ext}`),
-    ...exts.map((ext) => path.join(base, `index${ext}`)),
+    ...exts.map((ext) => base + ext),
+    ...exts.map((ext) => path.join(base, 'index' + ext)),
   ];
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
@@ -93,7 +100,7 @@ for (const file of files) {
   for (const item of imports) {
     const target = resolveImport(file, item.specifier);
     if (!target) {
-      issues.push(`${path.relative(root, file)} -> ${item.specifier}: module introuvable`);
+      issues.push(path.relative(root, file) + ' -> ' + item.specifier + ': module introuvable');
       continue;
     }
 
@@ -101,7 +108,7 @@ for (const file of files) {
     if (!targetExports) continue;
 
     if (item.defaultImport && !targetExports.hasDefault) {
-      issues.push(`${path.relative(root, file)} -> ${item.specifier}: export default manquant`);
+      issues.push(path.relative(root, file) + ' -> ' + item.specifier + ': export default manquant');
     }
 
     for (const raw of item.namedImports) {
@@ -110,7 +117,7 @@ for (const file of files) {
       const alias = clean.match(/([A-Za-z0-9_]+)\s+as\s+([A-Za-z0-9_]+)/);
       const importedName = alias ? alias[1] : clean;
       if (!targetExports.named.has(importedName)) {
-        issues.push(`${path.relative(root, file)} -> ${item.specifier}: export nommé manquant '${importedName}'`);
+        issues.push(path.relative(root, file) + ' -> ' + item.specifier + ": export nommé manquant '" + importedName + "'");
       }
     }
   }
@@ -118,10 +125,8 @@ for (const file of files) {
 
 if (issues.length > 0) {
   console.error('Verification imports/exports echouee:\n');
-  for (const issue of issues) console.error(`- ${issue}`);
+  for (const issue of issues) console.error('- ' + issue);
   process.exit(1);
 }
 
-console.log(`Verification imports/exports OK (${files.length} fichiers).`);
-
-
+console.log('Verification imports/exports OK (' + files.length + ' fichiers).');

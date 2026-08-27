@@ -328,10 +328,6 @@ const historyOverview: HistoryOverview = {
 const trainingAttemptHistory: Record<string, TrainingAttemptHistory> = {
   '/trainings/1': {
     training: trainings[0],
-    attemptCount: 50,
-    successfulAttemptCount: 37,
-    failedAttemptCount: 13,
-    latestAttemptedAt: '2026-05-31T10:24:00+02:00',
     attempts: [
       {
         '@id': '/detailed_attempts/1',
@@ -339,12 +335,9 @@ const trainingAttemptHistory: Record<string, TrainingAttemptHistory> = {
         successful: true,
         mistakesCount: 0,
         durationMilliseconds: 18000,
-        playedMoves: ['Qg6+', 'Kh8', 'Qd8#'],
         attemptedAt: '2026-05-31T10:24:00+02:00',
-        cycle: { '@id': '/cycles/37', id: 37, number: 37, status: 'completed' },
-        cyclePuzzle: { '@id': '/cycle_puzzles/120', id: 120, position: 0, status: 'solved' },
-        trainingPuzzle: { '@id': '/training_puzzles/1', id: 1, position: 0, personalNote: null },
-        puzzle: puzzles[0],
+        cyclePuzzle: '/cycle_puzzles/120',
+        trainingSession: '/training_sessions/1',
       },
       {
         '@id': '/detailed_attempts/2',
@@ -352,12 +345,9 @@ const trainingAttemptHistory: Record<string, TrainingAttemptHistory> = {
         successful: false,
         mistakesCount: 1,
         durationMilliseconds: 72000,
-        playedMoves: ['Qh6?', 'gxh6'],
         attemptedAt: '2026-05-31T10:22:00+02:00',
-        cycle: { '@id': '/cycles/37', id: 37, number: 37, status: 'completed' },
-        cyclePuzzle: { '@id': '/cycle_puzzles/121', id: 121, position: 1, status: 'failed' },
-        trainingPuzzle: { '@id': '/training_puzzles/4', id: 4, position: 3, personalNote: 'Position delicate.' },
-        puzzle: puzzles[3],
+        cyclePuzzle: '/cycle_puzzles/121',
+        trainingSession: '/training_sessions/1',
       },
     ],
   },
@@ -366,33 +356,24 @@ const trainingAttemptHistory: Record<string, TrainingAttemptHistory> = {
 const trainingCycleHistory: Record<string, TrainingCycleHistory> = {
   '/trainings/1': {
     training: trainings[0],
-    cycleCount: 7,
-    activeCycleCount: 1,
-    completedCycleCount: 6,
     cycles: [
       {
-        cycle: { '@id': '/cycles/37', id: 37, training: '/trainings/1', number: 37, status: 'completed', startedAt: '2026-05-31T08:00:00+02:00', completedAt: '2026-05-31T10:30:00+02:00', targetDurationSeconds: 900 },
+        cycle: { '@id': '/cycles/37', id: 37, training: '/trainings/1', number: 37, status: 'completed', startedAt: '2026-05-31T08:00:00+02:00', completedAt: '2026-05-31T10:30:00+02:00' },
         solved: 43,
         failed: 7,
         pending: 0,
         total: 50,
         progressPercent: 86,
         attemptCount: 50,
-        latestAttemptedAt: '2026-05-31T10:24:00+02:00',
-        hasResumableCycle: false,
-        cyclePuzzles: [],
       },
       {
-        cycle: { '@id': '/cycles/35', id: 35, training: '/trainings/1', number: 35, status: 'active', startedAt: '2026-05-27T08:00:00+02:00', completedAt: null, targetDurationSeconds: 900 },
+        cycle: { '@id': '/cycles/35', id: 35, training: '/trainings/1', number: 35, status: 'active', startedAt: '2026-05-27T08:00:00+02:00', completedAt: null },
         solved: 28,
         failed: 22,
         pending: 0,
         total: 50,
         progressPercent: 56,
         attemptCount: 38,
-        latestAttemptedAt: '2026-05-27T10:12:00+02:00',
-        hasResumableCycle: true,
-        cyclePuzzles: [],
       },
     ],
   },
@@ -428,29 +409,14 @@ const trainingAnalytics: Record<string, TrainingAnalytics> = {
 };
 
 const userSettingsOverview: UserSettingsOverview = {
-  user: {
-    '@id': '/users/me',
-    id: 1,
-    email: 'marc.bertrand@example.com',
-    roles: ['Utilisateur Premium'],
-    createdAt: '2026-04-18T09:00:00+02:00',
-  },
-  workspace: {
-    trainingCount: 7,
-    activeTrainingCount: 7,
-    archivedTrainingCount: 12,
-    puzzleCount: 60,
-    latestTrainingName: 'Mate en 2',
-  },
-  preferencesPreview: {
-    defaultMistakeLimit: 3,
-    lockTrainingAfterCycle: true,
-    trackedSolverByDefault: true,
-  },
-  integrations: {
-    lichessConnected: false,
-    chessComConnected: false,
-    exportReady: false,
+  connectedProviders: [
+    { key: 'lichess', label: 'Lichess', connected: false },
+    { key: 'chesscom', label: 'Chess.com', connected: false },
+    { key: 'export', label: 'Export PGN', connected: false },
+  ],
+  preferences: {
+    language: 'fr-FR',
+    timezone: 'Europe/Paris',
   },
 };
 

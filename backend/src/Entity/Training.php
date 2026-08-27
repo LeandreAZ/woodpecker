@@ -30,7 +30,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
+        new Get(requirements: ['id' => '\\d+']),
         new GetCollection(),
         new GetCollection(
             uriTemplate: '/trainings/dashboard',
@@ -51,37 +51,42 @@ use Symfony\Component\Validator\Constraints as Assert;
             name: 'history_overview',
         ),
         new Post(processor: TrainingOwnerProcessor::class),
-        new Patch(processor: TrainingOwnerProcessor::class),
-        new Delete(),
+        new Patch(requirements: ['id' => '\\d+'], processor: TrainingOwnerProcessor::class),
+        new Delete(requirements: ['id' => '\\d+']),
         new Get(
             uriTemplate: '/trainings/{id}/overview',
             controller: TrainingOverviewAction::class,
             read: false,
             name: 'training_overview',
+            requirements: ['id' => '\\d+'],
         ),
         new Get(
             uriTemplate: '/trainings/{id}/summary',
             controller: TrainingSummaryAction::class,
             read: false,
             name: 'training_summary',
+            requirements: ['id' => '\\d+'],
         ),
         new Get(
             uriTemplate: '/trainings/{id}/analytics',
             controller: TrainingAnalyticsAction::class,
             read: false,
             name: 'training_analytics',
+            requirements: ['id' => '\\d+'],
         ),
         new Get(
             uriTemplate: '/trainings/{id}/attempt-history',
             controller: TrainingAttemptHistoryAction::class,
             read: false,
             name: 'training_attempt_history',
+            requirements: ['id' => '\\d+'],
         ),
         new Get(
             uriTemplate: '/trainings/{id}/cycle-history',
             controller: TrainingCycleHistoryAction::class,
             read: false,
             name: 'training_cycle_history',
+            requirements: ['id' => '\\d+'],
         ),
     ],
     normalizationContext: ['groups' => ['training:read']],
@@ -89,7 +94,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 class Training
 {
-    private const ALLOWED_ICONS = ['queen', 'knight', 'bishop', 'rook', 'pawn'];
+    private const ALLOWED_ICONS = ['pawn', 'king', 'queen', 'knight', 'bishop', 'rook'];
     private const LOGO_PALETTES = ['cobalt', 'lime', 'violet', 'amber', 'teal'];
 
     #[ORM\Id]
@@ -111,6 +116,16 @@ class Training
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups(['training:read', 'training:write'])]
     private ?string $icon = null;
+
+    #[ORM\Column(length: 7, nullable: true)]
+    #[Assert\Regex(pattern: '/^#[0-9A-Fa-f]{6}$/')]
+    #[Groups(['training:read', 'training:write'])]
+    private ?string $iconBackgroundColor = null;
+
+    #[ORM\Column(length: 7, nullable: true)]
+    #[Assert\Regex(pattern: '/^#[0-9A-Fa-f]{6}$/')]
+    #[Groups(['training:read', 'training:write'])]
+    private ?string $iconColor = null;
 
     private ?string $logo = null;
 
@@ -204,6 +219,30 @@ class Training
     public function setIcon(?string $icon): self
     {
         $this->icon = $this->normalizeIcon($icon);
+
+        return $this;
+    }
+
+    public function getIconBackgroundColor(): string
+    {
+        return $this->normalizeColor($this->iconBackgroundColor) ?? $this->resolveLegacyBackgroundColor();
+    }
+
+    public function setIconBackgroundColor(?string $iconBackgroundColor): self
+    {
+        $this->iconBackgroundColor = $this->normalizeColor($iconBackgroundColor);
+
+        return $this;
+    }
+
+    public function getIconColor(): string
+    {
+        return $this->normalizeColor($this->iconColor) ?? '#ffffff';
+    }
+
+    public function setIconColor(?string $iconColor): self
+    {
+        $this->iconColor = $this->normalizeColor($iconColor);
 
         return $this;
     }
@@ -376,12 +415,14 @@ class Training
     private function ensureBranding(): void
     {
         $this->icon = $this->normalizeIcon($this->icon);
+        $this->iconBackgroundColor = $this->normalizeColor($this->iconBackgroundColor);
+        $this->iconColor = $this->normalizeColor($this->iconColor);
         $this->logo ??= $this->buildDefaultLogo();
     }
 
     private function buildDefaultLogo(): string
     {
-        $seed = sprintf('%s-%s-%s', $this->name ?? 'training', $this->icon ?? 'queen', $this->id ?? 'new');
+        $seed = sprintf('%s-%s-%s', $this->name ?? 'training', $this->icon ?? 'rook', $this->id ?? 'new');
         $paletteIndex = abs(crc32($seed)) % count(self::LOGO_PALETTES);
 
         return sprintf('%s-%s', self::LOGO_PALETTES[$paletteIndex], $this->normalizeIcon($this->icon));
@@ -391,6 +432,30 @@ class Training
     {
         $normalized = strtolower(trim($icon ?? ''));
 
-        return in_array($normalized, self::ALLOWED_ICONS, true) ? $normalized : 'queen';
+        return in_array($normalized, self::ALLOWED_ICONS, true) ? $normalized : 'rook';
+    }
+
+    private function normalizeColor(?string $color): ?string
+    {
+        $normalized = strtolower(trim($color ?? ''));
+
+        if ('' === $normalized || !preg_match('/^#[0-9a-f]{6}$/', $normalized)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function resolveLegacyBackgroundColor(): string
+    {
+        return match (explode('-', $this->buildDefaultLogo())[0] ?? '') {
+            'lime' => '#7ebd2a',
+            'amber' => '#cc8d24',
+            'teal' => '#1f9ca8',
+            'cobalt' => '#2b63d9',
+            'violet' => '#7c5cff',
+            default => '#3b82f6',
+        };
     }
 }
+

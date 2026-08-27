@@ -1,11 +1,23 @@
-import { useMemo, useState, type ReactElement, type SVGProps } from 'react';
+import {
+  ChevronRight,
+  CircleCheckBig,
+  CircleX,
+  Clock3,
+  Eye,
+  Hourglass,
+  Play,
+  Puzzle,
+  RefreshCw,
+  Target,
+  type LucideIcon,
+} from 'lucide-react';
+import { useMemo, type CSSProperties } from 'react';
 import { TrainingLogoBadge } from '../TrainingBranding';
 import type { StatsOverview, Training, TrainingDashboardSummary, View } from '../trainingsTypes';
 import './dashboard.css';
 
 type DashboardPageProps = {
   dashboardSummaries: TrainingDashboardSummary[];
-  deleteTrainingMutation: { mutate: (trainingIri: string) => void; isPending: boolean };
   errorMessage?: string;
   isError: boolean;
   isSummariesLoading: boolean;
@@ -17,131 +29,21 @@ type DashboardPageProps = {
   trainings: Training[];
 };
 
-type IconProps = SVGProps<SVGSVGElement>;
+type MetricTone = 'primary' | 'cyan' | 'violet' | 'success';
 
 type OverviewMetric = {
-  icon: (props: IconProps) => ReactElement;
+  icon: LucideIcon;
   label: string;
-  value: string;
-};
-
-type GlobalRow = {
-  icon: (props: IconProps) => ReactElement;
-  label: string;
+  tone: MetricTone;
   value: string;
 };
 
 type FeaturedStat = {
-  icon: (props: IconProps) => ReactElement;
+  icon: LucideIcon;
   label: string;
+  tone: MetricTone | 'danger' | 'neutral';
   value: string;
 };
-
-function iconProps(props: IconProps) {
-  return {
-    viewBox: '0 0 24 24',
-    width: 24,
-    height: 24,
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.7,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-    ...props,
-  };
-}
-
-function TargetIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <circle cx="12" cy="12" r="7.2" />
-      <circle cx="12" cy="12" r="3.6" />
-      <path d="M12 8.4v3.6h3.6" />
-      <path d="m15.6 8.4 2.8-2.8" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <circle cx="12" cy="12" r="8" />
-      <path d="m8.5 12.2 2.2 2.2 4.8-5.2" />
-    </svg>
-  );
-}
-
-function RepeatIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M8 6.5h9" />
-      <path d="m14 3.8 3 2.7-3 2.7" />
-      <path d="M16 17.5H7" />
-      <path d="m10 14.8-3 2.7 3 2.7" />
-      <path d="M8 6.5C5.9 6.5 5 7.7 5 9.6V11" />
-      <path d="M16 17.5c2.1 0 3-1.2 3-3.1V13" />
-    </svg>
-  );
-}
-
-function TrendUpIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M4.5 17.5h15" />
-      <path d="m5.5 14.8 4.1-4 3.2 2.8 5.7-6" />
-      <path d="m16 7.6 2.5-.1-.1 2.5" />
-    </svg>
-  );
-}
-
-function HistoryIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M4.8 12a7.2 7.2 0 1 0 2.1-5.1" />
-      <path d="M4.8 5.8v3.7h3.7" />
-      <path d="M12 8v4.2l2.8 1.7" />
-    </svg>
-  );
-}
-
-function SearchIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <circle cx="11" cy="11" r="5.8" />
-      <path d="m16 16 2.8 2.8" />
-    </svg>
-  );
-}
-
-function HourglassIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M8 4.8h8" />
-      <path d="M8 19.2h8" />
-      <path d="M8.7 4.8c0 3 2.2 4 3.3 5.2 1.1-1.2 3.3-2.2 3.3-5.2" />
-      <path d="M8.7 19.2c0-3 2.2-4 3.3-5.2 1.1 1.2 3.3 2.2 3.3 5.2" />
-    </svg>
-  );
-}
-
-function SparkIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="m12 4.6 1.6 4.2 4.2 1.6-4.2 1.6-1.6 4.2-1.6-4.2-4.2-1.6 4.2-1.6Z" />
-    </svg>
-  );
-}
-
-function MoreIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <circle cx="12" cy="5.2" r="1.1" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="18.8" r="1.1" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
 
 function truncate(value?: string | null, maxLength = 96) {
   const normalized = value?.trim() ?? '';
@@ -156,22 +58,40 @@ function truncate(value?: string | null, maxLength = 96) {
   return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
-function formatCompactDate(value?: string | null) {
+function formatRelativeActivity(value?: string | null) {
   if (!value) {
     return 'Aucune';
   }
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const timestamp = date.getTime();
+  if (Number.isNaN(timestamp)) {
     return 'Aucune';
+  }
+
+  const diffMilliseconds = timestamp - Date.now();
+  const diffMinutes = Math.round(diffMilliseconds / 60000);
+  const formatter = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
+
+  if (Math.abs(diffMinutes) < 60) {
+    return formatter.format(diffMinutes, 'minute');
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (Math.abs(diffHours) < 24) {
+    return formatter.format(diffHours, 'hour');
+  }
+
+  const diffDays = Math.round(diffHours / 24);
+  if (Math.abs(diffDays) < 7) {
+    return formatter.format(diffDays, 'day');
   }
 
   return new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
     month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date).replace(',', '');
+    year: 'numeric',
+  }).format(date);
 }
 
 function buildFallbackSummaries(trainings: Training[]): TrainingDashboardSummary[] {
@@ -191,65 +111,68 @@ function buildFallbackSummaries(trainings: Training[]): TrainingDashboardSummary
   }));
 }
 
-function getOverviewMetrics(summaries: TrainingDashboardSummary[], statsOverview: StatsOverview | null): OverviewMetric[] {
-  const activeTrainings = summaries.filter((summary) => summary.latestCycleStatus === 'active' || summary.hasResumableCycle).length;
-  const selectedPuzzleCount = statsOverview?.puzzleCount ?? summaries.reduce((total, summary) => total + summary.puzzleCount, 0);
-  const attempts = statsOverview?.attemptCount ?? summaries.reduce((total, summary) => total + summary.attemptCount, 0);
-  const averageProgress = summaries.length
-    ? Math.round(summaries.reduce((total, summary) => total + summary.progressPercent, 0) / summaries.length)
-    : 0;
+function getVisibleSummaries(
+  dashboardSummaries: TrainingDashboardSummary[],
+  statsOverview: StatsOverview | null,
+  trainings: Training[],
+) {
+  if (dashboardSummaries.length > 0) {
+    return dashboardSummaries;
+  }
 
-  return [
-    { icon: TargetIcon, label: 'Entraînements actifs', value: String(activeTrainings) },
-    { icon: SearchIcon, label: 'Puzzles enregistrés', value: String(selectedPuzzleCount) },
-    { icon: RepeatIcon, label: 'Tentatives', value: String(attempts) },
-    { icon: TrendUpIcon, label: 'Progression globale', value: `${averageProgress}%` },
-  ];
+  if (statsOverview?.trainingBreakdown.length) {
+    return statsOverview.trainingBreakdown;
+  }
+
+  return buildFallbackSummaries(trainings);
 }
 
-function getGlobalRows(statsOverview: StatsOverview | null, selectedSummary: TrainingDashboardSummary | null): GlobalRow[] {
+function getOverviewMetrics(summaries: TrainingDashboardSummary[], statsOverview: StatsOverview | null): OverviewMetric[] {
+  const trainingCount = statsOverview?.trainingCount ?? summaries.length;
+  const activeCycleCount =
+    statsOverview?.activeCycleCount ??
+    summaries.filter((summary) => summary.latestCycleStatus === 'active' || summary.hasResumableCycle).length;
+  const puzzleCount =
+    statsOverview?.puzzleCount ?? summaries.reduce((total, summary) => total + summary.puzzleCount, 0);
+  const latestActivity =
+    statsOverview?.latestAttemptedAt ??
+    summaries.reduce<string | null>((latest, summary) => {
+      if (!summary.latestAttemptedAt) {
+        return latest;
+      }
+
+      if (!latest) {
+        return summary.latestAttemptedAt;
+      }
+
+      return new Date(summary.latestAttemptedAt) > new Date(latest) ? summary.latestAttemptedAt : latest;
+    }, null);
+
   return [
-    {
-      icon: TargetIcon,
-      label: 'Taux de réussite',
-      value: `${Math.round(statsOverview?.successRate ?? 0)}%`,
-    },
-    {
-      icon: SearchIcon,
-      label: 'Puzzles enregistrés',
-      value: String(statsOverview?.puzzleCount ?? selectedSummary?.puzzleCount ?? 0),
-    },
-    {
-      icon: RepeatIcon,
-      label: 'Tentatives',
-      value: String(statsOverview?.attemptCount ?? selectedSummary?.attemptCount ?? 0),
-    },
-    {
-      icon: CheckCircleIcon,
-      label: 'Cycles actifs',
-      value: String(statsOverview?.activeCycleCount ?? 0),
-    },
-    {
-      icon: HistoryIcon,
-      label: 'Dernière activité',
-      value: formatCompactDate(statsOverview?.latestAttemptedAt),
-    },
+    { icon: Target, label: 'Entraînements actifs', tone: 'primary', value: String(trainingCount) },
+    { icon: RefreshCw, label: 'Cycles actifs', tone: 'cyan', value: String(activeCycleCount) },
+    { icon: Puzzle, label: 'Puzzles totaux', tone: 'violet', value: String(puzzleCount) },
+    { icon: Clock3, label: 'Dernière activité', tone: 'success', value: formatRelativeActivity(latestActivity) },
   ];
 }
 
 function getFeaturedStats(summary: TrainingDashboardSummary): FeaturedStat[] {
   return [
-    { icon: SearchIcon, label: 'Problèmes', value: String(summary.puzzleCount) },
-    { icon: CheckCircleIcon, label: 'Résolus', value: String(summary.solvedCount) },
-    { icon: SparkIcon, label: 'À revoir', value: String(summary.failedCount) },
-    { icon: HourglassIcon, label: 'Restants', value: String(summary.pendingCount) },
-    { icon: RepeatIcon, label: 'Tentatives', value: String(summary.attemptCount) },
+    { icon: Puzzle, label: 'Problèmes', tone: 'primary', value: String(summary.puzzleCount) },
+    { icon: CircleCheckBig, label: 'Résolus', tone: 'success', value: String(summary.solvedCount) },
+    { icon: CircleX, label: 'Ratés', tone: 'danger', value: String(summary.failedCount) },
+    { icon: Hourglass, label: 'Restants', tone: 'neutral', value: String(summary.pendingCount) },
   ];
 }
 
-function DashboardOverviewView({
+function getProgressStyle(_training: Training): CSSProperties {
+  return {
+    '--dashboard-progress-color': '#3b82f6',
+  } as CSSProperties;
+}
+
+export function DashboardOverviewView({
   dashboardSummaries,
-  deleteTrainingMutation,
   errorMessage,
   isError,
   isSummariesLoading,
@@ -260,17 +183,17 @@ function DashboardOverviewView({
   statsOverview,
   trainings,
 }: DashboardPageProps) {
-  const [openActionsTrainingIri, setOpenActionsTrainingIri] = useState<string | null>(null);
   const visibleSummaries = useMemo(
-    () => (dashboardSummaries.length > 0 ? dashboardSummaries : buildFallbackSummaries(trainings)),
-    [dashboardSummaries, trainings],
+    () => getVisibleSummaries(dashboardSummaries, statsOverview, trainings),
+    [dashboardSummaries, statsOverview, trainings],
   );
-  const selectedSummary = visibleSummaries.find((summary) => summary.training['@id'] === selectedTrainingIri) ?? visibleSummaries[0] ?? null;
+
+  const selectedSummary =
+    visibleSummaries.find((summary) => summary.training['@id'] === selectedTrainingIri) ?? visibleSummaries[0] ?? null;
   const overviewMetrics = getOverviewMetrics(visibleSummaries, statsOverview);
-  const globalRows = getGlobalRows(statsOverview, selectedSummary);
   const showLoading = isTrainingsLoading && trainings.length === 0;
   const showEmpty = !showLoading && visibleSummaries.length === 0;
-  const showError = isError && Boolean(errorMessage) && visibleSummaries.length === 0;
+  const showError = isError && Boolean(errorMessage);
 
   if (showLoading) {
     return (
@@ -283,107 +206,102 @@ function DashboardOverviewView({
   return (
     <section className="dashboard-page">
       <header className="dashboard-page__hero">
-        <div>
+        <div className="dashboard-page__hero-copy">
           <h1 className="dashboard-page__title">Mes entraînements</h1>
-          <p className="dashboard-page__subtitle">Tes vraies données, dans une vue plus lisible et plus compacte.</p>
+          <p className="dashboard-page__subtitle">Gérez vos entraînements et suivez leur progression.</p>
         </div>
+
         <button className="dashboard-page__create" type="button" onClick={onCreate}>
-          <span>+</span>
+          <span className="dashboard-page__create-plus" aria-hidden="true">
+            +
+          </span>
           <span>Créer un entraînement</span>
         </button>
       </header>
 
-      {showError ? <p className="wp-empty">{errorMessage}</p> : null}
+      {showError ? <p className="dashboard-page__alert">{errorMessage}</p> : null}
 
       <section className="dashboard-page__metrics" aria-label="Synthèse globale">
         {overviewMetrics.map((metric) => {
           const Icon = metric.icon;
           return (
-            <article className="dashboard-page__metric-card" key={metric.label}>
-              <div className="dashboard-page__metric-left">
-                <span className="dashboard-page__metric-icon"><Icon /></span>
+            <article className={`dashboard-page__metric-card is-${metric.tone}`} key={metric.label}>
+              <span className="dashboard-page__metric-icon">
+                <Icon aria-hidden="true" size={26} strokeWidth={1.9} />
+              </span>
+              <div className="dashboard-page__metric-copy">
                 <span className="dashboard-page__metric-label">{metric.label}</span>
+                <strong className="dashboard-page__metric-value">{metric.value}</strong>
               </div>
-              <strong className="dashboard-page__metric-value">{metric.value}</strong>
             </article>
           );
         })}
       </section>
 
-      <section className="dashboard-page__top-grid">
-        <article className="dashboard-page__panel dashboard-page__panel--featured">
-          <div className="dashboard-page__panel-head">
-            <h2>Entraînement sélectionné</h2>
-          </div>
+      <section className="dashboard-page__panel dashboard-page__panel--featured">
+        <div className="dashboard-page__panel-head">
+          <h2>Entraînement sélectionné</h2>
+        </div>
 
-          {selectedSummary ? (
-            <>
-              <div className="dashboard-page__featured-top">
-                <div className="dashboard-page__training-glyph">
-                  <TrainingLogoBadge size="lg" training={selectedSummary.training} />
-                </div>
-                <div className="dashboard-page__featured-copy">
-                  <strong>{selectedSummary.training.name}</strong>
-                  <span>{truncate(selectedSummary.training.description, 112)}</span>
-                </div>
+        {selectedSummary ? (
+          <>
+            <div className="dashboard-page__featured-top">
+              <div className="dashboard-page__training-glyph">
+                <TrainingLogoBadge size="lg" training={selectedSummary.training} />
               </div>
-
-              <div className="dashboard-page__progress-block">
-                <div className="dashboard-page__progress-line">
-                  <span style={{ width: `${selectedSummary.progressPercent}%` }} />
-                </div>
-                <strong>{selectedSummary.progressPercent}%</strong>
+              <div className="dashboard-page__featured-copy">
+                <strong>{selectedSummary.training.name}</strong>
+                <span>{truncate(selectedSummary.training.description, 112)}</span>
               </div>
+            </div>
 
-              <div className="dashboard-page__featured-stats">
-                {getFeaturedStats(selectedSummary).map((stat) => {
-                  const Icon = stat.icon;
-                  return (
-                    <div className="dashboard-page__featured-stat" key={stat.label}>
-                      <span className="dashboard-page__featured-stat-label">
-                        <span className="dashboard-page__featured-stat-icon"><Icon /></span>
-                        <span>{stat.label}</span>
-                      </span>
+            <div className="dashboard-page__progress-header">
+              <span>Progression du cycle</span>
+              <strong>{selectedSummary.progressPercent}%</strong>
+            </div>
+            <div className="dashboard-page__progress-line" style={getProgressStyle(selectedSummary.training)}>
+              <span style={{ width: `${selectedSummary.progressPercent}%` }} />
+            </div>
+
+            <div className="dashboard-page__featured-stats">
+              {getFeaturedStats(selectedSummary).map((stat) => {
+                const Icon = stat.icon;
+                return (
+                  <article className={`dashboard-page__featured-stat is-${stat.tone}`} key={stat.label}>
+                    <span className="dashboard-page__featured-stat-icon">
+                      <Icon aria-hidden="true" size={18} strokeWidth={1.9} />
+                    </span>
+                    <div className="dashboard-page__featured-stat-copy">
                       <strong>{stat.value}</strong>
+                      <span>{stat.label}</span>
                     </div>
-                  );
-                })}
-              </div>
+                  </article>
+                );
+              })}
+            </div>
 
-              <div className="dashboard-page__actions">
-                <button className="dashboard-page__action dashboard-page__action--primary" type="button" onClick={() => onOpenTraining(selectedSummary.training['@id'], 'detail')}>
-                  Continuer l'entraînement
-                </button>
-                <button className="dashboard-page__action" type="button" onClick={() => onOpenTraining(selectedSummary.training['@id'], 'detail')}>
-                  Voir le détail
-                </button>
-              </div>
-            </>
-          ) : (
-            <p className="wp-empty">Sélectionne ou crée un entraînement pour commencer.</p>
-          )}
-        </article>
-
-        <article className="dashboard-page__panel dashboard-page__panel--stats">
-          <div className="dashboard-page__panel-head">
-            <h2>Statistiques globales</h2>
-          </div>
-
-          <div className="dashboard-page__stats-list">
-            {globalRows.map((row) => {
-              const Icon = row.icon;
-              return (
-                <div className="dashboard-page__stats-row" key={row.label}>
-                  <div className="dashboard-page__stats-label">
-                    <span className="dashboard-page__stats-icon"><Icon /></span>
-                    <strong>{row.label}</strong>
-                  </div>
-                  <div className="dashboard-page__stats-value">{row.value}</div>
-                </div>
-              );
-            })}
-          </div>
-        </article>
+            <div className="dashboard-page__actions">
+              <button
+                className="dashboard-page__action dashboard-page__action--primary"
+                type="button"
+                onClick={() => onOpenTraining(selectedSummary.training['@id'], selectedSummary.hasResumableCycle ? 'solver' : 'detail')}
+              >
+                <Play aria-hidden="true" size={18} strokeWidth={2} />
+                <span>Continuer l'entraînement</span>
+              </button>
+              <button
+                className="dashboard-page__action"
+                type="button"
+                onClick={() => onOpenTraining(selectedSummary.training['@id'], 'detail')}
+              >
+                <Eye aria-hidden="true" size={18} strokeWidth={2} />
+                <span>Voir le détail</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="wp-empty">Sélectionne ou crée un entraînement pour commencer.</p>
+        )}
       </section>
 
       <section className="dashboard-page__panel dashboard-page__panel--list">
@@ -397,52 +315,32 @@ function DashboardOverviewView({
         ) : (
           <div className="dashboard-page__list">
             {visibleSummaries.map((summary) => (
-              <article className="dashboard-page__list-row" key={summary.training['@id']}>
-                <button className="dashboard-page__list-main" type="button" onClick={() => onOpenTraining(summary.training['@id'], 'detail')}>
+              <button
+                key={summary.training['@id']}
+                className="dashboard-page__list-row"
+                style={getProgressStyle(summary.training)}
+                type="button"
+                onClick={() => onOpenTraining(summary.training['@id'], 'detail')}
+              >
+                <span className="dashboard-page__list-start">
                   <span className="dashboard-page__list-glyph">
                     <TrainingLogoBadge size="sm" training={summary.training} />
                   </span>
                   <span className="dashboard-page__list-copy">
                     <strong>{summary.training.name}</strong>
-                    <small>{truncate(summary.training.description, 86)}</small>
+                    <small>{truncate(summary.training.description, 90)}</small>
                   </span>
-                </button>
+                </span>
 
-                <div className="dashboard-page__list-progress">
-                  <div className="dashboard-page__progress-line dashboard-page__progress-line--small">
+                <span className="dashboard-page__list-progress">
+                  <span className="dashboard-page__progress-line dashboard-page__progress-line--small">
                     <span style={{ width: `${summary.progressPercent}%` }} />
-                  </div>
+                  </span>
                   <strong>{summary.progressPercent}%</strong>
-                </div>
+                </span>
 
-                <div className="dashboard-page__list-end">
-                  <button
-                    aria-label={`Options pour ${summary.training.name}`}
-                    className="dashboard-page__menu-button"
-                    type="button"
-                    onClick={() => setOpenActionsTrainingIri((current) => current === summary.training['@id'] ? null : summary.training['@id'])}
-                  >
-                    <MoreIcon />
-                  </button>
-                  {openActionsTrainingIri === summary.training['@id'] ? (
-                    <div className="dashboard-page__menu">
-                      <button type="button" onClick={() => { setOpenActionsTrainingIri(null); onOpenTraining(summary.training['@id'], 'detail'); }}>
-                        Ouvrir
-                      </button>
-                      <button
-                        disabled={deleteTrainingMutation.isPending}
-                        type="button"
-                        onClick={() => {
-                          setOpenActionsTrainingIri(null);
-                          deleteTrainingMutation.mutate(summary.training['@id']);
-                        }}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </article>
+                <ChevronRight aria-hidden="true" className="dashboard-page__list-chevron" size={20} strokeWidth={2} />
+              </button>
             ))}
           </div>
         )}
@@ -452,7 +350,4 @@ function DashboardOverviewView({
 }
 
 export type { DashboardPageProps };
-export { DashboardOverviewView };
 export default DashboardOverviewView;
-
-

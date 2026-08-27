@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '../../shared/api/client';
+import { ApiError, apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import {
   getPreviewDashboardSummaries,
@@ -48,10 +48,21 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
   const dashboardSummariesQuery = useQuery({
     queryKey: ['training-dashboard', session.email, previewMode ? 'preview' : 'local'],
     enabled: uiState.activeView === 'dashboard',
-    queryFn: () =>
-      previewMode
-        ? Promise.resolve(getPreviewDashboardSummaries())
-        : Promise.resolve([] as TrainingDashboardSummary[]),
+    queryFn: async () => {
+      if (previewMode) {
+        return getPreviewDashboardSummaries();
+      }
+
+      try {
+        return await apiRequest<TrainingDashboardSummary[]>('/trainings/dashboard', { token: session.token });
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          return [];
+        }
+
+        throw error;
+      }
+    },
   });
 
   const statsOverviewQuery = useQuery({
@@ -108,7 +119,6 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
 
   const selectedTraining =
     trainingsQuery.data?.find((training) => training['@id'] === effectiveSelectedTrainingIri) ?? null;
-  const effectiveMistakeLimit = uiState.mistakeLimitOverride ?? selectedTraining?.mistakeLimit ?? 3;
   const needsTrainingOverview =
     uiState.activeView === 'detail' || uiState.activeView === 'import' || uiState.activeView === 'solver';
   const needsTrainingSummary = uiState.activeView === 'detail' || uiState.activeView === 'stats';
@@ -160,18 +170,9 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
   );
 
   const defaultCyclePuzzle =
-    activeCyclePuzzles.find(
-      (cyclePuzzle) =>
-        cyclePuzzle.status === 'pending' &&
-        !uiState.savedCyclePuzzleIris.has(cyclePuzzle['@id']) &&
-        !uiState.failedCyclePuzzleIris.has(cyclePuzzle['@id']),
-    ) ??
-    activeCyclePuzzles.find(
-      (cyclePuzzle) =>
-        cyclePuzzle.status !== 'solved' &&
-        !uiState.savedCyclePuzzleIris.has(cyclePuzzle['@id']) &&
-        (cyclePuzzle.status === 'failed' || uiState.failedCyclePuzzleIris.has(cyclePuzzle['@id'])),
-    ) ??
+    activeCyclePuzzles.find((cyclePuzzle) => cyclePuzzle.status === 'in_progress') ??
+    activeCyclePuzzles.find((cyclePuzzle) => cyclePuzzle.status === 'failed' && !(cyclePuzzle.hasSolvedAttempt ?? cyclePuzzle.finallySolved)) ??
+    activeCyclePuzzles.find((cyclePuzzle) => cyclePuzzle.status === 'pending') ??
     null;
 
   const effectiveSelectedTrainingPuzzleIri =
@@ -212,7 +213,9 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
       (cyclePuzzle) => cyclePuzzle.trainingPuzzle === selectedTrainingPuzzle?.['@id'],
     ) ?? null;
   const selectedCyclePuzzleIsSaved = selectedCyclePuzzle
-    ? selectedCyclePuzzle.status === 'solved' || uiState.savedCyclePuzzleIris.has(selectedCyclePuzzle['@id'])
+    ? selectedCyclePuzzle.status === 'solved' ||
+      (selectedCyclePuzzle.status === 'failed' && Boolean(selectedCyclePuzzle.hasSolvedAttempt ?? selectedCyclePuzzle.finallySolved)) ||
+      uiState.savedCyclePuzzleIris.has(selectedCyclePuzzle['@id'])
     : false;
 
   const cycleStats = buildCycleStats(
@@ -247,7 +250,6 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     dashboardSummariesQuery,
     effectiveActiveCycleIri,
     effectiveActiveTrainingSessionIri,
-    effectiveMistakeLimit,
     effectiveSelectedTrainingIri,
     hasResumableCycle,
     historyOverviewQuery,
@@ -271,4 +273,5 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     userSettingsOverviewQuery,
   };
 }
+
 

@@ -109,7 +109,7 @@ Frontend restart convention:
 docker compose restart frontend
 ```
 
-After every frontend change, restart the `frontend` container so the visible app reflects the latest UI and client-side code. This is especially useful while the project is still being shaped from the mockup in `maquette.png`.
+After every frontend change, restart the `frontend` container so the visible app reflects the latest UI and client-side code. This is especially useful while the project is still being aligned with the official references stored in `docs-redesign/`.
 
 Stop the containers:
 

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Attempt;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
 use App\Entity\Puzzle;
@@ -108,6 +109,29 @@ final class TrainingOverviewAction
      */
     private function normalizeCyclePuzzle(CyclePuzzle $cyclePuzzle): array
     {
+        $attempts = $cyclePuzzle->getAttempts()->toArray();
+        usort(
+            $attempts,
+            static fn (Attempt $left, Attempt $right) => [$left->getAttemptNumber(), $left->getId() ?? 0] <=> [$right->getAttemptNumber(), $right->getId() ?? 0],
+        );
+
+        $normalizedAttempts = array_map($this->normalizeAttempt(...), $attempts);
+        $activeAttempt = null;
+        $completedAttemptCount = 0;
+        $completedDurationMilliseconds = 0;
+        $hasSolvedAttempt = false;
+
+        foreach ($attempts as $attempt) {
+            if ('in_progress' === $attempt->getStatus()) {
+                $activeAttempt = $this->normalizeAttempt($attempt);
+                continue;
+            }
+
+            $completedAttemptCount += 1;
+            $completedDurationMilliseconds += $attempt->getDurationMilliseconds();
+            $hasSolvedAttempt = $hasSolvedAttempt || 'solved' === $attempt->getStatus();
+        }
+
         return [
             '@id' => $this->iri('cycle_puzzles', $cyclePuzzle->getId()),
             'id' => $cyclePuzzle->getId(),
@@ -115,6 +139,38 @@ final class TrainingOverviewAction
             'trainingPuzzle' => $this->iri('training_puzzles', $cyclePuzzle->getTrainingPuzzle()?->getId()),
             'position' => $cyclePuzzle->getPosition(),
             'status' => $cyclePuzzle->getStatus(),
+            'attemptCount' => $cyclePuzzle->getAttemptCount(),
+            'durationMilliseconds' => $cyclePuzzle->getDurationMilliseconds(),
+            'finallySolved' => $cyclePuzzle->isFinallySolved(),
+            'completedAt' => $this->formatDateTime($cyclePuzzle->getCompletedAt()),
+            'attempts' => $normalizedAttempts,
+            'activeAttempt' => $activeAttempt,
+            'completedAttemptCount' => $completedAttemptCount,
+            'completedDurationMilliseconds' => $completedDurationMilliseconds,
+            'hasSolvedAttempt' => $hasSolvedAttempt,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function normalizeAttempt(Attempt $attempt): array
+    {
+        return [
+            '@id' => $this->iri('attempts', $attempt->getId()),
+            'id' => $attempt->getId(),
+            'clientRequestId' => $attempt->getClientRequestId(),
+            'cyclePuzzle' => $this->iri('cycle_puzzles', $attempt->getCyclePuzzle()?->getId()),
+            'trainingSession' => $this->iri('training_sessions', $attempt->getTrainingSession()?->getId()),
+            'attemptNumber' => $attempt->getAttemptNumber(),
+            'status' => $attempt->getStatus(),
+            'playedMoves' => $attempt->getPlayedMoves(),
+            'successful' => $attempt->isSuccessful(),
+            'mistakesCount' => $attempt->getMistakesCount(),
+            'durationMilliseconds' => $attempt->getDurationMilliseconds(),
+            'startedAt' => $this->formatDateTime($attempt->getStartedAt()),
+            'completedAt' => $this->formatDateTime($attempt->getCompletedAt()),
+            'attemptedAt' => $this->formatDateTime($attempt->getAttemptedAt()),
         ];
     }
 

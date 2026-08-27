@@ -1,0 +1,14 @@
+:root {
+  --font-family-primary: "Inter", sans-serif;
+
+  --font-size-title-primary: 24px;
+  --font-size-title-section: 20px;
+  --font-size-subtitle: 18px;
+  --font-size-body: 16px;
+  --font-size-body-secondary: 14px;
+  --font-size-caption: 12px;
+
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}

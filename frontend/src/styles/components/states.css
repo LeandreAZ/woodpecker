@@ -1,0 +1,24 @@
+.ui-empty-state,
+.ui-loading-state {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-6);
+  background: var(--color-surface-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-large);
+}
+
+.ui-empty-state__title,
+.ui-loading-state__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-subtitle);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ui-empty-state__description,
+.ui-loading-state__description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

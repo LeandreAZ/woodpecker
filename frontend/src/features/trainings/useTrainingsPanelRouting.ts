@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { AppRoute } from '../../shared/routing/appRouter';
 import { normalizeRoute, routesEqual } from '../../shared/routing/appRouter';
 import type { Training, View } from './trainingsTypes';
@@ -13,7 +13,6 @@ type UseTrainingsPanelRoutingArgs = {
   setActiveTrainingSessionIri: (value: string | null) => void;
   setActiveView: (value: View) => void;
   setFailedCyclePuzzleIris: (value: Set<string>) => void;
-  setMistakeLimitOverride: (value: number | null) => void;
   setSavedCyclePuzzleIris: (value: Set<string>) => void;
   setSelectedTrainingIri: (value: string | null) => void;
   setSelectedTrainingPuzzleIri: (value: string | null) => void;
@@ -31,7 +30,6 @@ function useTrainingsPanelRouting({
   setActiveTrainingSessionIri,
   setActiveView,
   setFailedCyclePuzzleIris,
-  setMistakeLimitOverride,
   setSavedCyclePuzzleIris,
   setSelectedTrainingIri,
   setSelectedTrainingPuzzleIri,
@@ -40,8 +38,17 @@ function useTrainingsPanelRouting({
 }: UseTrainingsPanelRoutingArgs) {
   const targetView = viewFromRoute(route);
   const desiredRoute = normalizeRoute(buildRouteFromState(activeView, selectedTraining));
+  const routeKey = buildPathKey(route);
+  const previousRouteKeyRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
+    const routeDidChange = previousRouteKeyRef.current !== routeKey;
+    previousRouteKeyRef.current = routeKey;
+
+    if (!routeDidChange) {
+      return;
+    }
+
     const routeTrainingId = getRouteTrainingId(route);
 
     if (activeView !== targetView) {
@@ -64,16 +71,15 @@ function useTrainingsPanelRouting({
     setActiveTrainingSessionIri(null);
     setSavedCyclePuzzleIris(new Set());
     setFailedCyclePuzzleIris(new Set());
-    setMistakeLimitOverride(null);
   }, [
     activeView,
     effectiveSelectedTrainingIri,
     route,
+    routeKey,
     setActiveCycleIri,
     setActiveTrainingSessionIri,
     setActiveView,
     setFailedCyclePuzzleIris,
-    setMistakeLimitOverride,
     setSavedCyclePuzzleIris,
     setSelectedTrainingIri,
     setSelectedTrainingPuzzleIri,
@@ -146,6 +152,8 @@ function viewFromRoute(route: AppRoute): View {
       return 'solver';
     case 'training-detail':
       return 'detail';
+    case 'training-edit':
+      return 'edit';
     case 'stats-overview':
       return 'stats';
     case 'history-detail':
@@ -173,6 +181,8 @@ function buildRouteFromState(activeView: View, selectedTraining: Training | null
       return { name: 'training-solver', trainingId };
     case 'detail':
       return { name: 'training-detail', trainingId };
+    case 'edit':
+      return { name: 'training-edit', trainingId };
     case 'stats':
       return { name: 'stats-overview' };
     case 'history':
@@ -180,6 +190,10 @@ function buildRouteFromState(activeView: View, selectedTraining: Training | null
     case 'settings':
       return { name: 'user-settings' };
   }
+}
+
+function buildPathKey(route: AppRoute): string {
+  return JSON.stringify(normalizeRoute(route));
 }
 
 function getRouteTrainingId(route: AppRoute): number | undefined {
@@ -192,3 +206,5 @@ function getRouteTrainingId(route: AppRoute): number | undefined {
 
 export { useTrainingsPanelRouting };
 export default useTrainingsPanelRouting;
+
+

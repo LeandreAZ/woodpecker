@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AuthPage } from './features/auth/AuthPage';
-import { ComparePage } from './features/compare/ComparePage';
 import { loadStoredSession, saveStoredSession, type AuthSession } from './features/auth/authStorage';
 import { TrainingsPanel } from './features/trainings/TrainingsPanel';
 import { previewSession } from './features/trainings/previewData';
@@ -10,10 +9,6 @@ import { unauthorizedEventName } from './shared/api/client';
 function getPreviewSessionFromLocation(): AuthSession | null {
   const params = new URLSearchParams(window.location.search);
   return params.get('preview') === '1' ? previewSession : null;
-}
-
-function isCompareRoute(routeName: string) {
-  return routeName.startsWith('compare-');
 }
 
 function isExpiredPreviewRequested(): boolean {
@@ -48,10 +43,6 @@ const App = () => {
         return;
       }
 
-      if (isCompareRoute(route.name)) {
-        return;
-      }
-
       saveStoredSession(null);
       setSession(null);
       setSessionMessage('Reconnecte-toi pour continuer ton entraînement.');
@@ -63,9 +54,6 @@ const App = () => {
   }, [navigate, route.name]);
 
   useEffect(() => {
-    if (isCompareRoute(route.name)) {
-      return;
-    }
 
     const preview = getPreviewSessionFromLocation();
 
@@ -112,10 +100,6 @@ const App = () => {
     setSession(null);
     setSessionMessage(null);
     navigate({ name: 'auth' }, { replace: true });
-  }
-
-  if (isCompareRoute(route.name)) {
-    return <ComparePage route={route as never} />;
   }
 
   if (session) {

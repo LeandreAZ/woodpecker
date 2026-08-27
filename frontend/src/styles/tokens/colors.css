@@ -1,0 +1,30 @@
+:root {
+  /* Background */
+  --color-background: #0A1222;
+
+  /* Surfaces */
+  --color-surface-primary: #0F1A2E;
+  --color-surface-hover: #14233B;
+
+  /* Borders */
+  --color-border-default: #1E2F4D;
+  --color-border-hover: #29446D;
+
+  /* Primary */
+  --color-primary: #3B82F6;
+  --color-primary-hover: #60A5FA;
+  --color-primary-active: #2563EB;
+
+  /* Semantic */
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #06B6D4;
+  --color-violet: #8B5CF6;
+
+  /* Text */
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #BAC6D9;
+  --color-text-tertiary: #94A3B8;
+  --color-text-disabled: #64748B;
+}

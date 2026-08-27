@@ -26,7 +26,6 @@ function TrainingsPanelView({ session, onLogout, onNavigate, route }: TrainingsP
     setActiveTrainingSessionIri: state.setActiveTrainingSessionIri,
     setActiveView: state.setActiveView,
     setFailedCyclePuzzleIris: state.setFailedCyclePuzzleIris,
-    setMistakeLimitOverride: state.setMistakeLimitOverride,
     setSavedCyclePuzzleIris: state.setSavedCyclePuzzleIris,
     setSelectedTrainingIri: state.setSelectedTrainingIri,
     setSelectedTrainingPuzzleIri: state.setSelectedTrainingPuzzleIri,
@@ -36,13 +35,10 @@ function TrainingsPanelView({ session, onLogout, onNavigate, route }: TrainingsP
 
   return (
     <TrainingsAppShell
-      activeView={state.activeView}
-      currentCycleStatusLabel={state.currentCycleStatusLabel}
       onLogout={onLogout}
       onNavigateToView={navigateToView}
       route={route}
       selectedTraining={state.selectedTraining}
-      session={session}
     >
       <TrainingsPanelContentScreen
         navigateToPuzzleSolver={navigateToPuzzleSolver}
@@ -66,6 +62,8 @@ function viewFromRoute(route: AppRoute): View {
       return 'solver';
     case 'training-detail':
       return 'detail';
+    case 'training-edit':
+      return 'edit';
     case 'stats-overview':
       return 'stats';
     case 'history-detail':
@@ -82,6 +80,10 @@ function viewFromRoute(route: AppRoute): View {
 export type { TrainingsPanelProps };
 export { TrainingsPanelView };
 export default TrainingsPanelView;
+
+
+
+
 
 
 

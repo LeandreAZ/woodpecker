@@ -8,6 +8,9 @@ const trainingOne: Training = {
   '@id': '/api/trainings/1',
   createdAt: '2026-08-06T18:10:00+00:00',
   description: 'Premier set',
+  icon: 'queen',
+  iconBackgroundColor: '#7C5CFF',
+  iconColor: '#FFFFFF',
   id: 1,
   mistakeLimit: 3,
   name: 'Mate en 2',
@@ -18,6 +21,9 @@ const trainingTwo: Training = {
   '@id': '/api/trainings/2',
   createdAt: '2026-08-07T18:10:00+00:00',
   description: 'Deuxieme set',
+  icon: 'rook',
+  iconBackgroundColor: '#2563EB',
+  iconColor: '#FFFFFF',
   id: 2,
   mistakeLimit: 3,
   name: 'Tactiques mixtes',
@@ -35,7 +41,6 @@ type RoutingHarnessProps = {
   setActiveTrainingSessionIri?: (value: string | null) => void;
   setActiveView?: (value: View) => void;
   setFailedCyclePuzzleIris?: (value: Set<string>) => void;
-  setMistakeLimitOverride?: (value: number | null) => void;
   setSavedCyclePuzzleIris?: (value: Set<string>) => void;
   setSelectedTrainingIri?: (value: string | null) => void;
   setSelectedTrainingPuzzleIri?: (value: string | null) => void;
@@ -53,7 +58,6 @@ function RoutingHarness({
   setActiveTrainingSessionIri = vi.fn(),
   setActiveView = vi.fn(),
   setFailedCyclePuzzleIris = vi.fn(),
-  setMistakeLimitOverride = vi.fn(),
   setSavedCyclePuzzleIris = vi.fn(),
   setSelectedTrainingIri = vi.fn(),
   setSelectedTrainingPuzzleIri = vi.fn(),
@@ -69,7 +73,6 @@ function RoutingHarness({
     setActiveTrainingSessionIri,
     setActiveView,
     setFailedCyclePuzzleIris,
-    setMistakeLimitOverride,
     setSavedCyclePuzzleIris,
     setSelectedTrainingIri,
     setSelectedTrainingPuzzleIri,
@@ -145,7 +148,6 @@ describe('useTrainingsPanelRouting', () => {
     const setActiveTrainingSessionIri = vi.fn();
     const setSavedCyclePuzzleIris = vi.fn();
     const setFailedCyclePuzzleIris = vi.fn();
-    const setMistakeLimitOverride = vi.fn();
 
     render(
       <RoutingHarness
@@ -156,7 +158,6 @@ describe('useTrainingsPanelRouting', () => {
         setActiveCycleIri={setActiveCycleIri}
         setActiveTrainingSessionIri={setActiveTrainingSessionIri}
         setFailedCyclePuzzleIris={setFailedCyclePuzzleIris}
-        setMistakeLimitOverride={setMistakeLimitOverride}
         setSavedCyclePuzzleIris={setSavedCyclePuzzleIris}
         setSelectedTrainingIri={setSelectedTrainingIri}
         setSelectedTrainingPuzzleIri={setSelectedTrainingPuzzleIri}
@@ -171,7 +172,6 @@ describe('useTrainingsPanelRouting', () => {
       expect(setActiveTrainingSessionIri).toHaveBeenCalledWith(null);
       expect(setSavedCyclePuzzleIris).toHaveBeenCalledWith(new Set());
       expect(setFailedCyclePuzzleIris).toHaveBeenCalledWith(new Set());
-      expect(setMistakeLimitOverride).toHaveBeenCalledWith(null);
     });
   });
 

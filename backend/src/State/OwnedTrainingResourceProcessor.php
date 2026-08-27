@@ -10,10 +10,12 @@ use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
 use App\Entity\TrainingPuzzle;
 use App\Entity\User;
-use App\Repository\AttemptRepository;
+use App\Enum\CyclePuzzleStatus;
 use App\Repository\CycleRepository;
 use App\Security\TrainingOwnershipChecker;
 use App\Service\CycleCompletionService;
+use App\Service\SolverAttemptLifecycleService;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -28,9 +30,10 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         private readonly ProcessorInterface $removeProcessor,
         private readonly Security $security,
         private readonly TrainingOwnershipChecker $ownershipChecker,
-        private readonly AttemptRepository $attemptRepository,
         private readonly CycleRepository $cycleRepository,
         private readonly CycleCompletionService $cycleCompletionService,
+        private readonly SolverAttemptLifecycleService $solverAttemptLifecycleService,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -52,31 +55,17 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
             return $this->removeProcessor->process($data, $operation, $uriVariables, $context);
         }
 
-        $this->preventDuplicateSuccessfulAttempt($data);
+        if ($data instanceof Attempt) {
+            return $this->solverAttemptLifecycleService->persistAttempt($data);
+        }
+
         $this->preventDuplicateActiveCycle($data);
+        $this->normalizeCyclePuzzleProgress($data);
 
         $result = $this->persistProcessor->process($data, $operation, $uriVariables, $context);
-
         $this->completeCycleIfReady($data);
 
         return $result;
-    }
-
-    private function preventDuplicateSuccessfulAttempt(mixed $data): void
-    {
-        if (!$data instanceof Attempt || !$data->isSuccessful()) {
-            return;
-        }
-
-        $cyclePuzzle = $data->getCyclePuzzle();
-
-        if (null === $cyclePuzzle) {
-            return;
-        }
-
-        if ($this->attemptRepository->hasSuccessfulAttemptForCyclePuzzle($cyclePuzzle)) {
-            throw new ConflictHttpException('This cycle puzzle already has a successful attempt.');
-        }
     }
 
     private function preventDuplicateActiveCycle(mixed $data): void
@@ -110,6 +99,57 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
 
         if ($this->cycleRepository->hasCycleForTraining($training)) {
             throw new ConflictHttpException('This training puzzle list is locked because a cycle already exists.');
+        }
+    }
+
+    private function normalizeCyclePuzzleProgress(mixed $data): void
+    {
+        if (!$data instanceof CyclePuzzle || null === $data->getId()) {
+            return;
+        }
+
+        $originalData = $this->entityManager->getUnitOfWork()->getOriginalEntityData($data);
+        if ([] === $originalData) {
+            return;
+        }
+
+        $originalStatus = ($originalData['status'] ?? null) instanceof CyclePuzzleStatus
+            ? $originalData['status']->value
+            : (is_string($originalData['status'] ?? null) ? $originalData['status'] : $data->getStatus());
+        $originalAttemptCount = (int) ($originalData['attemptCount'] ?? $data->getAttemptCount());
+        $originalDurationMilliseconds = (int) ($originalData['durationMilliseconds'] ?? $data->getDurationMilliseconds());
+        $originalFinallySolved = (bool) ($originalData['finallySolved'] ?? $data->isFinallySolved());
+        $originalCompletedAt = $originalData['completedAt'] ?? $data->getCompletedAt();
+        $originalIsFrozen = 'solved' === $originalStatus || ('failed' === $originalStatus && $originalFinallySolved);
+
+        $data->setAttemptCount(max($originalAttemptCount, $data->getAttemptCount()));
+        $data->setDurationMilliseconds(max($originalDurationMilliseconds, $data->getDurationMilliseconds()));
+
+        if ($originalIsFrozen) {
+            $data->setStatus($originalStatus);
+            $data->setFinallySolved($originalFinallySolved);
+            $data->setCompletedAt($originalCompletedAt);
+
+            return;
+        }
+
+        if ('failed' === $originalStatus && 'failed' !== $data->getStatus()) {
+            $data->setStatus('failed');
+        }
+
+        if ('in_progress' === $originalStatus && 'pending' === $data->getStatus()) {
+            $data->setStatus('in_progress');
+        }
+
+        if ('solved' === $data->getStatus()) {
+            $data->setFinallySolved(true);
+            $data->setCompletedAt($data->getCompletedAt() ?? new \DateTimeImmutable());
+
+            return;
+        }
+
+        if ('failed' !== $data->getStatus() || !$data->isFinallySolved()) {
+            $data->setCompletedAt(null);
         }
     }
 
