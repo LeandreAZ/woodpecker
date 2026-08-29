@@ -11,6 +11,7 @@ use App\Entity\CyclePuzzle;
 use App\Entity\TrainingPuzzle;
 use App\Entity\User;
 use App\Enum\CyclePuzzleStatus;
+use App\Repository\AttemptRepository;
 use App\Repository\CycleRepository;
 use App\Security\TrainingOwnershipChecker;
 use App\Service\CycleCompletionService;
@@ -34,6 +35,7 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         private readonly CycleCompletionService $cycleCompletionService,
         private readonly SolverAttemptLifecycleService $solverAttemptLifecycleService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly AttemptRepository $attemptRepository,
     ) {
     }
 
@@ -116,18 +118,15 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         $originalStatus = ($originalData['status'] ?? null) instanceof CyclePuzzleStatus
             ? $originalData['status']->value
             : (is_string($originalData['status'] ?? null) ? $originalData['status'] : $data->getStatus());
-        $originalAttemptCount = (int) ($originalData['attemptCount'] ?? $data->getAttemptCount());
         $originalDurationMilliseconds = (int) ($originalData['durationMilliseconds'] ?? $data->getDurationMilliseconds());
-        $originalFinallySolved = (bool) ($originalData['finallySolved'] ?? $data->isFinallySolved());
         $originalCompletedAt = $originalData['completedAt'] ?? $data->getCompletedAt();
-        $originalIsFrozen = 'solved' === $originalStatus || ('failed' === $originalStatus && $originalFinallySolved);
+        $originalIsFrozen = 'solved' === $originalStatus
+            || ('failed' === $originalStatus && $this->attemptRepository->hasSolvedAttemptForCyclePuzzle($data));
 
-        $data->setAttemptCount(max($originalAttemptCount, $data->getAttemptCount()));
         $data->setDurationMilliseconds(max($originalDurationMilliseconds, $data->getDurationMilliseconds()));
 
         if ($originalIsFrozen) {
             $data->setStatus($originalStatus);
-            $data->setFinallySolved($originalFinallySolved);
             $data->setCompletedAt($originalCompletedAt);
 
             return;
@@ -142,13 +141,12 @@ final class OwnedTrainingResourceProcessor implements ProcessorInterface
         }
 
         if ('solved' === $data->getStatus()) {
-            $data->setFinallySolved(true);
             $data->setCompletedAt($data->getCompletedAt() ?? new \DateTimeImmutable());
 
             return;
         }
 
-        if ('failed' !== $data->getStatus() || !$data->isFinallySolved()) {
+        if ('failed' !== $data->getStatus()) {
             $data->setCompletedAt(null);
         }
     }

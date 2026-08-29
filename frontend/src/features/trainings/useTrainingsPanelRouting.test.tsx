@@ -1,5 +1,14 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+
+const { flushSolverNavigationSnapshot } = vi.hoisted(() => ({
+  flushSolverNavigationSnapshot: vi.fn(),
+}));
+
+vi.mock('./solverPersistence', () => ({
+  flushSolverNavigationSnapshot,
+}));
+
 import { useTrainingsPanelRouting } from './useTrainingsPanelRouting';
 import type { Training, View } from './trainingsTypes';
 import type { AppRoute } from '../../shared/routing/appRouter';
@@ -202,6 +211,7 @@ describe('useTrainingsPanelRouting', () => {
       actions?.navigateToView('history');
     });
 
+    expect(flushSolverNavigationSnapshot).toHaveBeenCalledTimes(1);
     expect(setActiveView).toHaveBeenCalledWith('history');
     expect(onNavigate).toHaveBeenCalledWith({ name: 'history-detail' });
   });
@@ -232,6 +242,7 @@ describe('useTrainingsPanelRouting', () => {
       actions?.navigateToTraining('/api/trainings/2', openTraining, 'solver');
     });
 
+    expect(flushSolverNavigationSnapshot).toHaveBeenCalled();
     expect(openTraining).toHaveBeenCalledWith('/api/trainings/2', 'solver');
     expect(onNavigate).toHaveBeenCalledWith({ name: 'training-solver', trainingId: 2 });
   });
@@ -265,6 +276,7 @@ describe('useTrainingsPanelRouting', () => {
       actions?.navigateToPuzzleSolver('/api/training_puzzles/7');
     });
 
+    expect(flushSolverNavigationSnapshot).toHaveBeenCalled();
     expect(setSelectedTrainingPuzzleIri).toHaveBeenCalledWith('/api/training_puzzles/7');
     expect(setActiveView).toHaveBeenCalledWith('solver');
     expect(onNavigate).toHaveBeenCalledWith({ name: 'training-solver', trainingId: 1 });

@@ -274,6 +274,68 @@ describe('DetailView', () => {
     expect(onImport).toHaveBeenCalledTimes(1);
   });
 
+
+  it('n ouvre plus le solver depuis un simple historique sans cycle actif', () => {
+    const onOpenSolver = vi.fn();
+    const onPuzzleSelect = vi.fn();
+    const completedCycle: Cycle = {
+      ...currentCycle,
+      '@id': '/api/cycles/9',
+      completedAt: '2026-08-19T09:00:00+00:00',
+      id: 9,
+      number: 3,
+      status: 'completed',
+    };
+
+    renderDetailView({
+      analytics,
+      currentCycle: null,
+      cyclePuzzles: [],
+      cycleStats: cycleStatsStarted,
+      cycleStatusLabel: 'Terminé',
+      hasResumableCycle: false,
+      onOpenSolver,
+      onPuzzleSelect,
+      puzzleCount: 30,
+      summary: {
+        ...summaryStarted,
+        latestCycleSummary: {
+          attemptCount: 24,
+          averageAttempts: 1.4,
+          cycle: completedCycle,
+          failed: 3,
+          pending: 9,
+          progressPercent: 68,
+          solved: 18,
+          successRate: 75,
+          total: 30,
+        },
+        cycleSummaries: [
+          {
+            attemptCount: 24,
+            averageAttempts: 1.4,
+            cycle: completedCycle,
+            failed: 3,
+            pending: 9,
+            progressPercent: 68,
+            solved: 18,
+            successRate: 75,
+            total: 30,
+          },
+        ],
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: 'Ouvrir le solveur' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Démarrer un nouveau cycle' })).toBeInTheDocument();
+    expect(screen.getByText("Aucun cycle actif n'est disponible.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Accéder au problème 1'));
+
+    expect(onOpenSolver).not.toHaveBeenCalled();
+    expect(onPuzzleSelect).not.toHaveBeenCalled();
+  });
+
   it('affiche l etat cycle demarre avec solveur, statut, historique et tentatives', () => {
     const onOpenSolver = vi.fn();
 

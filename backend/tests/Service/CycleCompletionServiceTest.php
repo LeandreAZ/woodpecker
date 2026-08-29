@@ -7,6 +7,7 @@ namespace App\Tests\Service;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
 use App\Enum\CycleStatus;
+use App\Repository\AttemptRepository;
 use App\Repository\CyclePuzzleRepository;
 use App\Service\CycleCompletionService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,14 +17,16 @@ use PHPUnit\Framework\TestCase;
 final class CycleCompletionServiceTest extends TestCase
 {
     private CyclePuzzleRepository&MockObject $cyclePuzzleRepository;
+    private AttemptRepository&MockObject $attemptRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private CycleCompletionService $service;
 
     protected function setUp(): void
     {
         $this->cyclePuzzleRepository = $this->createMock(CyclePuzzleRepository::class);
+        $this->attemptRepository = $this->createMock(AttemptRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->service = new CycleCompletionService($this->cyclePuzzleRepository, $this->entityManager);
+        $this->service = new CycleCompletionService($this->cyclePuzzleRepository, $this->attemptRepository, $this->entityManager);
     }
 
     public function testItClearsCompletedAtForPendingPuzzleWithoutPersistedCycle(): void
@@ -34,7 +37,8 @@ final class CycleCompletionServiceTest extends TestCase
             ->setStatus('pending')
             ->setCompletedAt(new \DateTimeImmutable('-1 hour'));
 
-        $this->cyclePuzzleRepository->expects(self::never())->method('hasPendingCyclePuzzleForCycle');
+        $this->attemptRepository->expects(self::once())->method('hasSolvedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(false);
+        $this->cyclePuzzleRepository->expects(self::never())->method('hasIncompleteCyclePuzzleForCycle');
         $this->entityManager->expects(self::once())->method('flush');
 
         self::assertFalse($this->service->synchronizeCyclePuzzleState($cyclePuzzle));
@@ -48,7 +52,8 @@ final class CycleCompletionServiceTest extends TestCase
             ->setPosition(0)
             ->setStatus('pending');
 
-        $this->cyclePuzzleRepository->expects(self::never())->method('hasPendingCyclePuzzleForCycle');
+        $this->attemptRepository->expects(self::once())->method('hasSolvedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(false);
+        $this->cyclePuzzleRepository->expects(self::never())->method('hasIncompleteCyclePuzzleForCycle');
         $this->entityManager->expects(self::never())->method('flush');
 
         self::assertFalse($this->service->synchronizeCyclePuzzleState($cyclePuzzle));
@@ -68,9 +73,10 @@ final class CycleCompletionServiceTest extends TestCase
             ->setPosition(0)
             ->setStatus('solved');
 
+        $this->attemptRepository->expects(self::once())->method('hasSolvedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(true);
         $this->cyclePuzzleRepository
             ->expects(self::once())
-            ->method('hasPendingCyclePuzzleForCycle')
+            ->method('hasIncompleteCyclePuzzleForCycle')
             ->with(10)
             ->willReturn(false);
         $this->entityManager->expects(self::once())->method('flush');
@@ -93,15 +99,16 @@ final class CycleCompletionServiceTest extends TestCase
             ->setPosition(0)
             ->setStatus('failed');
 
+        $this->attemptRepository->expects(self::once())->method('hasSolvedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(false);
         $this->cyclePuzzleRepository
             ->expects(self::once())
-            ->method('hasPendingCyclePuzzleForCycle')
+            ->method('hasIncompleteCyclePuzzleForCycle')
             ->with(20)
             ->willReturn(true);
-        $this->entityManager->expects(self::once())->method('flush');
+        $this->entityManager->expects(self::never())->method('flush');
 
         self::assertFalse($this->service->synchronizeCyclePuzzleState($cyclePuzzle));
-        self::assertNotNull($cyclePuzzle->getCompletedAt());
+        self::assertNull($cyclePuzzle->getCompletedAt());
         self::assertSame(CycleStatus::Active->value, $cycle->getStatus());
         self::assertNull($cycle->getCompletedAt());
     }
@@ -120,7 +127,8 @@ final class CycleCompletionServiceTest extends TestCase
             ->setPosition(0)
             ->setStatus('solved');
 
-        $this->cyclePuzzleRepository->expects(self::never())->method('hasPendingCyclePuzzleForCycle');
+        $this->attemptRepository->expects(self::once())->method('hasSolvedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(true);
+        $this->cyclePuzzleRepository->expects(self::never())->method('hasIncompleteCyclePuzzleForCycle');
         $this->entityManager->expects(self::once())->method('flush');
 
         self::assertFalse($this->service->synchronizeCyclePuzzleState($cyclePuzzle));
@@ -143,9 +151,10 @@ final class CycleCompletionServiceTest extends TestCase
             ->setPosition(0)
             ->setStatus('solved');
 
+        $this->attemptRepository->expects(self::once())->method('hasSolvedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(true);
         $this->cyclePuzzleRepository
             ->expects(self::once())
-            ->method('hasPendingCyclePuzzleForCycle')
+            ->method('hasIncompleteCyclePuzzleForCycle')
             ->with(40)
             ->willReturn(false);
         $this->entityManager->expects(self::once())->method('flush');

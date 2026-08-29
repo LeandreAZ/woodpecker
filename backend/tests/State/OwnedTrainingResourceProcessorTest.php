@@ -20,6 +20,7 @@ use App\Repository\CyclePuzzleRepository;
 use App\Repository\CycleRepository;
 use App\Security\TrainingOwnershipChecker;
 use App\Service\CycleCompletionService;
+use App\Service\SolverAttemptLifecycleService;
 use App\State\OwnedTrainingResourceProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -39,6 +40,7 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
     private CyclePuzzleRepository&MockObject $cyclePuzzleRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private CycleCompletionService $cycleCompletionService;
+    private SolverAttemptLifecycleService $solverAttemptLifecycleService;
     private OwnedTrainingResourceProcessor $processor;
     private User $user;
 
@@ -52,16 +54,19 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
         $this->cycleRepository = $this->createMock(CycleRepository::class);
         $this->cyclePuzzleRepository = $this->createMock(CyclePuzzleRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->cycleCompletionService = new CycleCompletionService($this->cyclePuzzleRepository, $this->entityManager);
+        $this->cycleCompletionService = new CycleCompletionService($this->cyclePuzzleRepository, $this->attemptRepository, $this->entityManager);
+        $this->solverAttemptLifecycleService = new SolverAttemptLifecycleService($this->attemptRepository, $this->entityManager, $this->cycleCompletionService);
 
         $this->processor = new OwnedTrainingResourceProcessor(
             $this->persistProcessor,
             $this->removeProcessor,
             $this->security,
             $this->ownershipChecker,
-            $this->attemptRepository,
             $this->cycleRepository,
             $this->cycleCompletionService,
+            $this->solverAttemptLifecycleService,
+            $this->entityManager,
+            $this->attemptRepository,
         );
 
         $this->user = (new User())->setEmail('owner@example.com');
@@ -80,9 +85,11 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
             $this->removeProcessor,
             $anonymousSecurity,
             $this->ownershipChecker,
-            $this->attemptRepository,
             $this->cycleRepository,
             $this->cycleCompletionService,
+            $this->solverAttemptLifecycleService,
+            $this->entityManager,
+            $this->attemptRepository,
         );
         $this->persistProcessor->expects(self::never())->method('process');
 
@@ -120,7 +127,7 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
         $this->processor->process($cyclePuzzle, new Post());
     }
 
-    public function testItRejectsDuplicateSuccessfulAttempt(): void
+    public function testItRejectsAttemptWhenCyclePuzzleIsAlreadyFrozen(): void
     {
         $training = $this->createTraining();
         $cycle = (new Cycle())
@@ -135,7 +142,8 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
         $cyclePuzzle = (new CyclePuzzle())
             ->setCycle($cycle)
             ->setTrainingPuzzle($trainingPuzzle)
-            ->setPosition(0);
+            ->setPosition(0)
+            ->setStatus('solved');
         $trainingSession = (new TrainingSession())
             ->setTraining($training)
             ->setCycle($cycle);
@@ -145,14 +153,10 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
             ->setTrainingSession($trainingSession)
             ->setSuccessful(true);
 
-        $this->attemptRepository
-            ->expects(self::once())
-            ->method('hasSuccessfulAttemptForCyclePuzzle')
-            ->with($cyclePuzzle)
-            ->willReturn(true);
+        $this->entityManager->expects(self::never())->method('persist');
 
         $this->expectException(ConflictHttpException::class);
-        $this->expectExceptionMessage('already has a successful attempt');
+        $this->expectExceptionMessage('already frozen');
 
         $this->processor->process($attempt, new Post());
     }
@@ -179,14 +183,16 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
             ->setTrainingSession($trainingSession)
             ->setSuccessful(false);
 
-        $this->attemptRepository->expects(self::never())->method('hasSuccessfulAttemptForCyclePuzzle');
-        $this->persistProcessor
-            ->expects(self::once())
-            ->method('process')
-            ->with($attempt, self::isInstanceOf(Post::class), [], [])
-            ->willReturn($attempt);
+        $this->persistProcessor->expects(self::never())->method('process');
+        $this->attemptRepository->expects(self::exactly(2))->method('hasSolvedAttemptForCyclePuzzle')->willReturn(false);
+        $this->attemptRepository->expects(self::once())->method('hasFailedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(true);
+        $this->attemptRepository->expects(self::once())->method('findActiveAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(null);
+        $this->attemptRepository->expects(self::once())->method('sumDurationsForCyclePuzzle')->with($cyclePuzzle)->willReturn(0);
+        $this->entityManager->expects(self::once())->method('persist')->with($attempt);
+        $this->entityManager->expects(self::exactly(2))->method('flush');
 
         self::assertSame($attempt, $this->processor->process($attempt, new Post()));
+        self::assertSame('failed', $cyclePuzzle->getStatus());
     }
 
     public function testItRejectsSecondActiveCycleForSameTraining(): void
@@ -227,7 +233,6 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
         self::assertSame($cycle, $this->processor->process($cycle, new Post()));
     }
 
-
     public function testItRejectsActiveCycleWithoutOwnedTraining(): void
     {
         $cycle = (new Cycle())
@@ -261,7 +266,6 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
 
         $this->processor->process($trainingPuzzle, new Post());
     }
-
 
     public function testItRejectsTrainingPuzzleWithoutOwnedTraining(): void
     {
@@ -300,9 +304,10 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
             ->method('process')
             ->with($cyclePuzzle, self::isInstanceOf(Post::class), [], [])
             ->willReturn($cyclePuzzle);
+        $this->attemptRepository->expects(self::once())->method('hasSolvedAttemptForCyclePuzzle')->with($cyclePuzzle)->willReturn(true);
         $this->cyclePuzzleRepository
             ->expects(self::once())
-            ->method('hasPendingCyclePuzzleForCycle')
+            ->method('hasIncompleteCyclePuzzleForCycle')
             ->with(22)
             ->willReturn(false);
         $this->entityManager->expects(self::once())->method('flush');
@@ -344,4 +349,3 @@ final class OwnedTrainingResourceProcessorTest extends TestCase
         $property->setValue($entity, $id);
     }
 }
-

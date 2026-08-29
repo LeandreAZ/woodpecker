@@ -1,0 +1,479 @@
+.wp-page.wp-training-history-page {
+  display: grid;
+  gap: 22px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-header {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-header h1 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(2.4rem, 3.9vw, 3.5rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-header p,
+.wp-page.wp-training-history-page .wp-training-history-meta,
+.wp-page.wp-training-history-page .wp-training-history-filter span,
+.wp-page.wp-training-history-page .wp-training-history-page-size small,
+.wp-page.wp-training-history-page .wp-training-history-activity-cell span,
+.wp-page.wp-training-history-page .wp-training-history-state,
+.wp-page.wp-training-history-page .wp-training-history-pagination__ellipsis,
+.wp-page.wp-training-history-page .wp-training-history-card__meta-line,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-detail,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-datetime {
+  color: #bac6d9;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search,
+.wp-page.wp-training-history-page .wp-training-history-filter select,
+.wp-page.wp-training-history-page .wp-training-history-page-size select,
+.wp-page.wp-training-history-page .wp-training-history-reset,
+.wp-page.wp-training-history-page .wp-training-history-pagination button,
+.wp-page.wp-training-history-page .wp-training-history-search__clear,
+.wp-page.wp-training-history-page .wp-training-history-chip {
+  border: 1px solid #1e2f4d;
+  border-radius: 12px;
+  background: #0f1a2e;
+  color: #f8fafc;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search,
+.wp-page.wp-training-history-page .wp-training-history-table-wrap,
+.wp-page.wp-training-history-page .wp-training-history-card,
+.wp-page.wp-training-history-page .wp-training-history-state {
+  background: #0f1a2e;
+  border: 1px solid #1e2f4d;
+  border-radius: 18px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 0 18px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search svg {
+  color: #94a3b8;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search input::placeholder {
+  color: #94a3b8;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search__clear {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-search:focus-within,
+.wp-page.wp-training-history-page .wp-training-history-filter select:focus,
+.wp-page.wp-training-history-page .wp-training-history-page-size select:focus,
+.wp-page.wp-training-history-page .wp-training-history-reset:focus,
+.wp-page.wp-training-history-page .wp-training-history-pagination button:focus,
+.wp-page.wp-training-history-page .wp-training-history-search__clear:focus,
+.wp-page.wp-training-history-page .wp-training-history-chip:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.wp-page.wp-training-history-page .wp-training-history-filters-wrap {
+  display: grid;
+  gap: 14px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-filter {
+  display: grid;
+  gap: 8px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-filter span {
+  font-size: 0.84rem;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-filter select,
+.wp-page.wp-training-history-page .wp-training-history-page-size select {
+  min-height: 54px;
+  padding: 0 16px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-reset,
+.wp-page.wp-training-history-page .wp-training-history-pagination button,
+.wp-page.wp-training-history-page .wp-training-history-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 0 18px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-reset:hover,
+.wp-page.wp-training-history-page .wp-training-history-pagination button:hover:not(:disabled),
+.wp-page.wp-training-history-page .wp-training-history-chip:hover,
+.wp-page.wp-training-history-page .wp-training-history-search__clear:hover {
+  border-color: #3b82f6;
+  background: #13233d;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-chip {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #12233d;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-chip span {
+  color: #dbe7f5;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 0.95rem;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-state {
+  padding: 22px;
+  text-align: center;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-state.is-error {
+  color: #fecaca;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-table-wrap {
+  overflow: hidden;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-table th,
+.wp-page.wp-training-history-page .wp-training-history-table td {
+  padding: 18px 16px;
+  border-bottom: 1px solid #1e2f4d;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-table th {
+  color: #bac6d9;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-table td {
+  color: #f8fafc;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-training-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-activity-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-activity-cell strong {
+  font-size: 0.98rem;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-activity-cell span {
+  font-size: 0.8rem;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-status.is-solved {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-status.is-failed {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-cards {
+  display: none;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__attempt-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__topline,
+.wp-page.wp-training-history-page .wp-training-history-card__heading,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-topline {
+  display: flex;
+  align-items: center;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__topline {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__heading {
+  min-width: 0;
+  gap: 12px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__icon-wrap {
+  flex: 0 0 auto;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__title-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__title-wrap strong,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-title {
+  color: #f8fafc;
+  font-size: 1.04rem;
+  line-height: 1.1;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__meta-line,
+.wp-page.wp-training-history-page .wp-training-history-card__footer-line,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-datetime,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-detail {
+  padding-left: 0;
+  font-size: 0.92rem;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__meta-line,
+.wp-page.wp-training-history-page .wp-training-history-card__footer-line,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-datetime,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__meta-line span + span::before,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-datetime span + span::before,
+.wp-page.wp-training-history-page .wp-training-history-card__auth-detail span + span::before {
+  content: '|';
+  margin-right: 10px;
+  color: #5f7597;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__footer-line span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__footer-separator {
+  color: #5f7597;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-card__auth-detail {
+  margin: 0;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-pagination__pages {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-pagination__pages button {
+  min-width: 48px;
+  padding-inline: 0;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-pagination__pages .is-active {
+  border-color: #3b82f6;
+  background: #1d4ed8;
+  color: #f8fafc;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-pagination__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wp-page.wp-training-history-page .wp-training-history-page-size select {
+  min-width: 84px;
+  min-height: 46px;
+}
+
+@media (max-width: 1240px) {
+  .wp-page.wp-training-history-page .wp-training-history-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-reset {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 960px) {
+  .wp-page.wp-training-history-page .wp-training-history-table-wrap {
+    display: none;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-cards {
+    display: grid;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 720px) {
+  .wp-page.wp-training-history-page {
+    gap: 18px;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-search {
+    padding: 0 14px;
+    min-height: 58px;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-reset {
+    width: 100%;
+    grid-column: 1;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-meta,
+  .wp-page.wp-training-history-page .wp-training-history-pagination {
+    display: grid;
+    gap: 12px;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-pagination {
+    justify-items: stretch;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-pagination__controls {
+    justify-content: space-between;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-page-size {
+    justify-content: flex-end;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-card {
+    padding: 13px;
+    gap: 9px;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-card__title-wrap strong {
+    font-size: 1rem;
+  }
+
+  .wp-page.wp-training-history-page .wp-training-history-card__meta-line,
+  .wp-page.wp-training-history-page .wp-training-history-card__footer-line,
+  .wp-page.wp-training-history-page .wp-training-history-card__auth-detail,
+  .wp-page.wp-training-history-page .wp-training-history-card__auth-datetime {
+    font-size: 0.88rem;
+  }
+}
+

@@ -3,12 +3,18 @@
 namespace App\Tests\Controller;
 
 use App\Controller\UserSettingsOverviewAction;
+use App\Entity\AuthenticationEvent;
 use App\Entity\Puzzle;
 use App\Entity\Training;
 use App\Entity\TrainingPuzzle;
 use App\Entity\User;
+use App\Entity\UserPreference;
+use App\Enum\AuthenticationEventType;
+use App\Repository\AuthenticationEventRepository;
 use App\Repository\TrainingPuzzleRepository;
 use App\Repository\TrainingRepository;
+use App\Service\UserPreferenceManager;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -19,6 +25,8 @@ final class UserSettingsOverviewActionTest extends TestCase
     private Security&MockObject $security;
     private TrainingRepository&MockObject $trainingRepository;
     private TrainingPuzzleRepository&MockObject $trainingPuzzleRepository;
+    private AuthenticationEventRepository&MockObject $authenticationEventRepository;
+    private UserPreferenceManager $userPreferenceManager;
     private UserSettingsOverviewAction $action;
 
     protected function setUp(): void
@@ -26,11 +34,15 @@ final class UserSettingsOverviewActionTest extends TestCase
         $this->security = $this->createMock(Security::class);
         $this->trainingRepository = $this->createMock(TrainingRepository::class);
         $this->trainingPuzzleRepository = $this->createMock(TrainingPuzzleRepository::class);
+        $this->authenticationEventRepository = $this->createMock(AuthenticationEventRepository::class);
+        $this->userPreferenceManager = new UserPreferenceManager($this->createMock(EntityManagerInterface::class));
 
         $this->action = new UserSettingsOverviewAction(
             $this->security,
             $this->trainingRepository,
             $this->trainingPuzzleRepository,
+            $this->userPreferenceManager,
+            $this->authenticationEventRepository,
         );
     }
 
@@ -50,6 +62,19 @@ final class UserSettingsOverviewActionTest extends TestCase
             ->setRoles(['ROLE_ADMIN']);
         $this->setEntityId($user, 7);
         $this->setDateProperty($user, 'createdAt', new \DateTimeImmutable('2026-08-01T09:00:00+00:00'));
+
+        $preference = (new UserPreference())
+            ->setUser($user)
+            ->setDisplayName('Leandre Ribeiro')
+            ->setLanguage('en')
+            ->setTheme('light')
+            ->setBoardLightSquare('#F0D9B5')
+            ->setBoardDarkSquare('#B58863')
+            ->setShowLegalMoves(false)
+            ->setShowCoordinates(true)
+            ->setAnimateMoves(false)
+            ->setShowRightClickTargets(true);
+        $user->setPreference($preference);
 
         $trainingOne = (new Training())
             ->setName('Mate en 2')
@@ -75,6 +100,16 @@ final class UserSettingsOverviewActionTest extends TestCase
         $trainingPuzzleTwo = (new TrainingPuzzle())->setTraining($trainingOne)->setPuzzle($puzzleTwo)->setPosition(1);
         $this->setEntityId($trainingPuzzleTwo, 302);
 
+        $loginEvent = (new AuthenticationEvent())
+            ->setUser($user)
+            ->setType(AuthenticationEventType::Login)
+            ->setCreatedAt(new \DateTimeImmutable('2026-08-28T20:35:00+02:00'));
+        $logoutEvent = (new AuthenticationEvent())
+            ->setUser($user)
+            ->setType(AuthenticationEventType::Logout)
+            ->setCreatedAt(new \DateTimeImmutable('2026-08-28T21:05:00+02:00'))
+            ->setLogoutReason('manual');
+
         $this->security->method('getUser')->willReturn($user);
         $this->trainingRepository
             ->method('findOwnedByUserOrdered')
@@ -86,25 +121,37 @@ final class UserSettingsOverviewActionTest extends TestCase
                 [$trainingOne, [$trainingPuzzleOne, $trainingPuzzleTwo]],
                 [$trainingTwo, []],
             ]);
+        $this->authenticationEventRepository
+            ->method('findLatestByUserAndType')
+            ->willReturnMap([
+                [$user, AuthenticationEventType::Login, $loginEvent],
+                [$user, AuthenticationEventType::Logout, $logoutEvent],
+            ]);
 
         $response = ($this->action)();
         $payload = json_decode($response->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
 
         self::assertSame('owner@example.com', $payload['user']['email']);
         self::assertSame(['ROLE_ADMIN', 'ROLE_USER'], array_values(array_unique($payload['user']['roles'])));
+        self::assertSame('Leandre Ribeiro', $payload['profile']['displayName']);
+        self::assertSame('en', $payload['appearance']['language']);
+        self::assertSame('light', $payload['appearance']['theme']);
+        self::assertSame('#F0D9B5', $payload['board']['lightSquareColor']);
+        self::assertSame('#B58863', $payload['board']['darkSquareColor']);
+        self::assertSame('Palette personnalisée', $payload['board']['themeLabel']);
+        self::assertFalse($payload['solverPreferences']['showLegalMoves']);
+        self::assertTrue($payload['solverPreferences']['showCoordinates']);
+        self::assertFalse($payload['solverPreferences']['animateMoves']);
+        self::assertTrue($payload['solverPreferences']['showRightClickTargets']);
+        self::assertSame('2026-08-28T20:35:00+02:00', $payload['security']['lastLoginAt']);
+        self::assertSame('2026-08-28T21:05:00+02:00', $payload['security']['lastLogoutAt']);
+        self::assertSame('manual', $payload['security']['lastLogoutReason']);
         self::assertSame(2, $payload['workspace']['trainingCount']);
         self::assertSame(1, $payload['workspace']['activeTrainingCount']);
         self::assertSame(1, $payload['workspace']['archivedTrainingCount']);
         self::assertSame(2, $payload['workspace']['puzzleCount']);
         self::assertSame('Mate en 2', $payload['workspace']['latestTrainingName']);
-        self::assertSame(4, $payload['preferencesPreview']['defaultMistakeLimit']);
-        self::assertTrue($payload['preferencesPreview']['lockTrainingAfterCycle']);
-        self::assertTrue($payload['preferencesPreview']['trackedSolverByDefault']);
-        self::assertFalse($payload['integrations']['lichessConnected']);
-        self::assertFalse($payload['integrations']['chessComConnected']);
-        self::assertTrue($payload['integrations']['exportReady']);
     }
-
 
     public function testBuildsEmptySettingsOverviewPayloadWithoutTrainings(): void
     {
@@ -114,23 +161,43 @@ final class UserSettingsOverviewActionTest extends TestCase
         $this->setEntityId($user, 8);
         $this->setDateProperty($user, 'createdAt', new \DateTimeImmutable('2026-08-02T09:00:00+00:00'));
 
+        $preference = (new UserPreference())
+            ->setUser($user)
+            ->setDisplayName('empty')
+            ->setLanguage('fr')
+            ->setTheme('dark')
+            ->setBoardLightSquare(UserPreference::DEFAULT_BOARD_LIGHT)
+            ->setBoardDarkSquare(UserPreference::DEFAULT_BOARD_DARK)
+            ->setShowLegalMoves(true)
+            ->setShowCoordinates(true)
+            ->setAnimateMoves(true)
+            ->setShowRightClickTargets(true);
+        $user->setPreference($preference);
+
         $this->security->method('getUser')->willReturn($user);
         $this->trainingRepository
             ->method('findOwnedByUserOrdered')
             ->with($user)
             ->willReturn([]);
+        $this->authenticationEventRepository
+            ->method('findLatestByUserAndType')
+            ->willReturn(null);
 
         $response = ($this->action)();
         $payload = json_decode($response->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
 
         self::assertSame('empty@example.com', $payload['user']['email']);
+        self::assertSame('empty', $payload['profile']['displayName']);
+        self::assertSame('fr', $payload['appearance']['language']);
+        self::assertSame('dark', $payload['appearance']['theme']);
+        self::assertSame('Vert classique', $payload['board']['themeLabel']);
         self::assertSame(0, $payload['workspace']['trainingCount']);
         self::assertSame(0, $payload['workspace']['activeTrainingCount']);
         self::assertSame(0, $payload['workspace']['archivedTrainingCount']);
         self::assertSame(0, $payload['workspace']['puzzleCount']);
         self::assertNull($payload['workspace']['latestTrainingName']);
-        self::assertSame(3, $payload['preferencesPreview']['defaultMistakeLimit']);
-        self::assertFalse($payload['integrations']['exportReady']);
+        self::assertNull($payload['security']['lastLoginAt']);
+        self::assertNull($payload['security']['lastLogoutAt']);
     }
 
     private function setEntityId(object $entity, int $id): void
@@ -145,4 +212,6 @@ final class UserSettingsOverviewActionTest extends TestCase
         $reflection->setValue($entity, $value);
     }
 }
+
+
 

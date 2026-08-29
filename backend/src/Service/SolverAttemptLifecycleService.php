@@ -26,6 +26,10 @@ final class SolverAttemptLifecycleService
             ? $this->attemptRepository->findOneByClientRequestId($clientRequestId)
             : null;
 
+        if (!$existingAttempt instanceof Attempt && AttemptStatus::InProgress->value === $incomingAttempt->getStatus()) {
+            $existingAttempt = $this->attemptRepository->findActiveAttemptForCyclePuzzle($incomingAttempt->getCyclePuzzle());
+        }
+
         $attempt = $existingAttempt ?? $incomingAttempt;
         $cyclePuzzle = $attempt->getCyclePuzzle() ?? $incomingAttempt->getCyclePuzzle();
 
@@ -73,14 +77,11 @@ final class SolverAttemptLifecycleService
         $attempt->setStartedAt($attempt->getStartedAt() ?? new \DateTimeImmutable());
         $attempt->setDurationMilliseconds(max(0, $attempt->getDurationMilliseconds()));
         $attempt->setMistakesCount(max(0, $attempt->getMistakesCount()));
-        $attempt->setSuccessful(AttemptStatus::Solved->value === $attempt->getStatus());
 
         if (AttemptStatus::InProgress->value === $attempt->getStatus()) {
             $attempt->setCompletedAt(null);
         } else {
-            $completedAt = $attempt->getCompletedAt() ?? new \DateTimeImmutable();
-            $attempt->setCompletedAt($completedAt);
-            $attempt->setAttemptedAt($attempt->getAttemptedAt() ?? $completedAt);
+            $attempt->setCompletedAt($attempt->getCompletedAt() ?? new \DateTimeImmutable());
         }
     }
 
@@ -105,6 +106,10 @@ final class SolverAttemptLifecycleService
         $managedAttempt->setStartedAt($managedAttempt->getStartedAt() ?? $incomingAttempt->getStartedAt() ?? new \DateTimeImmutable());
         $managedAttempt->setAttemptNumber(max($managedAttempt->getAttemptNumber(), $incomingAttempt->getAttemptNumber()));
 
+        if (null === $managedAttempt->getClientRequestId() && null !== $incomingAttempt->getClientRequestId()) {
+            $managedAttempt->setClientRequestId($incomingAttempt->getClientRequestId());
+        }
+
         if (AttemptStatus::InProgress->value !== $currentStatus) {
             return;
         }
@@ -113,17 +118,13 @@ final class SolverAttemptLifecycleService
             return;
         }
 
-        $completedAt = $incomingAttempt->getCompletedAt() ?? new \DateTimeImmutable();
-
-        $managedAttempt->setStatus($incomingStatus);
-        $managedAttempt->setSuccessful(AttemptStatus::Solved->value === $incomingStatus);
-        $managedAttempt->setCompletedAt($completedAt);
-        $managedAttempt->setAttemptedAt($completedAt);
+        $managedAttempt
+            ->setStatus($incomingStatus)
+            ->setCompletedAt($incomingAttempt->getCompletedAt() ?? new \DateTimeImmutable());
     }
 
     private function refreshCyclePuzzleAggregate(CyclePuzzle $cyclePuzzle): void
     {
-        $completedAttemptCount = $this->attemptRepository->countCompletedAttemptsForCyclePuzzle($cyclePuzzle);
         $hasSolvedAttempt = $this->attemptRepository->hasSolvedAttemptForCyclePuzzle($cyclePuzzle);
         $hasFailedAttempt = $this->attemptRepository->hasFailedAttemptForCyclePuzzle($cyclePuzzle);
         $activeAttempt = $this->attemptRepository->findActiveAttemptForCyclePuzzle($cyclePuzzle);
@@ -132,10 +133,7 @@ final class SolverAttemptLifecycleService
             $this->attemptRepository->sumDurationsForCyclePuzzle($cyclePuzzle),
         );
 
-        $cyclePuzzle
-            ->setAttemptCount($completedAttemptCount)
-            ->setDurationMilliseconds($durationMilliseconds)
-            ->setFinallySolved($hasSolvedAttempt);
+        $cyclePuzzle->setDurationMilliseconds($durationMilliseconds);
 
         if ($hasSolvedAttempt) {
             $cyclePuzzle->setStatus($hasFailedAttempt ? CyclePuzzleStatus::Failed : CyclePuzzleStatus::Solved);

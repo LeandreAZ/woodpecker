@@ -67,7 +67,7 @@ final class TrainingSummaryAction
             }
 
             $day = $attempt->getAttemptedAt()?->format('Y-m-d');
-            if (null === $day) {
+            if (null === $day || 'in_progress' === $attempt->getStatus()) {
                 continue;
             }
 
@@ -83,7 +83,7 @@ final class TrainingSummaryAction
 
             $dailyActivity[$day]['attemptCount'] += 1;
             $dailyActivity[$day]['durationMilliseconds'] += $attempt->getDurationMilliseconds();
-            $dailyActivity[$day]['successfulAttemptCount'] += $attempt->isSuccessful() ? 1 : 0;
+            $dailyActivity[$day]['successfulAttemptCount'] += 'solved' === $attempt->getStatus() ? 1 : 0;
             if (null !== $cyclePuzzleId) {
                 $dailyActivity[$day]['handledPuzzleIds'][$cyclePuzzleId] = true;
             }
@@ -98,6 +98,15 @@ final class TrainingSummaryAction
             ),
             array_reverse($cycles),
         );
+
+        $completedAttempts = array_values(array_filter(
+            $attempts,
+            fn (Attempt $attempt): bool => 'in_progress' !== $attempt->getStatus(),
+        ));
+        $solvedAttempts = array_values(array_filter(
+            $completedAttempts,
+            fn (Attempt $attempt): bool => 'solved' === $attempt->getStatus(),
+        ));
 
         $payload = [
             'puzzleCount' => count($trainingPuzzles),
@@ -114,15 +123,12 @@ final class TrainingSummaryAction
                 fn (TrainingPuzzle $trainingPuzzle): bool => '' !== trim($trainingPuzzle->getPersonalNote() ?? ''),
             )),
             'attemptCount' => count($attempts),
-            'solvedAttemptCount' => count(array_filter(
-                $attempts,
-                fn (Attempt $attempt): bool => $attempt->isSuccessful(),
-            )),
-            'averageMistakes' => count($attempts) > 0
+            'solvedAttemptCount' => count($solvedAttempts),
+            'averageMistakes' => count($completedAttempts) > 0
                 ? round(array_sum(array_map(
                     fn (Attempt $attempt): int => $attempt->getMistakesCount(),
-                    $attempts,
-                )) / count($attempts), 1)
+                    $completedAttempts,
+                )) / count($completedAttempts), 1)
                 : 0,
             'dailyActivity' => array_map(
                 fn (array $point): array => [
@@ -153,37 +159,44 @@ final class TrainingSummaryAction
      */
     private function buildCycleSummary(Cycle $cycle, array $cyclePuzzles, array $attemptsByCyclePuzzle): array
     {
-        $solved = count(array_filter(
-            $cyclePuzzles,
-            fn (CyclePuzzle $cyclePuzzle): bool => 'solved' === $cyclePuzzle->getStatus(),
-        ));
-        $failed = count(array_filter(
-            $cyclePuzzles,
-            fn (CyclePuzzle $cyclePuzzle): bool => 'failed' === $cyclePuzzle->getStatus(),
-        ));
-        $pending = count(array_filter(
-            $cyclePuzzles,
-            fn (CyclePuzzle $cyclePuzzle): bool => 'pending' === $cyclePuzzle->getStatus(),
-        ));
-        $attemptCount = 0;
-        $successfulAttemptCount = 0;
+        $solved = 0;
+        $failed = 0;
+        $pending = 0;
+        $completedPuzzleCount = 0;
+        $completedAttemptCount = 0;
+        $puzzlesWithCompletedAttemptsCount = 0;
         $durationMilliseconds = 0;
-        $handledCyclePuzzleIds = [];
 
         foreach ($cyclePuzzles as $cyclePuzzle) {
             $cyclePuzzleId = $cyclePuzzle->getId() ?? 0;
             $cycleAttempts = $attemptsByCyclePuzzle[$cyclePuzzleId] ?? [];
-            if (count($cycleAttempts) > 0) {
-                $handledCyclePuzzleIds[$cyclePuzzleId] = true;
+            $completedAttemptsForPuzzle = array_values(array_filter(
+                $cycleAttempts,
+                fn (Attempt $attempt): bool => 'in_progress' !== $attempt->getStatus(),
+            ));
+            $hasSolvedAttempt = count(array_filter(
+                $cycleAttempts,
+                fn (Attempt $attempt): bool => 'solved' === $attempt->getStatus(),
+            )) > 0;
+
+            if ('solved' === $cyclePuzzle->getStatus()) {
+                $solved += 1;
+            } elseif ('failed' === $cyclePuzzle->getStatus()) {
+                $failed += 1;
+            } else {
+                $pending += 1;
             }
 
-            foreach ($cycleAttempts as $attempt) {
-                $attemptCount += 1;
-                $durationMilliseconds += $attempt->getDurationMilliseconds();
-                if ($attempt->isSuccessful()) {
-                    $successfulAttemptCount += 1;
-                }
+            if ('solved' === $cyclePuzzle->getStatus() || ('failed' === $cyclePuzzle->getStatus() && $hasSolvedAttempt)) {
+                $completedPuzzleCount += 1;
             }
+
+            if (count($completedAttemptsForPuzzle) > 0) {
+                $puzzlesWithCompletedAttemptsCount += 1;
+                $completedAttemptCount += count($completedAttemptsForPuzzle);
+            }
+
+            $durationMilliseconds += $cyclePuzzle->getDurationMilliseconds();
         }
 
         $total = count($cyclePuzzles);
@@ -194,11 +207,13 @@ final class TrainingSummaryAction
             'failed' => $failed,
             'pending' => $pending,
             'total' => $total,
-            'progressPercent' => $total > 0 ? (int) round(($solved / $total) * 100) : 0,
-            'attemptCount' => $attemptCount,
-            'averageAttempts' => count($handledCyclePuzzleIds) > 0 ? round($attemptCount / count($handledCyclePuzzleIds), 1) : 0,
+            'progressPercent' => $total > 0 ? (int) round(($completedPuzzleCount / $total) * 100) : 0,
+            'completedPuzzleCount' => $completedPuzzleCount,
+            'attemptCount' => $completedAttemptCount,
+            'averageAttempts' => $puzzlesWithCompletedAttemptsCount > 0 ? round($completedAttemptCount / $puzzlesWithCompletedAttemptsCount, 1) : 0,
+            'puzzlesWithCompletedAttemptsCount' => $puzzlesWithCompletedAttemptsCount,
             'durationMilliseconds' => $durationMilliseconds,
-            'successRate' => $attemptCount > 0 ? (int) round(($successfulAttemptCount / $attemptCount) * 100) : 0,
+            'successRate' => ($solved + $failed) > 0 ? (int) round(($solved / ($solved + $failed)) * 100) : 0,
         ];
     }
 
@@ -213,7 +228,7 @@ final class TrainingSummaryAction
         return [
             '@id' => $this->iri('attempts', $attempt->getId()),
             'id' => $attempt->getId(),
-            'successful' => $attempt->isSuccessful(),
+            'successful' => 'solved' === $attempt->getStatus(),
             'mistakesCount' => $attempt->getMistakesCount(),
             'durationMilliseconds' => $attempt->getDurationMilliseconds(),
             'attemptedAt' => $this->formatDateTime($attempt->getAttemptedAt()),

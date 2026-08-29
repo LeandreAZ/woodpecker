@@ -107,7 +107,7 @@ final class StatsOverviewActionTest extends TestCase
             ->setCycle($cycleOne)
             ->setTrainingPuzzle($trainingPuzzleOne)
             ->setPosition(0)
-            ->setStatus('pending');
+            ->setStatus('failed');
         $this->setEntityId($cyclePuzzleOne, 41);
 
         $cyclePuzzleTwo = (new CyclePuzzle())
@@ -136,8 +136,20 @@ final class StatsOverviewActionTest extends TestCase
             ->setSuccessful(false)
             ->setMistakesCount(2)
             ->setDurationMilliseconds(9000)
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-06T18:10:00+00:00'))
             ->setAttemptedAt(new \DateTimeImmutable('2026-08-06T18:10:00+00:00'));
         $this->setEntityId($attemptOne, 61);
+
+        $attemptThree = (new Attempt())
+            ->setCyclePuzzle($cyclePuzzleOne)
+            ->setTrainingSession($sessionOne)
+            ->setPlayedMoves(['e2e4', 'e7e5'])
+            ->setSuccessful(true)
+            ->setMistakesCount(0)
+            ->setDurationMilliseconds(7000)
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-06T18:12:00+00:00'))
+            ->setAttemptedAt(new \DateTimeImmutable('2026-08-06T18:12:00+00:00'));
+        $this->setEntityId($attemptThree, 63);
 
         $attemptTwo = (new Attempt())
             ->setCyclePuzzle($cyclePuzzleTwo)
@@ -146,6 +158,7 @@ final class StatsOverviewActionTest extends TestCase
             ->setSuccessful(true)
             ->setMistakesCount(1)
             ->setDurationMilliseconds(8000)
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-07T18:10:00+00:00'))
             ->setAttemptedAt(new \DateTimeImmutable('2026-08-07T18:10:00+00:00'));
         $this->setEntityId($attemptTwo, 62);
 
@@ -175,7 +188,7 @@ final class StatsOverviewActionTest extends TestCase
         $this->attemptRepository
             ->method('findByTrainingOrdered')
             ->willReturnMap([
-                [$trainingOne, [$attemptOne]],
+                [$trainingOne, [$attemptThree, $attemptOne]],
                 [$trainingTwo, [$attemptTwo]],
             ]);
 
@@ -184,21 +197,24 @@ final class StatsOverviewActionTest extends TestCase
 
         self::assertSame(2, $payload['trainingCount']);
         self::assertSame(2, $payload['puzzleCount']);
-        self::assertSame(2, $payload['attemptCount']);
-        self::assertSame(1, $payload['successfulAttemptCount']);
+        self::assertSame(3, $payload['attemptCount']);
+        self::assertSame(2, $payload['successfulAttemptCount']);
         self::assertSame(50, $payload['successRate']);
-        self::assertEquals(1.5, $payload['averageMistakes']);
+        self::assertEquals(1.0, $payload['averageMistakes']);
         self::assertSame(1, $payload['activeCycleCount']);
         self::assertSame(1, $payload['completedCycleCount']);
-        self::assertSame(1, $payload['resumableTrainingCount']);
+        self::assertSame(0, $payload['resumableTrainingCount']);
         self::assertSame(1, $payload['solvedCyclePuzzleCount']);
-        self::assertSame(0, $payload['failedCyclePuzzleCount']);
-        self::assertSame(1, $payload['pendingCyclePuzzleCount']);
+        self::assertSame(1, $payload['failedCyclePuzzleCount']);
+        self::assertSame(0, $payload['pendingCyclePuzzleCount']);
+        self::assertSame(1, $payload['rescuedCyclePuzzleCount']);
+        self::assertSame(0, $payload['unresolvedCyclePuzzleCount']);
         self::assertSame('2026-08-07T18:10:00+00:00', $payload['latestAttemptedAt']);
         self::assertCount(2, $payload['trainingBreakdown']);
         self::assertSame('Mate in 2', $payload['trainingBreakdown'][0]['training']['name']);
+        self::assertSame(1, $payload['trainingBreakdown'][0]['rescuedCount']);
+        self::assertSame(0, $payload['trainingBreakdown'][0]['unresolvedCount']);
     }
-
 
     public function testBuildsStatsOverviewPayloadWithoutAttemptsOrDescriptions(): void
     {
@@ -269,11 +285,15 @@ final class StatsOverviewActionTest extends TestCase
         self::assertSame(0, $payload['solvedCyclePuzzleCount']);
         self::assertSame(1, $payload['failedCyclePuzzleCount']);
         self::assertSame(0, $payload['pendingCyclePuzzleCount']);
+        self::assertSame(0, $payload['rescuedCyclePuzzleCount']);
+        self::assertSame(1, $payload['unresolvedCyclePuzzleCount']);
         self::assertNull($payload['latestAttemptedAt']);
         self::assertFalse($payload['trainingBreakdown'][0]['descriptionReady']);
         self::assertSame(0, $payload['trainingBreakdown'][0]['attemptCount']);
         self::assertSame('completed', $payload['trainingBreakdown'][0]['latestCycleStatus']);
         self::assertFalse($payload['trainingBreakdown'][0]['hasResumableCycle']);
+        self::assertSame(0, $payload['trainingBreakdown'][0]['rescuedCount']);
+        self::assertSame(1, $payload['trainingBreakdown'][0]['unresolvedCount']);
     }
 
     private function setEntityId(object $entity, int $id): void
@@ -282,4 +302,3 @@ final class StatsOverviewActionTest extends TestCase
         $reflection->setValue($entity, $id);
     }
 }
-

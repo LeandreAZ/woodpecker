@@ -8,6 +8,7 @@
 @import './styles/components/badges.css';
 @import './styles/components/modals.css';
 @import './styles/components/states.css';
+
 :root {
   color: #eef4fb;
   background: #0b1220;
@@ -15,6 +16,10 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --bg: #0b1220;
+  --bg-elevated: #0f1a2e;
+  --bg-soft: rgba(9, 17, 28, 0.72);
+  --input-bg: rgba(9, 17, 28, 0.88);
+  --input-bg-focus: rgba(11, 20, 33, 0.96);
   --text: #eef4fb;
   --muted: #aab8c7;
   --line: rgba(170, 184, 199, 0.14);
@@ -32,6 +37,23 @@
   --radius-sm: 12px;
 }
 
+:root[data-theme='light'],
+body[data-theme='light'] {
+  color: #102036;
+  background: #eff5fb;
+  --bg: #eff5fb;
+  --bg-elevated: #ffffff;
+  --bg-soft: rgba(255, 255, 255, 0.88);
+  --input-bg: rgba(247, 250, 253, 0.98);
+  --input-bg-focus: #ffffff;
+  --text: #102036;
+  --muted: #5c6f88;
+  --line: rgba(16, 32, 54, 0.12);
+  --line-strong: rgba(69, 200, 120, 0.24);
+  --shadow: 0 24px 50px rgba(114, 140, 172, 0.18);
+  --shadow-heavy: 0 36px 82px rgba(114, 140, 172, 0.22);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -46,7 +68,7 @@ body {
   margin: 0;
   min-width: 320px;
   color: var(--text);
-  background: #070E19;
+  background: var(--bg);
   font-family: var(--font-family-primary);
 }
 
@@ -75,12 +97,12 @@ textarea,
 select {
   width: 100%;
   color: var(--text);
-  background: rgba(9, 17, 28, 0.88);
-  border: 1px solid rgba(170, 184, 199, 0.14);
+  background: var(--input-bg);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px 16px;
   outline: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease;
 }
 
 input::placeholder,
@@ -93,7 +115,7 @@ textarea:focus,
 select:focus {
   border-color: rgba(127, 240, 173, 0.34);
   box-shadow: 0 0 0 4px rgba(69, 200, 120, 0.12);
-  background: rgba(11, 20, 33, 0.96);
+  background: var(--input-bg-focus);
 }
 
 textarea {
@@ -110,7 +132,7 @@ code {
   padding: 0.2rem 0.45rem;
   border-radius: 8px;
   color: var(--accent-soft);
-  background: rgba(9, 17, 28, 0.78);
+  background: var(--bg-soft);
 }
 
 p,
@@ -176,7 +198,7 @@ h4 {
   border: 1px solid var(--line);
   border-radius: 14px;
   color: var(--text);
-  background: rgba(9, 17, 28, 0.72);
+  background: var(--bg-soft);
 }
 
 .wp-danger {
@@ -198,4 +220,3 @@ h4 {
     width: 100%;
   }
 }
-

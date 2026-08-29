@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApiError, apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
@@ -33,6 +34,18 @@ import type { useTrainingsPanelUiState } from './useTrainingsPanelUiState';
 import { fetchAllCollection } from './trainingsUtils';
 
 type UiState = ReturnType<typeof useTrainingsPanelUiState>;
+
+function hasSolvedAttempt(cyclePuzzle?: TrainingOverview['cyclePuzzles'][number] | null) {
+  if (!cyclePuzzle) {
+    return false;
+  }
+
+  if (typeof cyclePuzzle.hasSolvedAttempt === 'boolean') {
+    return cyclePuzzle.hasSolvedAttempt;
+  }
+
+  return cyclePuzzle.attempts?.some((attempt) => attempt.status === 'solved') ?? false;
+}
 
 export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState) {
   const previewMode = isPreviewSession(session);
@@ -88,7 +101,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
 
   const trainingAttemptHistoryQuery = useQuery({
     queryKey: ['training-attempt-history', session.email, effectiveSelectedTrainingIri],
-    enabled: uiState.activeView === 'history' && Boolean(effectiveSelectedTrainingIri),
+    enabled: false,
     queryFn: () =>
       previewMode
         ? Promise.resolve(getPreviewTrainingAttemptHistory(effectiveSelectedTrainingIri ?? '/trainings/1'))
@@ -99,7 +112,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
 
   const trainingCycleHistoryQuery = useQuery({
     queryKey: ['training-cycle-history', session.email, effectiveSelectedTrainingIri],
-    enabled: uiState.activeView === 'history' && Boolean(effectiveSelectedTrainingIri),
+    enabled: false,
     queryFn: () =>
       previewMode
         ? Promise.resolve(getPreviewTrainingCycleHistory(effectiveSelectedTrainingIri ?? '/trainings/1'))
@@ -110,7 +123,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
 
   const userSettingsOverviewQuery = useQuery({
     queryKey: ['user-settings-overview', session.email],
-    enabled: uiState.activeView === 'settings',
+    enabled: uiState.activeView === 'settings' || uiState.activeView === 'solver',
     queryFn: () =>
       previewMode
         ? Promise.resolve(getPreviewUserSettingsOverview())
@@ -171,7 +184,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
 
   const defaultCyclePuzzle =
     activeCyclePuzzles.find((cyclePuzzle) => cyclePuzzle.status === 'in_progress') ??
-    activeCyclePuzzles.find((cyclePuzzle) => cyclePuzzle.status === 'failed' && !(cyclePuzzle.hasSolvedAttempt ?? cyclePuzzle.finallySolved)) ??
+    activeCyclePuzzles.find((cyclePuzzle) => cyclePuzzle.status === 'failed' && !hasSolvedAttempt(cyclePuzzle)) ??
     activeCyclePuzzles.find((cyclePuzzle) => cyclePuzzle.status === 'pending') ??
     null;
 
@@ -214,7 +227,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     ) ?? null;
   const selectedCyclePuzzleIsSaved = selectedCyclePuzzle
     ? selectedCyclePuzzle.status === 'solved' ||
-      (selectedCyclePuzzle.status === 'failed' && Boolean(selectedCyclePuzzle.hasSolvedAttempt ?? selectedCyclePuzzle.finallySolved)) ||
+      (selectedCyclePuzzle.status === 'failed' && hasSolvedAttempt(selectedCyclePuzzle)) ||
       uiState.savedCyclePuzzleIris.has(selectedCyclePuzzle['@id'])
     : false;
 
@@ -239,6 +252,8 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
   const cyclePuzzlesQuery = { ...trainingOverviewQuery, data: activeCyclePuzzles };
   const trainingCyclePuzzlesQuery = { ...trainingOverviewQuery, data: trainingCyclePuzzles };
   const trainingSessionsQuery = { ...trainingOverviewQuery, data: trainingSessions };
+
+
 
   return {
     cyclePuzzlesQuery,
@@ -273,5 +288,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
     userSettingsOverviewQuery,
   };
 }
+
+
 
 

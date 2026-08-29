@@ -50,6 +50,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:read', 'user:write'])]
     private ?string $email = null;
 
+    #[ORM\Column(length: 80)]
+    private string $pseudonym = '';
+
+    #[ORM\Column(length: 512, nullable: true)]
+    private ?string $avatarUrl = null;
+
     #[ORM\Column]
     #[Groups(['user:read'])]
     private array $roles = [];
@@ -75,6 +81,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(mappedBy: 'owner', targetEntity: Training::class, orphanRemoval: true)]
     private Collection $trainings;
 
+    #[ORM\OneToOne(mappedBy: 'user', targetEntity: UserPreference::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private ?UserPreference $preference = null;
+
     public function __construct()
     {
         $this->trainings = new ArrayCollection();
@@ -92,7 +101,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setEmail(string $email): self
     {
-        $this->email = strtolower($email);
+        $this->email = strtolower(trim($email));
 
         return $this;
     }
@@ -100,6 +109,43 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getUserIdentifier(): string
     {
         return (string) $this->email;
+    }
+
+    public function getPseudonym(): string
+    {
+        return $this->pseudonym;
+    }
+
+    public function setPseudonym(string $pseudonym): self
+    {
+        $this->pseudonym = trim($pseudonym);
+
+        return $this;
+    }
+
+    public function ensureDefaultPseudonym(): self
+    {
+        if ('' !== trim($this->pseudonym)) {
+            return $this;
+        }
+
+        $fallback = strstr((string) $this->email, '@', true) ?: (string) $this->email;
+        $this->pseudonym = trim($fallback);
+
+        return $this;
+    }
+
+    public function getAvatarUrl(): ?string
+    {
+        return $this->avatarUrl;
+    }
+
+    public function setAvatarUrl(?string $avatarUrl): self
+    {
+        $normalized = null === $avatarUrl ? null : trim($avatarUrl);
+        $this->avatarUrl = '' === $normalized ? null : $normalized;
+
+        return $this;
     }
 
     public function getRoles(): array
@@ -164,6 +210,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->trainings;
     }
 
+    public function getPreference(): ?UserPreference
+    {
+        return $this->preference;
+    }
+
+    public function setPreference(?UserPreference $preference): self
+    {
+        $this->preference = $preference;
+
+        if ($preference instanceof UserPreference && $preference->getUser() !== $this) {
+            $preference->setUser($this);
+        }
+
+        return $this;
+    }
+
     public function addTraining(Training $training): self
     {
         if (!$this->trainings->contains($training)) {
@@ -191,11 +253,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
+        $this->ensureDefaultPseudonym();
     }
 
     #[ORM\PreUpdate]
     public function refreshUpdatedAt(): void
     {
         $this->updatedAt = new \DateTimeImmutable();
+        $this->ensureDefaultPseudonym();
     }
 }
+

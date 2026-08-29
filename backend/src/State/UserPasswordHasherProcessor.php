@@ -24,6 +24,7 @@ final class UserPasswordHasherProcessor implements ProcessorInterface
     {
         if ($data instanceof User && null !== $data->getPlainPassword()) {
             $data->setPassword($this->passwordHasher->hashPassword($data, $data->getPlainPassword()));
+            $data->ensureDefaultPseudonym();
             $data->eraseCredentials();
         }
 

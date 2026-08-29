@@ -2,7 +2,7 @@ export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api';
 export const unauthorizedEventName = 'woodpecker:unauthorized';
 
 type ApiRequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   token?: string;
   body?: unknown;
   contentType?: string;
@@ -53,6 +53,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   return (await response.json()) as T;
 }
 
+
 async function getErrorMessage(response: Response): Promise<string> {
   if (response.status === 401) {
     return getHttpStatusMessage(response.status);
@@ -89,3 +90,4 @@ function getHttpStatusMessage(status: number): string {
 
   return messages[status] ?? `Erreur API HTTP ${status}.`;
 }
+

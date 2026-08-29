@@ -3,7 +3,6 @@ import * as AppIcons from '../../shared/AppIcons';
 import { TrainingLogoBadge, resolveTrainingBranding } from './TrainingBranding';
 import { formatDuration } from './trainingsUtils';
 import type {
-  DailyActivityPoint,
   StatsOverview,
   TrainingCycleSummary,
   TrainingDashboardSummary,
@@ -26,119 +25,64 @@ type TrainingsStatsViewProps = {
   summaryIsLoading: boolean;
 };
 
-type StatsMetricKey = 'successRate' | 'progressPercent';
-
-type WindowActivitySummary = {
-  activeDays: number;
-  averageAttempts: number;
-  durationMilliseconds: number;
-  handledPuzzleCount: number;
-  progressPercent: number;
-  successRate: number;
-};
+type StatsMetricKey = 'averageAttempts' | 'successRate';
 
 type CardDefinition = {
-  deltaLabel: string;
-  deltaTone: 'is-negative' | 'is-neutral' | 'is-positive';
+  accent: 'info' | 'positive' | 'violet';
   icon: ReactElement;
   label: string;
   value: string;
 };
 
-type CycleSlot = {
-  cycle: TrainingCycleSummary | null;
+type CyclePoint = {
   label: string;
-  value: number | null;
+  value: number;
 };
 
-const PERIOD_OPTIONS = [7, 14, 30, 90] as const;
+type DistributionSegment = {
+  color: string;
+  description?: string;
+  label: string;
+  value: number;
+  valueLabel?: string;
+};
+
+type ResultBreakdown = {
+  direct: number;
+  rescued: number;
+  unresolved: number;
+};
+
+const PERIOD_OPTIONS = [
+  { label: '7 derniers jours', value: 7 },
+  { label: '14 derniers jours', value: 14 },
+  { label: '30 derniers jours', value: 30 },
+  { label: '60 derniers jours', value: 60 },
+  { label: '90 derniers jours', value: 90 },
+] as const;
 const PERCENT_GRID = [0, 25, 50, 75, 100] as const;
-const SLOT_COUNT = 5;
 const METRIC_OPTIONS: Array<{ key: StatsMetricKey; label: string }> = [
   { key: 'successRate', label: 'Taux de réussite' },
-  { key: 'progressPercent', label: 'Progression' },
+  { key: 'averageAttempts', label: 'Tentatives moyennes' },
 ];
-
-function iconElement(element: ReactElement) {
-  return element;
-}
+const NEUTRAL_TRAINING_COLOR = '#41597f';
+const RESULT_COLORS = {
+  direct: '#22c55e',
+  rescued: '#f59e0b',
+  unresolved: '#ef4444',
+} as const;
+const ATTEMPT_COLORS = ['#22c55e', '#3b82f6', '#8b5cf6', '#f59e0b'] as const;
 
 function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function toDateKey(value?: string | null) {
-  if (!value) {
-    return null;
+function truncateLabel(value: string, maxLength = 18) {
+  if (value.length <= maxLength) {
+    return value;
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toISOString().slice(0, 10);
-}
-
-function startOfDay(value: Date) {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-}
-
-function addDays(value: Date, offset: number) {
-  const next = new Date(value);
-  next.setDate(next.getDate() + offset);
-  return next;
-}
-
-function differenceInDays(from: Date, to: Date) {
-  return Math.max(1, Math.floor((startOfDay(to).getTime() - startOfDay(from).getTime()) / 86400000) + 1);
-}
-
-function buildRange(points: DailyActivityPoint[], startDate: Date, endDate: Date) {
-  const startKey = toDateKey(startDate.toISOString())!;
-  const endKey = toDateKey(endDate.toISOString())!;
-  return points.filter((point) => point.date >= startKey && point.date <= endKey);
-}
-
-function resolveAvailableDays(allDates: Array<string | null | undefined>, fallbackDate?: string | null) {
-  const validDates = allDates
-    .filter((value): value is string => Boolean(value))
-    .map((value) => new Date(value))
-    .filter((value) => !Number.isNaN(value.getTime()));
-
-  if (fallbackDate) {
-    const fallback = new Date(fallbackDate);
-    if (!Number.isNaN(fallback.getTime())) {
-      validDates.push(fallback);
-    }
-  }
-
-  if (validDates.length === 0) {
-    return 7;
-  }
-
-  const earliest = validDates.reduce((current, value) => (value < current ? value : current));
-  return differenceInDays(earliest, new Date());
-}
-
-function buildWindowSummary(points: DailyActivityPoint[], puzzleCount: number): WindowActivitySummary {
-  const attemptCount = points.reduce((total, point) => total + (point.attemptCount ?? 0), 0);
-  const successfulAttemptCount = points.reduce((total, point) => total + (point.successfulAttemptCount ?? 0), 0);
-  const handledPuzzleCount = points.reduce((total, point) => total + (point.handledPuzzleCount ?? 0), 0);
-  const durationMilliseconds = points.reduce((total, point) => total + (point.durationMilliseconds ?? 0), 0);
-  const progressPercent = puzzleCount > 0 ? clampPercent((handledPuzzleCount / puzzleCount) * 100) : 0;
-  const averageAttempts = handledPuzzleCount > 0 ? Math.round((attemptCount / handledPuzzleCount) * 10) / 10 : 0;
-  const successRate = attemptCount > 0 ? clampPercent((successfulAttemptCount / attemptCount) * 100) : 0;
-  const activeDays = points.filter((point) => (point.attemptCount ?? 0) > 0 || (point.durationMilliseconds ?? 0) > 0).length;
-
-  return {
-    activeDays,
-    averageAttempts,
-    durationMilliseconds,
-    handledPuzzleCount,
-    progressPercent,
-    successRate,
-  };
+  return `${value.slice(0, maxLength - 3)}...`;
 }
 
 function formatCompactDate(value?: string | null) {
@@ -164,47 +108,12 @@ function formatCyclePeriod(cycle: TrainingCycleSummary) {
   return completed ? `${started} - ${completed}` : started;
 }
 
-function formatDelta(value: number, unit: 'count' | 'duration' | 'percent') {
-  const rounded = unit === 'count' ? Math.round(value * 10) / 10 : Math.round(value);
-  if (rounded === 0) {
-    return 'Stable';
-  }
-
-  const prefix = rounded > 0 ? '+' : '-';
-  const absolute = Math.abs(rounded);
-
-  if (unit === 'duration') {
-    return `${prefix}${formatDuration(absolute)}`;
-  }
-
-  if (unit === 'percent') {
-    return `${prefix}${absolute}%`;
-  }
-
-  return `${prefix}${absolute}`;
-}
-
-function getDeltaTone(value: number): 'is-negative' | 'is-neutral' | 'is-positive' {
-  if (value > 0) return 'is-positive';
-  if (value < 0) return 'is-negative';
-  return 'is-neutral';
-}
-
-function buildCard(label: string, value: string, deltaValue: number, deltaUnit: 'count' | 'duration' | 'percent', icon: ReactElement): CardDefinition {
-  return {
-    deltaLabel: formatDelta(deltaValue, deltaUnit),
-    deltaTone: getDeltaTone(deltaValue),
-    icon,
-    label,
-    value,
-  };
-}
-
-function truncateLabel(value: string, maxLength = 18) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-  return `${value.slice(0, maxLength - 3)}...`;
+function formatAverageAttempts(value?: number | null) {
+  const normalized = Math.round((value ?? 0) * 10) / 10;
+  return normalized.toLocaleString('fr-FR', {
+    minimumFractionDigits: normalized % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 1,
+  });
 }
 
 function formatAveragePuzzleTime(seconds: number) {
@@ -215,11 +124,13 @@ function formatAveragePuzzleTime(seconds: number) {
   return remainingSeconds > 0 ? `${minutes}m${remainingSeconds}s` : `${minutes}m`;
 }
 
-function formatAxisDuration(seconds: number) {
-  if (seconds <= 0) return '0s';
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const minutes = seconds / 60;
-  return minutes >= 10 || Number.isInteger(minutes) ? `${Math.round(minutes)}m` : `${minutes.toFixed(1)}m`;
+function getAdaptiveNumericMax(values: number[], minimum = 1) {
+  const maxValue = Math.max(...values.filter((value) => Number.isFinite(value) && value > 0), 0);
+  if (maxValue <= minimum) {
+    return minimum;
+  }
+
+  return maxValue * 1.15;
 }
 
 function getAdaptiveTimeMax(values: number[]) {
@@ -234,194 +145,229 @@ function getAdaptiveTimeMax(values: number[]) {
   return Math.ceil(padded / 60) * 60;
 }
 
-function buildCycleRows(summary: TrainingSummary | null, windowStartDate: Date) {
+function buildCard(label: string, value: string, icon: ReactElement, accent: CardDefinition['accent']): CardDefinition {
+  return { accent, icon, label, value };
+}
+
+function startOfDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function addDays(value: Date, offset: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + offset);
+  return next;
+}
+
+function resolveCycleDate(cycle: TrainingCycleSummary) {
+  const source = cycle.cycle.completedAt ?? cycle.cycle.startedAt;
+  if (!source) {
+    return null;
+  }
+
+  const date = new Date(source);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function filterCycleRows(summary: TrainingSummary | null, days: number) {
   const source = [...(summary?.cycleSummaries ?? [])].sort((left, right) => left.cycle.number - right.cycle.number);
-  const filtered = source.filter((item) => {
-    const startedAt = item.cycle.startedAt ?? item.cycle.completedAt;
-    if (!startedAt) {
-      return false;
-    }
-    const date = new Date(startedAt);
-    return !Number.isNaN(date.getTime()) && date >= windowStartDate;
-  });
-  return (filtered.length > 0 ? filtered : source).slice(-SLOT_COUNT);
-}
+  if (source.length === 0) {
+    return [];
+  }
 
-function buildCycleSlots(rows: TrainingCycleSummary[], metric: StatsMetricKey): CycleSlot[] {
-  return Array.from({ length: SLOT_COUNT }, (_, index) => {
-    const cycle = rows[index] ?? null;
-    return {
-      cycle,
-      label: cycle ? `Cycle ${cycle.cycle.number}` : `Cycle ${index + 1}`,
-      value: cycle ? (metric === 'successRate' ? cycle.successRate ?? 0 : cycle.progressPercent ?? 0) : null,
-    };
-  });
-}
-
-function buildTimeSlots(rows: TrainingCycleSummary[]): CycleSlot[] {
-  return Array.from({ length: SLOT_COUNT }, (_, index) => {
-    const cycle = rows[index] ?? null;
-    const handled = cycle ? Math.max(cycle.solved + cycle.failed, 1) : 1;
-    return {
-      cycle,
-      label: cycle ? `Cycle ${cycle.cycle.number}` : `Cycle ${index + 1}`,
-      value: cycle ? (cycle.durationMilliseconds ?? 0) / handled / 1000 : null,
-    };
-  });
-}
-
-function buildAllTrainingsActivityRows(summaries: TrainingDashboardSummary[], days: number) {
   const endDate = startOfDay(new Date());
   const startDate = addDays(endDate, -(days - 1));
+  const filtered = source.filter((cycle) => {
+    const date = resolveCycleDate(cycle);
+    return date ? date >= startDate : false;
+  });
 
-  return summaries.map((summary) => {
-    const points = buildRange(summary.dailyActivity ?? [], startDate, endDate);
-    const stats = buildWindowSummary(points, summary.puzzleCount ?? 0);
-    const progressPerHour = stats.durationMilliseconds > 0
-      ? Math.round((stats.progressPercent / (stats.durationMilliseconds / 3600000)) * 10) / 10
-      : 0;
+  return filtered.length > 0 ? filtered : source;
+}
 
-    return { progressPerHour, stats, summary };
+function buildSelectedCards(cycleRows: TrainingCycleSummary[], selectedSummary: TrainingDashboardSummary | null) {
+  const solved = cycleRows.reduce((total, cycle) => total + cycle.solved, 0);
+  const failed = cycleRows.reduce((total, cycle) => total + cycle.failed, 0);
+  const completedAttemptCount = cycleRows.reduce((sum, cycle) => sum + cycle.attemptCount, 0);
+  const puzzlesWithCompletedAttemptsCount = cycleRows.reduce((sum, cycle) => sum + (cycle.puzzlesWithCompletedAttemptsCount ?? 0), 0);
+  const durationMilliseconds = cycleRows.reduce((sum, cycle) => sum + (cycle.durationMilliseconds ?? 0), 0);
+
+  return [
+    buildCard('Taux de réussite', `${(solved + failed) > 0 ? clampPercent((solved / (solved + failed)) * 100) : 0}%`, <AppIcons.TargetIcon width={20} height={20} />, 'info'),
+    buildCard('Progression', `${selectedSummary?.progressPercent ?? 0}%`, <AppIcons.TrendUpIcon width={20} height={20} />, 'positive'),
+    buildCard("Temps d'entraînement", formatDuration(durationMilliseconds), <AppIcons.HistoryIcon width={20} height={20} />, 'info'),
+    buildCard('Tentatives moyennes', formatAverageAttempts(puzzlesWithCompletedAttemptsCount > 0 ? completedAttemptCount / puzzlesWithCompletedAttemptsCount : 0), <AppIcons.RepeatIcon width={20} height={20} />, 'violet'),
+  ];
+}
+
+function buildCycleMetricPoints(cycleRows: TrainingCycleSummary[], metric: StatsMetricKey): CyclePoint[] {
+  return cycleRows.map((cycle) => ({
+    label: `Cycle ${cycle.cycle.number}`,
+    value: metric === 'averageAttempts' ? cycle.averageAttempts ?? 0 : cycle.successRate ?? 0,
+  }));
+}
+
+function buildCycleTimePoints(cycleRows: TrainingCycleSummary[]): CyclePoint[] {
+  return cycleRows
+    .filter((cycle) => (cycle.completedPuzzleCount ?? 0) > 0)
+    .map((cycle) => ({
+      label: `Cycle ${cycle.cycle.number}`,
+      value: ((cycle.durationMilliseconds ?? 0) / Math.max(cycle.completedPuzzleCount ?? 1, 1)) / 1000,
+    }));
+}
+
+function buildResultBreakdown(source: {
+  failedCount?: number;
+  rescuedCount?: number;
+  solvedCount?: number;
+  unresolvedCount?: number;
+}): ResultBreakdown {
+  const direct = Math.max(0, source.solvedCount ?? 0);
+  const rescued = Math.max(0, source.rescuedCount ?? 0);
+  const unresolved = Math.max(0, source.unresolvedCount ?? ((source.failedCount ?? 0) - rescued));
+  return { direct, rescued, unresolved };
+}
+
+function buildCycleResultBreakdown(cycle: TrainingCycleSummary): ResultBreakdown {
+  return buildResultBreakdown({
+    failedCount: cycle.failed,
+    rescuedCount: cycle.rescuedCount,
+    solvedCount: cycle.solved,
+    unresolvedCount: cycle.unresolvedCount,
   });
 }
+
+function buildAttemptDistribution(summary: TrainingSummary | null, cycleRows: TrainingCycleSummary[], preferSummary = true) {
+  const distribution = summary?.attemptCountDistribution;
+  if (preferSummary && distribution && distribution.resolvedPuzzleCount > 0) {
+    return distribution;
+  }
+
+  const oneAttemptCount = cycleRows.reduce((sum, cycle) => sum + Math.max(cycle.solved ?? 0, 0), 0);
+  const twoAttemptCount = cycleRows.reduce((sum, cycle) => sum + Math.max(cycle.rescuedCount ?? 0, 0), 0);
+  const resolvedPuzzleCount = oneAttemptCount + twoAttemptCount;
+
+  if (resolvedPuzzleCount <= 0) {
+    return null;
+  }
+
+  return {
+    oneAttemptCount,
+    twoAttemptCount,
+    threeAttemptCount: 0,
+    fourPlusAttemptCount: 0,
+    resolvedPuzzleCount,
+  };
+}
+
+function formatPercentShare(value: number, total: number) {
+  if (total <= 0) {
+    return '0%';
+  }
+
+  return `${Math.round((value / total) * 100)}%`;
+}
+
+function buildDonutBackground(segments: DistributionSegment[], trackColor = 'rgba(54, 74, 102, 0.58)') {
+  const total = Math.max(segments.reduce((sum, segment) => sum + segment.value, 0), 0);
+  if (total <= 0) {
+    return `radial-gradient(circle at center, #091427 0 41%, transparent 42%), conic-gradient(${trackColor} 0 100%)`;
+  }
+
+  let cursor = 0;
+  const stops: string[] = [];
+
+  segments.forEach((segment) => {
+    const start = cursor;
+    cursor += (segment.value / total) * 100;
+    stops.push(`${segment.color} ${start}% ${cursor}%`);
+  });
+
+  if (cursor < 100) {
+    stops.push(`${trackColor} ${cursor}% 100%`);
+  }
+
+  return `radial-gradient(circle at center, #091427 0 41%, transparent 42%), conic-gradient(${stops.join(', ')})`;
+}
+
 function ChartEmpty({ message }: { message: string }) {
   return <div className="wp-training-stats-chart__empty">{message}</div>;
 }
 
-function PercentLineChart({ emptyMessage, metricLabel, slots }: { emptyMessage: string; metricLabel: string; slots: CycleSlot[] }) {
+function GenericLineChart({
+  accentClassName,
+  emptyMessage,
+  formatTooltipValue,
+  gridValues,
+  metricLabel,
+  points,
+}: {
+  accentClassName?: string;
+  emptyMessage: string;
+  formatTooltipValue: (value: number) => string;
+  gridValues: number[];
+  metricLabel: string;
+  points: CyclePoint[];
+}) {
+  if (points.length === 0) {
+    return <ChartEmpty message={emptyMessage} />;
+  }
+
   const viewBoxWidth = 520;
-  const viewBoxHeight = 260;
+  const viewBoxHeight = 280;
   const paddingLeft = 52;
-  const paddingRight = 24;
+  const paddingRight = 20;
   const paddingTop = 18;
-  const paddingBottom = 36;
+  const paddingBottom = 56;
   const chartWidth = viewBoxWidth - paddingLeft - paddingRight;
   const chartHeight = viewBoxHeight - paddingTop - paddingBottom;
-  const zoneWidth = chartWidth / SLOT_COUNT;
-  const points = slots
-    .map((slot, index) => {
-      if (slot.value === null) {
-        return null;
-      }
-      const x = paddingLeft + zoneWidth * index + zoneWidth / 2;
-      const y = paddingTop + chartHeight - (slot.value / 100) * chartHeight;
-      return { x, y, label: slot.label };
-    })
-    .filter((point): point is { x: number; y: number; label: string } => point !== null);
-
-  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const stepX = points.length > 1 ? chartWidth / points.length : chartWidth / 2;
+  const maxValue = Math.max(...gridValues, 1);
+  const plottedPoints = points.map((point, index) => ({
+    ...point,
+    x: paddingLeft + stepX * index + stepX / 2,
+    y: paddingTop + chartHeight - (point.value / maxValue) * chartHeight,
+  }));
+  const path = plottedPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
 
   return (
-    <div className="wp-training-stats-chart">
+    <div className={`wp-training-stats-chart ${accentClassName ?? ''}`.trim()}>
       <div className="wp-training-stats-chart__header-inline">{metricLabel}</div>
       <div className="wp-training-stats-chart__canvas">
         <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} preserveAspectRatio="none" aria-label={metricLabel}>
-          {PERCENT_GRID.map((tick) => {
-            const y = paddingTop + chartHeight - (tick / 100) * chartHeight;
+          {gridValues.map((tick) => {
+            const y = paddingTop + chartHeight - (tick / maxValue) * chartHeight;
             return (
               <g key={tick}>
                 <line className="wp-training-stats-chart__grid" x1={paddingLeft} x2={viewBoxWidth - paddingRight} y1={y} y2={y} />
-                <text className="wp-training-stats-chart__axis-label" x={8} y={y + 4}>{tick}%</text>
+                <text className="wp-training-stats-chart__axis-label" x={8} y={y + 4}>{formatTooltipValue(tick)}</text>
               </g>
             );
           })}
 
-          {slots.map((slot, index) => {
-            const x = paddingLeft + zoneWidth * index + zoneWidth / 2;
-            return <line key={slot.label} className="wp-training-stats-chart__axis" x1={x} x2={x} y1={paddingTop} y2={paddingTop + chartHeight} />;
-          })}
+          {plottedPoints.map((point) => (
+            <line key={`guide-${point.label}`} className="wp-training-stats-chart__axis" x1={point.x} x2={point.x} y1={paddingTop} y2={paddingTop + chartHeight} />
+          ))}
 
-          {points.length > 1 ? <path className="wp-training-stats-chart__line" d={path} /> : null}
-          {points.map((point) => <circle key={point.label} className="wp-training-stats-chart__dot" cx={point.x} cy={point.y} r="5" />)}
+          {plottedPoints.map((point) => (
+            <line key={`stem-${point.label}`} className="wp-training-stats-chart__stem" x1={point.x} x2={point.x} y1={point.y} y2={paddingTop + chartHeight} />
+          ))}
 
-          {points.length === 0 ? (
-            <foreignObject x={paddingLeft} y={paddingTop} width={chartWidth} height={chartHeight}>
-              <ChartEmpty message={emptyMessage} />
-            </foreignObject>
-          ) : null}
+          {plottedPoints.length > 1 ? <path className="wp-training-stats-chart__line" d={path} /> : null}
+
+          {plottedPoints.map((point) => (
+            <g key={point.label}>
+              <circle className="wp-training-stats-chart__dot" cx={point.x} cy={point.y} r="5" />
+              <text className="wp-training-stats-chart__point-value" x={point.x} y={Math.max(18, point.y - 14)} textAnchor="middle">
+                {formatTooltipValue(point.value)}
+              </text>
+              <text className="wp-training-stats-chart__x-label" x={point.x} y={viewBoxHeight - 10} textAnchor="middle">
+                {point.label}
+              </text>
+              <title>{`${point.label} · ${formatTooltipValue(point.value)}`}</title>
+            </g>
+          ))}
         </svg>
-      </div>
-      <div className="wp-training-stats-chart__x-axis">
-        {slots.map((slot) => <span key={slot.label}>{slot.label}</span>)}
-      </div>
-    </div>
-  );
-}
-
-function AverageTimeBarChart({ emptyMessage, slots }: { emptyMessage: string; slots: CycleSlot[] }) {
-  const values = slots.map((slot) => slot.value ?? 0);
-  const maxSeconds = getAdaptiveTimeMax(values);
-  const ticks = [0, maxSeconds * 0.25, maxSeconds * 0.5, maxSeconds * 0.75, maxSeconds];
-
-  return (
-    <div className="wp-training-stats-bars">
-      <div className="wp-training-stats-bars__plot">
-        <div className="wp-training-stats-bars__y-axis">
-          {ticks.slice().reverse().map((tick) => <span key={tick}>{formatAxisDuration(tick)}</span>)}
-        </div>
-        <div className="wp-training-stats-bars__grid">
-          {ticks.slice().reverse().map((tick) => <span key={tick} className="wp-training-stats-bars__grid-line" />)}
-          {slots.every((slot) => slot.value === null) ? <ChartEmpty message={emptyMessage} /> : null}
-          <div className="wp-training-stats-bars__columns">
-            {slots.map((slot) => {
-              const heightPercent = slot.value === null ? 0 : Math.max(0, Math.min(100, (slot.value / maxSeconds) * 100));
-              const style = { '--bar-height': `${heightPercent}%` } as CSSProperties;
-              return (
-                <div className="wp-training-stats-bars__column" key={slot.label}>
-                  <span className="wp-training-stats-bars__value">{slot.value === null ? '' : formatAveragePuzzleTime(slot.value)}</span>
-                  <span className="wp-training-stats-bars__bar" style={style} />
-                  <strong>{slot.label}</strong>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScatterPlot({ rows }: { rows: ReturnType<typeof buildAllTrainingsActivityRows> }) {
-  const plottedRows = rows.filter((row) => row.stats.durationMilliseconds > 0 || row.stats.progressPercent > 0);
-  const maxDuration = Math.max(...plottedRows.map((row) => row.stats.durationMilliseconds), 1);
-
-  return (
-    <div className="wp-training-stats-scatter">
-      <svg viewBox="0 0 620 260" preserveAspectRatio="none" aria-label="Temps investi et progression obtenue">
-        <line className="wp-training-stats-scatter__axis" x1="52" x2="52" y1="20" y2="220" />
-        <line className="wp-training-stats-scatter__axis" x1="52" x2="590" y1="220" y2="220" />
-        {PERCENT_GRID.map((tick) => {
-          const y = 220 - tick * 2;
-          return (
-            <g key={tick}>
-              <line className="wp-training-stats-scatter__grid" x1="52" x2="590" y1={y} y2={y} />
-              <text className="wp-training-stats-scatter__label" x="8" y={y + 4}>{tick}%</text>
-            </g>
-          );
-        })}
-
-        {plottedRows.map(({ stats, summary }) => {
-          const x = 52 + (stats.durationMilliseconds / maxDuration) * 538;
-          const y = 220 - stats.progressPercent * 2;
-          const color = resolveTrainingBranding(summary.training).iconBackgroundColor;
-          return (
-            <g key={summary.training['@id']}>
-              <circle cx={x} cy={y} r="6" fill={color} />
-              <text className="wp-training-stats-scatter__name" x={Math.min(540, x + 10)} y={Math.max(24, y - 8)}>{truncateLabel(summary.training.name, 16)}</text>
-              <title>{`${summary.training.name} · ${formatDuration(stats.durationMilliseconds)} · ${stats.progressPercent}%`}</title>
-            </g>
-          );
-        })}
-
-        {plottedRows.length === 0 ? (
-          <foreignObject x="52" y="20" width="538" height="200">
-            <ChartEmpty message="Aucune donnée exploitable sur cette période." />
-          </foreignObject>
-        ) : null}
-      </svg>
-      <div className="wp-training-stats-scatter__meta">
-        <span>Progression obtenue</span>
-        <span>Temps investi</span>
       </div>
     </div>
   );
@@ -435,6 +381,167 @@ function TrainingCell({ training }: { training: TrainingDashboardSummary['traini
     </span>
   );
 }
+
+function FilterIcon() {
+  return <AppIcons.TargetIcon width={18} height={18} />;
+}
+
+function MetricIcon({ metric }: { metric: StatsMetricKey }) {
+  if (metric === 'averageAttempts') {
+    return <AppIcons.RepeatIcon width={18} height={18} />;
+  }
+
+  return <AppIcons.TargetIcon width={18} height={18} />;
+}
+
+function DistributionDonut({ centerLabel, centerValue, segments }: { centerLabel: string; centerValue: string; segments: DistributionSegment[] }) {
+  const donutStyle = { background: buildDonutBackground(segments) } as CSSProperties;
+
+  return (
+    <div className="wp-training-stats-donut" style={donutStyle}>
+      <div>
+        <strong>{centerValue}</strong>
+        <span>{centerLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+function DistributionLegend({ segments, total }: { segments: DistributionSegment[]; total: number }) {
+  return (
+    <div className="wp-training-stats-result-distribution__legend">
+      {segments.map((segment) => (
+        <div className="wp-training-stats-result-row" key={segment.label}>
+          <div className="wp-training-stats-result-row__main">
+            <span className="wp-training-stats-result-row__dot" style={{ backgroundColor: segment.color }} />
+            <div>
+              <strong>{segment.label}</strong>
+              {segment.description ? <small>{segment.description}</small> : null}
+            </div>
+          </div>
+          <div className="wp-training-stats-result-row__meta">
+            <strong>{formatPercentShare(segment.value, total)}</strong>
+            <span>{segment.valueLabel ?? segment.value}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ResultDistribution({ breakdown, totalLabel, totalValue }: { breakdown: ResultBreakdown; totalLabel: string; totalValue: string }) {
+  const segments: DistributionSegment[] = [
+    { color: RESULT_COLORS.direct, description: 'Résolus dès le premier essai', label: 'Réussis directement', value: breakdown.direct },
+    { color: RESULT_COLORS.rescued, description: 'Ratés puis finalement résolus', label: 'Rattrapés après erreur', value: breakdown.rescued },
+    { color: RESULT_COLORS.unresolved, description: 'Aucune résolution finale', label: 'Non résolus', value: breakdown.unresolved },
+  ];
+  const total = Math.max(segments.reduce((sum, segment) => sum + segment.value, 0), 1);
+
+  return (
+    <div className="wp-training-stats-result-distribution">
+      <DistributionDonut centerLabel={totalLabel} centerValue={totalValue} segments={segments} />
+      <DistributionLegend segments={segments} total={total} />
+    </div>
+  );
+}
+
+function TrainingTimeDistribution({ rows }: { rows: TrainingDashboardSummary[] }) {
+  const activeRows = [...rows]
+    .filter((row) => (row.durationMilliseconds ?? 0) > 0)
+    .sort((left, right) => (right.durationMilliseconds ?? 0) - (left.durationMilliseconds ?? 0));
+
+  if (activeRows.length === 0) {
+    return <ChartEmpty message="Aucune répartition à afficher." />;
+  }
+
+  const fallbackRows = rows.filter((row) => !activeRows.some((activeRow) => activeRow.training['@id'] === row.training['@id']));
+  const visibleRows = [...activeRows, ...fallbackRows].slice(0, 5);
+  const totalDuration = activeRows.reduce((sum, row) => sum + (row.durationMilliseconds ?? 0), 0);
+  const hiddenDuration = activeRows
+    .filter((row) => !visibleRows.some((visibleRow) => visibleRow.training['@id'] === row.training['@id']))
+    .reduce((sum, row) => sum + (row.durationMilliseconds ?? 0), 0);
+  const segments = visibleRows.map((row) => ({
+    color: resolveTrainingBranding(row.training).iconBackgroundColor ?? NEUTRAL_TRAINING_COLOR,
+    label: row.training.name,
+    value: row.durationMilliseconds ?? 0,
+    valueLabel: formatDuration(row.durationMilliseconds ?? 0),
+  }));
+  const finalSegments = hiddenDuration > 0
+    ? [...segments, { color: NEUTRAL_TRAINING_COLOR, label: 'Autres', value: hiddenDuration, valueLabel: formatDuration(hiddenDuration) }]
+    : segments;
+
+  return (
+    <div className="wp-training-stats-result-distribution">
+      <DistributionDonut centerLabel="Total" centerValue={formatDuration(totalDuration)} segments={finalSegments} />
+      <DistributionLegend segments={finalSegments} total={totalDuration} />
+    </div>
+  );
+}
+
+function CycleResultColumns({ cycleRows }: { cycleRows: TrainingCycleSummary[] }) {
+  const visibleCount = Math.max(5, cycleRows.length);
+  const slots = Array.from({ length: visibleCount }, (_, index) => cycleRows[index] ?? null);
+
+  return (
+    <div className="wp-training-stats-cycle-results">
+      <div className="wp-training-stats-cycle-results__legend">
+        <span><i style={{ backgroundColor: RESULT_COLORS.direct }} />Réussis directement</span>
+        <span><i style={{ backgroundColor: RESULT_COLORS.rescued }} />Rattrapés après erreur</span>
+        <span><i style={{ backgroundColor: RESULT_COLORS.unresolved }} />Non résolus</span>
+      </div>
+      <div className="wp-training-stats-cycle-results__columns">
+        {slots.map((cycle, index) => {
+          if (!cycle) {
+            return (
+              <div className="wp-training-stats-cycle-results__column" key={`placeholder-${index}`}>
+                <div className="wp-training-stats-cycle-results__stack is-placeholder" />
+                <strong>{`Cycle ${index + 1}`}</strong>
+              </div>
+            );
+          }
+
+          const breakdown = buildCycleResultBreakdown(cycle);
+          const total = Math.max(breakdown.direct + breakdown.rescued + breakdown.unresolved, 1);
+
+          return (
+            <div className="wp-training-stats-cycle-results__column" key={cycle.cycle['@id']}>
+              <div className="wp-training-stats-cycle-results__stack">
+                {breakdown.direct > 0 ? <span className="is-direct" style={{ height: formatPercentShare(breakdown.direct, total) }}>{breakdown.direct}</span> : null}
+                {breakdown.rescued > 0 ? <span className="is-rescued" style={{ height: formatPercentShare(breakdown.rescued, total) }}>{breakdown.rescued}</span> : null}
+                {breakdown.unresolved > 0 ? <span className="is-unresolved" style={{ height: formatPercentShare(breakdown.unresolved, total) }}>{breakdown.unresolved}</span> : null}
+              </div>
+              <strong>{`Cycle ${cycle.cycle.number}`}</strong>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AttemptDistribution({ summary, cycleRows, preferSummary }: { summary: TrainingSummary | null; cycleRows: TrainingCycleSummary[]; preferSummary: boolean }) {
+  const distribution = buildAttemptDistribution(summary, cycleRows, preferSummary);
+
+  if (!distribution || distribution.resolvedPuzzleCount <= 0) {
+    return <ChartEmpty message="Aucun puzzle résolu sur cette période." />;
+  }
+
+  const total = distribution.resolvedPuzzleCount;
+  const segments: DistributionSegment[] = [
+    { color: ATTEMPT_COLORS[0], label: '1 essai', value: distribution.oneAttemptCount },
+    { color: ATTEMPT_COLORS[1], label: '2 essais', value: distribution.twoAttemptCount },
+    { color: ATTEMPT_COLORS[2], label: '3 essais', value: distribution.threeAttemptCount },
+    { color: ATTEMPT_COLORS[3], label: '4 essais ou plus', value: distribution.fourPlusAttemptCount },
+  ];
+
+  return (
+    <div className="wp-training-stats-result-distribution">
+      <DistributionDonut centerLabel="Puzzles résolus" centerValue={String(total)} segments={segments} />
+      <DistributionLegend segments={segments} total={total} />
+    </div>
+  );
+}
+
 export function TrainingsStatsView({
   errorMessage,
   isError,
@@ -448,96 +555,78 @@ export function TrainingsStatsView({
   summaryIsError,
   summaryIsLoading,
 }: TrainingsStatsViewProps) {
-  const [selectedDays, setSelectedDays] = useState<(typeof PERIOD_OPTIONS)[number]>(30);
+  const [selectedDays, setSelectedDays] = useState<(typeof PERIOD_OPTIONS)[number]['value']>(30);
   const [selectedMetric, setSelectedMetric] = useState<StatsMetricKey>('successRate');
+  const [selectedAttemptScope, setSelectedAttemptScope] = useState<'all' | string>('all');
   const trainingBreakdown = statsOverview?.trainingBreakdown ?? [];
   const selectedSummary = selectedTrainingIri
     ? trainingBreakdown.find((item) => item.training['@id'] === selectedTrainingIri) ?? null
     : null;
 
-  const availableDays = useMemo(() => {
-    if (selectedSummary) {
-      const dates = (summary?.dailyActivity ?? []).map((point) => point.date);
-      return resolveAvailableDays(dates, selectedSummary.training.createdAt);
-    }
-
-    const dates = trainingBreakdown.flatMap((item) => (item.dailyActivity ?? []).map((point) => point.date));
-    const createdAtDates = trainingBreakdown.map((item) => item.training.createdAt);
-    return resolveAvailableDays([...dates, ...createdAtDates]);
-  }, [selectedSummary, summary?.dailyActivity, trainingBreakdown]);
-
-  const effectiveDays = Math.min(selectedDays, availableDays);
-  const endDate = startOfDay(new Date());
-  const windowStartDate = addDays(endDate, -(effectiveDays - 1));
-  const previousEndDate = addDays(windowStartDate, -1);
-  const previousStartDate = addDays(previousEndDate, -(effectiveDays - 1));
-
-  const allRows = useMemo(() => buildAllTrainingsActivityRows(trainingBreakdown, effectiveDays), [effectiveDays, trainingBreakdown]);
-
   const allModeCards = useMemo(() => {
-    if (allRows.length === 0) {
+    if (!statsOverview) {
       return [] as CardDefinition[];
     }
 
-    const currentSuccess = allRows.reduce((total, item) => total + item.stats.successRate, 0) / allRows.length;
-    const currentProgress = allRows.reduce((total, item) => total + item.stats.progressPercent, 0) / allRows.length;
-    const currentDuration = allRows.reduce((total, item) => total + item.stats.durationMilliseconds, 0) / allRows.length;
-    const currentAttempts = allRows.reduce((total, item) => total + item.stats.averageAttempts, 0) / allRows.length;
-
-    const previousRows = trainingBreakdown.map((item) => {
-      const previousPoints = buildRange(item.dailyActivity ?? [], previousStartDate, previousEndDate);
-      return buildWindowSummary(previousPoints, item.puzzleCount ?? 0);
-    });
-
-    const previousSuccess = previousRows.reduce((total, item) => total + item.successRate, 0) / Math.max(previousRows.length, 1);
-    const previousProgress = previousRows.reduce((total, item) => total + item.progressPercent, 0) / Math.max(previousRows.length, 1);
-    const previousDuration = previousRows.reduce((total, item) => total + item.durationMilliseconds, 0) / Math.max(previousRows.length, 1);
-    const previousAttempts = previousRows.reduce((total, item) => total + item.averageAttempts, 0) / Math.max(previousRows.length, 1);
-
     return [
-      buildCard('Taux de réussite', `${Math.round(currentSuccess)}%`, currentSuccess - previousSuccess, 'percent', iconElement(<AppIcons.TargetIcon width={20} height={20} />)),
-      buildCard('Progression globale', `${Math.round(currentProgress)}%`, currentProgress - previousProgress, 'percent', iconElement(<AppIcons.TrendUpIcon width={20} height={20} />)),
-      buildCard("Temps d'entraînement", formatDuration(currentDuration), currentDuration - previousDuration, 'duration', iconElement(<AppIcons.HistoryIcon width={20} height={20} />)),
-      buildCard('Tentatives moyennes', `${Math.round(currentAttempts * 10) / 10}`, currentAttempts - previousAttempts, 'count', iconElement(<AppIcons.RepeatIcon width={20} height={20} />)),
+      buildCard('Taux de réussite', `${statsOverview.successRate}%`, <AppIcons.TargetIcon width={20} height={20} />, 'info'),
+      buildCard('Progression globale', `${statsOverview.progressPercent ?? 0}%`, <AppIcons.TrendUpIcon width={20} height={20} />, 'positive'),
+      buildCard("Temps d'entraînement", formatDuration(statsOverview.totalDurationMilliseconds ?? 0), <AppIcons.HistoryIcon width={20} height={20} />, 'info'),
+      buildCard('Tentatives moyennes', formatAverageAttempts(statsOverview.averageAttempts ?? 0), <AppIcons.RepeatIcon width={20} height={20} />, 'violet'),
     ];
-  }, [allRows, previousEndDate, previousStartDate, trainingBreakdown]);
+  }, [statsOverview]);
 
-  const selectedCurrent = selectedSummary
-    ? buildWindowSummary(buildRange(summary?.dailyActivity ?? [], windowStartDate, endDate), summary?.puzzleCount ?? selectedSummary.puzzleCount ?? 0)
-    : null;
-  const selectedPrevious = selectedSummary
-    ? buildWindowSummary(buildRange(summary?.dailyActivity ?? [], previousStartDate, previousEndDate), summary?.puzzleCount ?? selectedSummary.puzzleCount ?? 0)
-    : null;
-
-  const selectedModeCards = selectedSummary && selectedCurrent && selectedPrevious
-    ? [
-        buildCard('Taux de réussite', `${Math.round(selectedCurrent.successRate)}%`, selectedCurrent.successRate - selectedPrevious.successRate, 'percent', iconElement(<AppIcons.TargetIcon width={20} height={20} />)),
-        buildCard('Progression globale', `${Math.round(selectedCurrent.progressPercent)}%`, selectedCurrent.progressPercent - selectedPrevious.progressPercent, 'percent', iconElement(<AppIcons.TrendUpIcon width={20} height={20} />)),
-        buildCard("Temps d'entraînement", formatDuration(selectedCurrent.durationMilliseconds), selectedCurrent.durationMilliseconds - selectedPrevious.durationMilliseconds, 'duration', iconElement(<AppIcons.HistoryIcon width={20} height={20} />)),
-        buildCard('Tentatives moyennes', `${Math.round(selectedCurrent.averageAttempts * 10) / 10}`, selectedCurrent.averageAttempts - selectedPrevious.averageAttempts, 'count', iconElement(<AppIcons.RepeatIcon width={20} height={20} />)),
-      ]
-    : [];
-
-  const cycleRows = useMemo(() => buildCycleRows(summary, windowStartDate), [summary, windowStartDate]);
-  const cyclePercentSlots = useMemo(() => buildCycleSlots(cycleRows, selectedMetric), [cycleRows, selectedMetric]);
-  const cycleTimeSlots = useMemo(() => buildTimeSlots(cycleRows), [cycleRows]);
-  const mostActiveRows = [...allRows].sort((left, right) => right.stats.durationMilliseconds - left.stats.durationMilliseconds).slice(0, 5);
-  const regularRows = [...allRows].sort((left, right) => right.stats.activeDays - left.stats.activeDays || right.stats.handledPuzzleCount - left.stats.handledPuzzleCount).slice(0, 5);
-  const distributionTotal = Math.max(allRows.reduce((total, row) => total + row.stats.durationMilliseconds, 0), 1);
-  const distributionRows = [...allRows].filter((row) => row.stats.durationMilliseconds > 0).sort((left, right) => right.stats.durationMilliseconds - left.stats.durationMilliseconds).slice(0, 5);
+  const cycleRows = useMemo(() => filterCycleRows(summary, selectedDays), [summary, selectedDays]);
+  const selectedModeCards = useMemo(() => buildSelectedCards(cycleRows, selectedSummary), [cycleRows, selectedSummary]);
+  const cycleMetricPoints = useMemo(() => buildCycleMetricPoints(cycleRows, selectedMetric), [cycleRows, selectedMetric]);
+  const cycleTimePoints = useMemo(() => buildCycleTimePoints(cycleRows), [cycleRows]);
+  const attemptScopeOptions = useMemo(
+    () => [{ label: 'Tous les cycles', value: 'all' }, ...cycleRows.map((cycle) => ({ label: `Cycle ${cycle.cycle.number}`, value: cycle.cycle['@id'] }))],
+    [cycleRows],
+  );
+  const effectiveAttemptScope = attemptScopeOptions.some((option) => option.value === selectedAttemptScope)
+    ? selectedAttemptScope
+    : 'all';
+  const attemptCycleRows = useMemo(
+    () => effectiveAttemptScope === 'all'
+      ? cycleRows
+      : cycleRows.filter((cycle) => cycle.cycle['@id'] === effectiveAttemptScope),
+    [cycleRows, effectiveAttemptScope],
+  );
+  const mostActiveRows = useMemo(
+    () => [...trainingBreakdown].sort((left, right) => (right.durationMilliseconds ?? 0) - (left.durationMilliseconds ?? 0)).slice(0, 5),
+    [trainingBreakdown],
+  );
+  const globalResultBreakdown = useMemo(
+    () => buildResultBreakdown({
+      failedCount: statsOverview?.failedCyclePuzzleCount,
+      rescuedCount: statsOverview?.rescuedCyclePuzzleCount,
+      solvedCount: statsOverview?.solvedCyclePuzzleCount,
+      unresolvedCount: statsOverview?.unresolvedCyclePuzzleCount,
+    }),
+    [statsOverview],
+  );
   const activeMetricLabel = METRIC_OPTIONS.find((option) => option.key === selectedMetric)?.label ?? 'Taux de réussite';
+  const metricValues = cycleMetricPoints.map((point) => point.value);
+  const metricMax = selectedMetric === 'averageAttempts' ? getAdaptiveNumericMax(metricValues, 1) : 100;
+  const metricGrid = selectedMetric === 'averageAttempts'
+    ? [0, metricMax * 0.33, metricMax * 0.66, metricMax].map((value) => Math.round(value * 10) / 10)
+    : [...PERCENT_GRID];
+  const timeValues = cycleTimePoints.map((point) => point.value);
+  const timeMax = getAdaptiveTimeMax(timeValues);
+  const timeGrid = [0, timeMax * 0.25, timeMax * 0.5, timeMax * 0.75, timeMax];
 
   return (
     <div className="wp-page wp-training-stats-page">
       <header className="wp-training-stats-page__header">
         <div>
-          <h1>{selectedSummary ? `Statistiques · ${selectedSummary.training.name}` : 'Statistiques · Tous les trainings'}</h1>
-          <p>Des repères concrets pour voir ce qui progresse, ce qui coûte du temps et ce qu'il faut retravailler.</p>
+          <h1>Statistiques</h1>
+          <p>Analysez votre activité et votre progression.</p>
         </div>
 
         <div className="wp-training-stats-page__filters">
           <label className="wp-training-stats-select">
-            <span><AppIcons.BarsIcon width={18} height={18} /></span>
+            <span className="wp-training-stats-select__icon"><FilterIcon /></span>
             <select value={selectedTrainingIri ?? 'all'} onChange={(event) => onSelectTrainingIri(event.target.value === 'all' ? null : event.target.value)}>
               <option value="all">Tous les trainings</option>
               {trainingBreakdown.map((item) => (
@@ -546,12 +635,14 @@ export function TrainingsStatsView({
             </select>
           </label>
 
-          <label className="wp-training-stats-select">
-            <span><AppIcons.HistoryIcon width={18} height={18} /></span>
-            <select value={String(selectedDays)} onChange={(event) => setSelectedDays(Number(event.target.value) as (typeof PERIOD_OPTIONS)[number])}>
-              {PERIOD_OPTIONS.map((option) => <option key={option} value={option}>{`${option} derniers jours`}</option>)}
-            </select>
-          </label>
+          {!selectedSummary ? (
+            <label className="wp-training-stats-select">
+              <span><AppIcons.HistoryIcon width={18} height={18} /></span>
+              <select value={String(selectedDays)} onChange={(event) => setSelectedDays(Number(event.target.value) as (typeof PERIOD_OPTIONS)[number]['value'])}>
+                {PERIOD_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+          ) : null}
         </div>
       </header>
 
@@ -562,163 +653,194 @@ export function TrainingsStatsView({
 
       <section className="wp-training-stats-cards">
         {(selectedSummary ? selectedModeCards : allModeCards).map((card) => (
-          <article className="wp-training-stats-card" key={card.label}>
+          <article key={card.label} className={`wp-training-stats-card is-${card.accent}`}>
             <div className="wp-training-stats-card__head">
               <span className="wp-training-stats-card__icon">{card.icon}</span>
               <span>{card.label}</span>
             </div>
             <strong>{card.value}</strong>
-            <small className={card.deltaTone}>{card.deltaLabel}</small>
           </article>
         ))}
       </section>
 
       {selectedSummary ? (
-        <section className="wp-training-stats-grid wp-training-stats-grid--selected">
-          <article className="wp-training-stats-panel">
+        <>
+          <section className="wp-training-stats-grid wp-training-stats-grid--selected-top">
+            <article className="wp-training-stats-panel">
+              <div className="wp-training-stats-panel__head">
+                <div>
+                  <h2>Évolution des cycles</h2>
+                  <p>Suivez l'évolution de vos performances au fil des cycles.</p>
+                </div>
+                <label className="wp-training-stats-select wp-training-stats-select--compact">
+                  <span><MetricIcon metric={selectedMetric} /></span>
+                  <select value={selectedMetric} onChange={(event) => setSelectedMetric(event.target.value as StatsMetricKey)}>
+                    {METRIC_OPTIONS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                  </select>
+                </label>
+              </div>
+              <GenericLineChart
+                accentClassName={selectedMetric === 'averageAttempts' ? 'is-violet' : 'is-blue'}
+                emptyMessage="Aucun cycle disponible sur cette période."
+                formatTooltipValue={(value) => selectedMetric === 'averageAttempts' ? formatAverageAttempts(value) : `${Math.round(value)}%`}
+                gridValues={metricGrid}
+                metricLabel={activeMetricLabel}
+                points={cycleMetricPoints}
+              />
+            </article>
+
+            <article className="wp-training-stats-panel">
+              <div className="wp-training-stats-panel__head">
+                <div>
+                  <h2>Temps moyen par puzzle sur chaque cycle</h2>
+                  <p>Évolution du temps moyen pour résoudre un puzzle à chaque cycle.</p>
+                </div>
+              </div>
+              <GenericLineChart
+                accentClassName="is-violet"
+                emptyMessage="Aucun puzzle résolu sur cette période."
+                formatTooltipValue={formatAveragePuzzleTime}
+                gridValues={timeGrid}
+                metricLabel="Temps moyen"
+                points={cycleTimePoints}
+              />
+            </article>
+          </section>
+
+          <section className="wp-training-stats-grid wp-training-stats-grid--selected-detail">
+            <article className="wp-training-stats-panel wp-training-stats-panel--span-2">
+              <div className="wp-training-stats-panel__head">
+                <div>
+                  <h2>Détail des cycles</h2>
+                  <p>Données détaillées de chaque cycle.</p>
+                </div>
+              </div>
+              {cycleRows.length === 0 ? (
+                <ChartEmpty message="Aucun cycle disponible sur cette période." />
+              ) : (
+                <div className="wp-training-stats-table-wrap">
+                  <table className="wp-training-stats-table">
+                    <thead>
+                      <tr>
+                        <th>Cycle</th>
+                        <th>Période</th>
+                        <th>Réussite</th>
+                        <th>Progression</th>
+                        <th>Tentatives moy.</th>
+                        <th>Temps</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cycleRows.map((cycle) => (
+                        <tr key={cycle.cycle['@id']}>
+                          <td>{`Cycle ${cycle.cycle.number}`}</td>
+                          <td>
+                            <div className="wp-training-stats-cycle-period">
+                              <span>{formatCyclePeriod(cycle)}</span>
+                              {cycle.cycle.status === 'active' ? <em>En cours</em> : null}
+                            </div>
+                          </td>
+                          <td>{`${Math.round(cycle.successRate ?? 0)}%`}</td>
+                          <td>{`${Math.round(cycle.progressPercent ?? 0)}%`}</td>
+                          <td>{formatAverageAttempts(cycle.averageAttempts ?? 0)}</td>
+                          <td>{formatDuration(cycle.durationMilliseconds ?? 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </article>
+          </section>
+
+          <section className="wp-training-stats-grid wp-training-stats-grid--selected-bottom">
+            <article className="wp-training-stats-panel">
+              <div className="wp-training-stats-panel__head">
+                <div>
+                  <h2>Répartition des résultats par cycle</h2>
+                  <p>Barres verticales compactes comme sur la maquette.</p>
+                </div>
+              </div>
+              <CycleResultColumns cycleRows={cycleRows} />
+            </article>
+
+            <article className="wp-training-stats-panel">
+              <div className="wp-training-stats-panel__head">
+                <div>
+                  <h2>Distribution du nombre d'essais</h2>
+                  <p>Fromage avec valeurs affichées sur le côté.</p>
+                </div>
+                <label className="wp-training-stats-select wp-training-stats-select--compact">
+                  <span><AppIcons.RepeatIcon width={18} height={18} /></span>
+                  <select value={effectiveAttemptScope} onChange={(event) => setSelectedAttemptScope(event.target.value)}>
+                    {attemptScopeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+              </div>
+              <AttemptDistribution summary={summary} cycleRows={attemptCycleRows} preferSummary={effectiveAttemptScope === 'all'} />
+            </article>
+          </section>
+        </>
+      ) : (
+        <section className="wp-training-stats-grid wp-training-stats-grid--global">
+          <article className="wp-training-stats-panel wp-training-stats-panel--span-2">
             <div className="wp-training-stats-panel__head">
               <div>
-                <h2>Évolution des cycles</h2>
-                <p>Suivi de vos performances au fil des cycles.</p>
-              </div>
-              <label className="wp-training-stats-select wp-training-stats-select--compact">
-                <select value={selectedMetric} onChange={(event) => setSelectedMetric(event.target.value as StatsMetricKey)}>
-                  {METRIC_OPTIONS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
-                </select>
-              </label>
-            </div>
-            <PercentLineChart emptyMessage="Aucun cycle disponible sur cette période." metricLabel={activeMetricLabel} slots={cyclePercentSlots} />
-          </article>
-
-          <article className="wp-training-stats-panel">
-            <div className="wp-training-stats-panel__head">
-              <div>
-                <h2>Détail des cycles</h2>
-                <p>Lecture détaillée des cycles visibles sur la période sélectionnée.</p>
+                <h2>Trainings les plus actifs</h2>
+                <p>Liste tabulaire avec training, temps, difficulté moyenne, réussite globale et progression depuis le début.</p>
               </div>
             </div>
-
-            {cycleRows.length === 0 ? (
-              <div className="wp-training-stats-empty-block">Aucun cycle disponible sur cette période.</div>
-            ) : (
-              <div className="wp-training-stats-table-wrap">
-                <table className="wp-training-stats-table">
+            <div className="wp-training-stats-table-wrap">
+              {mostActiveRows.length === 0 ? <ChartEmpty message="Aucune activité pour le moment." /> : (
+                <table className="wp-training-stats-table wp-training-stats-table--interactive">
                   <thead>
                     <tr>
-                      <th>Cycle</th>
-                      <th>Période</th>
+                      <th>Training</th>
+                      <th>Temps</th>
+                      <th>Difficulté moy.</th>
                       <th>Réussite</th>
                       <th>Progression</th>
-                      <th>Temps</th>
-                      <th>Tentatives moy.</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {cycleRows.map((cycle) => (
-                      <tr key={cycle.cycle['@id']}>
-                        <td>{`Cycle ${cycle.cycle.number}`}</td>
-                        <td>{formatCyclePeriod(cycle)}</td>
-                        <td>{`${Math.round(cycle.successRate ?? 0)}%`}</td>
-                        <td>{`${Math.round(cycle.progressPercent ?? 0)}%`}</td>
-                        <td>{formatDuration(cycle.durationMilliseconds ?? 0)}</td>
-                        <td>{`${Math.round((cycle.averageAttempts ?? 0) * 10) / 10}`}</td>
+                    {mostActiveRows.map((row) => (
+                      <tr key={row.training['@id']} onClick={() => onOpenTraining(row.training['@id'], 'stats')}>
+                        <td><TrainingCell training={row.training} /></td>
+                        <td>{formatDuration(row.durationMilliseconds ?? 0)}</td>
+                        <td>—</td>
+                        <td>{`${row.successRate ?? 0}%`}</td>
+                        <td>{`${row.progressPercent ?? 0}%`}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
-          </article>
-
-          <article className="wp-training-stats-panel">
-            <div className="wp-training-stats-panel__head">
-              <div>
-                <h2>Temps moyen par puzzle sur chaque cycle</h2>
-                <p>Évolution du temps moyen pour résoudre un puzzle par cycle.</p>
-              </div>
-            </div>
-            <AverageTimeBarChart emptyMessage="Pas assez de données pour calculer cette moyenne." slots={cycleTimeSlots} />
-          </article>
-        </section>
-      ) : (
-        <section className="wp-training-stats-grid wp-training-stats-grid--global">
-          <article className="wp-training-stats-panel">
-            <div className="wp-training-stats-panel__head">
-              <div>
-                <h2>Trainings les plus actifs</h2>
-                <p>Les 5 entraînements qui concentrent le plus de temps sur la période.</p>
-              </div>
-            </div>
-            <div className="wp-training-stats-list">
-              {mostActiveRows.length === 0 ? <div className="wp-training-stats-empty-block">Aucune activité sur cette période.</div> : mostActiveRows.map(({ stats, summary: row }) => (
-                <button className="wp-training-stats-list__row is-button" key={row.training['@id']} type="button" onClick={() => onOpenTraining(row.training['@id'], 'detail')}>
-                  <div className="wp-training-stats-list__main">
-                    <TrainingCell training={row.training} />
-                    <small>{formatDuration(stats.durationMilliseconds)}</small>
-                  </div>
-                  <div className="wp-training-stats-list__meta">
-                    <strong>{`${stats.successRate}%`}</strong>
-                    <span>{`${stats.progressPercent}%`}</span>
-                  </div>
-                </button>
-              ))}
+              )}
             </div>
           </article>
 
           <article className="wp-training-stats-panel">
             <div className="wp-training-stats-panel__head">
               <div>
-                <h2>Temps investi / progression obtenue</h2>
-                <p>Chaque point représente un entraînement sur la période choisie.</p>
+                <h2>Répartition du temps par training</h2>
+                <p>Fromage avec durée totale au centre, puis pourcentage et durée réelle par training.</p>
               </div>
+              {trainingBreakdown.length > 5 ? <span className="wp-training-stats-panel__action">Voir tout</span> : null}
             </div>
-            <ScatterPlot rows={allRows} />
+            <TrainingTimeDistribution rows={trainingBreakdown} />
           </article>
 
           <article className="wp-training-stats-panel">
             <div className="wp-training-stats-panel__head">
               <div>
-                <h2>Répartition du temps</h2>
-                <p>Comparaison du temps passé sur chaque entraînement.</p>
+                <h2>Répartition des résultats</h2>
+                <p>Fromage de synthèse pour réussite directe, rattrapage et non-résolution.</p>
               </div>
             </div>
-            <div className="wp-training-stats-bars-list">
-              {distributionRows.length === 0 ? <div className="wp-training-stats-empty-block">Aucune répartition à afficher sur cette période.</div> : distributionRows.map(({ stats, summary: row }) => {
-                const share = Math.round((stats.durationMilliseconds / distributionTotal) * 100);
-                const color = resolveTrainingBranding(row.training).iconBackgroundColor;
-                const style = { '--training-share': `${Math.max(6, share)}%`, '--training-share-color': color } as CSSProperties;
-                return (
-                  <div className="wp-training-stats-bars-list__row" key={row.training['@id']}>
-                    <div className="wp-training-stats-bars-list__label"><TrainingCell training={row.training} /></div>
-                    <div className="wp-training-stats-bars-list__track"><span style={style} /></div>
-                    <strong>{`${share}%`}</strong>
-                  </div>
-                );
-              })}
-            </div>
-          </article>
-
-          <article className="wp-training-stats-panel">
-            <div className="wp-training-stats-panel__head">
-              <div>
-                <h2>Trainings les plus réguliers</h2>
-                <p>Ceux que vous travaillez le plus souvent sur la période choisie.</p>
-              </div>
-            </div>
-            <div className="wp-training-stats-list">
-              {regularRows.length === 0 ? <div className="wp-training-stats-empty-block">Aucune régularité exploitable sur cette période.</div> : regularRows.map(({ stats, summary: row }) => {
-                const width = `${Math.max(8, (stats.activeDays / Math.max(effectiveDays, 1)) * 100)}%`;
-                return (
-                  <div className="wp-training-stats-list__row" key={row.training['@id']}>
-                    <div className="wp-training-stats-list__main">
-                      <TrainingCell training={row.training} />
-                      <small>{`${stats.activeDays} jour${stats.activeDays > 1 ? 's' : ''} actif${stats.activeDays > 1 ? 's' : ''}`}</small>
-                    </div>
-                    <div className="wp-training-stats-regularity"><span style={{ width }} /></div>
-                  </div>
-                );
-              })}
-            </div>
+            <ResultDistribution
+              breakdown={globalResultBreakdown}
+              totalLabel="Puzzles terminés"
+              totalValue={(globalResultBreakdown.direct + globalResultBreakdown.rescued + globalResultBreakdown.unresolved).toLocaleString('fr-FR')}
+            />
           </article>
         </section>
       )}
@@ -728,5 +850,9 @@ export function TrainingsStatsView({
 
 export type { TrainingsStatsViewProps };
 export default TrainingsStatsView;
+
+
+
+
 
 

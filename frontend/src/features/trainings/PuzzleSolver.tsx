@@ -1,15 +1,28 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Chess, type Move } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import {
+  DEFAULT_DARK_SQUARE_COLOR,
+  DEFAULT_LIGHT_SQUARE_COLOR,
+  buildDropSquareStyle,
+  buildSelectedSquareStyles,
+  type BoardColorPalette,
+} from './chessboardPreferences';
 import './puzzle-solver.css';
 
 type PuzzleSolverProps = {
+  animateMoves?: boolean;
+  darkSquareColor?: string;
   fen?: string | null;
   initialEvaluationFailed?: boolean;
+  lightSquareColor?: string;
   onCompleted?: (result: PuzzleCompletionResult) => void;
   onFailed?: (result: PuzzleCompletionResult) => void;
   onFirstMistake?: (result: PuzzleCompletionResult) => void;
   onStateChange?: (snapshot: PuzzleSolverSnapshot) => void;
+  showCoordinates?: boolean;
+  showLegalMoves?: boolean;
+  showRightClickTargets?: boolean;
   solution: string[];
 };
 
@@ -46,23 +59,33 @@ type SolverState = {
 type ChessSquare = Parameters<Chess['get']>[0];
 
 export function PuzzleSolver({
+  animateMoves = true,
+  darkSquareColor = DEFAULT_DARK_SQUARE_COLOR,
   fen,
   initialEvaluationFailed = false,
+  lightSquareColor = DEFAULT_LIGHT_SQUARE_COLOR,
   onCompleted,
   onFailed,
   onFirstMistake,
   onStateChange,
+  showCoordinates = true,
+  showLegalMoves = true,
+  showRightClickTargets = true,
   solution,
 }: PuzzleSolverProps) {
   const initialFen = fen?.trim() || undefined;
   const normalizedSolution = useMemo(() => solution.map((move) => move.trim()).filter(Boolean), [solution]);
+  const boardPalette = useMemo<BoardColorPalette>(() => ({ darkSquareColor, lightSquareColor }), [darkSquareColor, lightSquareColor]);
   const initialOrientation = useMemo(() => {
     const game = createGame(initialFen);
     return game.turn() === 'w' ? 'white' : 'black';
   }, [initialFen]);
+  const solutionKey = useMemo(() => normalizedSolution.join('|'), [normalizedSolution]);
   const [solverState, setSolverState] = useState(() => createInitialSolverState(initialFen, initialEvaluationFailed));
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [rightClickMarkers, setRightClickMarkers] = useState<Record<string, CSSProperties>>({});
+  const lastReportedSnapshotRef = useRef<PuzzleSolverSnapshot | null>(null);
+  const onStateChangeRef = useRef(onStateChange);
 
   const {
     completed,
@@ -74,8 +97,8 @@ export function PuzzleSolver({
     moveIndex,
     playedMoves,
   } = solverState;
-  const legalTargetSquares = selectedSquare ? getLegalTargetSquares(game, selectedSquare) : [];
-  const squareStyles = getSquareStyles(selectedSquare, legalTargetSquares, rightClickMarkers);
+  const legalTargetSquares = selectedSquare && showLegalMoves ? getLegalTargetSquares(game, selectedSquare) : [];
+  const squareStyles = getSquareStyles(selectedSquare, legalTargetSquares, rightClickMarkers, boardPalette);
   const boardFeedbackClassName = [
     'wp-puzzle-solver-v2__board',
     feedback.kind === 'success' ? 'is-success' : '',
@@ -85,21 +108,33 @@ export function PuzzleSolver({
     .join(' ');
 
   useEffect(() => {
+    onStateChangeRef.current = onStateChange;
+  }, [onStateChange]);
+
+  useEffect(() => {
     setSelectedSquare(null);
     setRightClickMarkers({});
     setSolverState(createInitialSolverState(initialFen, initialEvaluationFailed));
-  }, [initialEvaluationFailed, initialFen, normalizedSolution]);
+    lastReportedSnapshotRef.current = null;
+  }, [initialEvaluationFailed, initialFen, solutionKey]);
 
   useEffect(() => {
-    onStateChange?.({
+    const nextSnapshot: PuzzleSolverSnapshot = {
       completed,
       evaluationFailed,
       feedback,
       mistakesCount,
       playedMoves,
       resolved: completed,
-    });
-  }, [completed, evaluationFailed, feedback, mistakesCount, onStateChange, playedMoves]);
+    };
+
+    if (solverSnapshotsMatch(lastReportedSnapshotRef.current, nextSnapshot)) {
+      return;
+    }
+
+    lastReportedSnapshotRef.current = nextSnapshot;
+    onStateChangeRef.current?.(nextSnapshot);
+  }, [completed, evaluationFailed, feedback, mistakesCount, playedMoves]);
 
   function handlePieceDrop(sourceSquare: string, targetSquare: string | null): boolean {
     if (completed || !sourceSquare || !targetSquare) {
@@ -228,6 +263,10 @@ export function PuzzleSolver({
   }
 
   function handleSquareRightClick(square: string) {
+    if (!showRightClickTargets) {
+      return;
+    }
+
     setRightClickMarkers((current) => {
       const next = { ...current };
       if (next[square]) {
@@ -252,8 +291,8 @@ export function PuzzleSolver({
             boardOrientation: initialOrientation,
             allowDragging: true,
             allowDrawingArrows: true,
-            showAnimations: true,
-            showNotation: true,
+            showAnimations: animateMoves,
+            showNotation: showCoordinates,
             animationDurationInMs: 180,
             canDragPiece: (...args) => canDragCurrentTurnPiece(args[0], game),
             onPieceDrop: (...args) => {
@@ -283,15 +322,29 @@ export function PuzzleSolver({
               userSelect: 'none',
               WebkitUserSelect: 'none',
             },
-            darkSquareStyle: { backgroundColor: '#7f9f56' },
-            lightSquareStyle: { backgroundColor: '#f0e6c8' },
-            dropSquareStyle: { boxShadow: 'inset 0 0 0 4px rgba(59, 130, 246, 0.46)' },
+            darkSquareStyle: { backgroundColor: darkSquareColor },
+            lightSquareStyle: { backgroundColor: lightSquareColor },
+            dropSquareStyle: buildDropSquareStyle(boardPalette),
             draggingPieceStyle: { cursor: 'grabbing', filter: 'drop-shadow(0 10px 12px rgba(0, 0, 0, 0.34))' },
             squareStyles,
           }}
         />
       </div>
     </div>
+  );
+}
+
+function solverSnapshotsMatch(left: PuzzleSolverSnapshot | null, right: PuzzleSolverSnapshot) {
+  return Boolean(
+    left
+    && left.completed === right.completed
+    && left.evaluationFailed === right.evaluationFailed
+    && left.feedback.kind === right.feedback.kind
+    && left.feedback.message === right.feedback.message
+    && left.mistakesCount === right.mistakesCount
+    && left.resolved === right.resolved
+    && left.playedMoves.length === right.playedMoves.length
+    && left.playedMoves.every((move, index) => move === right.playedMoves[index]),
   );
 }
 
@@ -404,14 +457,14 @@ function getSquareStyles(
   selectedSquare: string | null,
   legalTargetSquares: string[],
   rightClickMarkers: Record<string, CSSProperties>,
+  palette: BoardColorPalette,
 ): Record<string, CSSProperties> {
   const styles: Record<string, CSSProperties> = { ...rightClickMarkers };
 
   if (selectedSquare) {
     styles[selectedSquare] = {
       ...styles[selectedSquare],
-      backgroundColor: 'rgba(59, 130, 246, 0.28)',
-      boxShadow: 'inset 0 0 0 2px rgba(59, 130, 246, 0.76)',
+      ...buildSelectedSquareStyles(palette),
     };
   }
 

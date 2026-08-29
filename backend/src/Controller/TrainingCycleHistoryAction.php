@@ -149,7 +149,6 @@ final class TrainingCycleHistoryAction
             'status' => $cyclePuzzle->getStatus(),
             'attemptCount' => $cyclePuzzle->getAttemptCount(),
             'durationMilliseconds' => $cyclePuzzle->getDurationMilliseconds(),
-            'finallySolved' => $cyclePuzzle->isFinallySolved(),
             'completedAt' => $cyclePuzzle->getCompletedAt()?->format(DATE_ATOM),
             'trainingPuzzle' => $this->normalizeTrainingPuzzle($trainingPuzzle),
         ];

@@ -119,9 +119,10 @@ class AttemptRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('attempt')
             ->innerJoin('attempt.trainingSession', 'trainingSession')
             ->addSelect('trainingSession')
+            ->addSelect('COALESCE(attempt.completedAt, attempt.startedAt) AS HIDDEN attemptTimelineDate')
             ->andWhere('trainingSession.training = :training')
             ->setParameter('training', $training)
-            ->orderBy('attempt.attemptedAt', 'DESC')
+            ->orderBy('attemptTimelineDate', 'DESC')
             ->addOrderBy('attempt.id', 'DESC')
             ->getQuery()
             ->getResult();

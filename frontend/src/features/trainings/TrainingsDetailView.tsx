@@ -485,8 +485,9 @@ function getCycleSupportText(cycle: Cycle | null, cycleStatusLabel: string) {
 }
 
 function DetailHeader({
+  canOpenSolver,
   canStartCycle,
-  hasStartedCycle,
+  hasCycleHistory,
   onEditTraining,
   onImport,
   onOpenSolver,
@@ -494,8 +495,9 @@ function DetailHeader({
   selectedTraining,
   startCycleIsPending,
 }: {
+  canOpenSolver: boolean;
   canStartCycle: boolean;
-  hasStartedCycle: boolean;
+  hasCycleHistory: boolean;
   onEditTraining: () => void;
   onImport: () => void;
   onOpenSolver: () => void;
@@ -523,20 +525,22 @@ function DetailHeader({
           <span>Modifier l'entraînement</span>
         </button>
 
-        {hasStartedCycle ? (
+        {canOpenSolver ? (
           <button className="wp-primary wp-detail-button" type="button" onClick={onOpenSolver}>
             <Play aria-hidden="true" size={16} strokeWidth={2} />
             <span>Ouvrir le solveur</span>
           </button>
         ) : (
           <>
-            <button className="wp-secondary wp-detail-button" type="button" onClick={onImport}>
-              <FileUp aria-hidden="true" size={16} strokeWidth={2} />
-              <span>Importer des puzzles</span>
-            </button>
+            {!hasCycleHistory ? (
+              <button className="wp-secondary wp-detail-button" type="button" onClick={onImport}>
+                <FileUp aria-hidden="true" size={16} strokeWidth={2} />
+                <span>Importer des puzzles</span>
+              </button>
+            ) : null}
             <button className="wp-primary wp-detail-button" disabled={!canStartCycle || startCycleIsPending} type="button" onClick={onStartCycle}>
               <Play aria-hidden="true" size={16} strokeWidth={2} />
-              <span>{startCycleIsPending ? 'Démarrage...' : 'Démarrer le cycle'}</span>
+              <span>{startCycleIsPending ? 'Démarrage...' : hasCycleHistory ? 'Démarrer un nouveau cycle' : 'Démarrer le cycle'}</span>
             </button>
           </>
         )}
@@ -605,12 +609,12 @@ function PuzzlePreview({ fen }: { fen?: string | null }) {
 }
 
 function DetailCollection({
-  hasStartedCycle,
+  canOpenSolver,
   onPuzzleSelect,
   rows,
   totalProblems,
 }: {
-  hasStartedCycle: boolean;
+  canOpenSolver: boolean;
   onPuzzleSelect: (trainingPuzzleIri: string) => void;
   rows: PuzzleRow[];
   totalProblems: number;
@@ -624,7 +628,7 @@ function DetailCollection({
   const paginationItems = buildPaginationItems(pageCount, safeCurrentPage);
 
   const openPuzzle = (row: PuzzleRow) => {
-    if (!hasStartedCycle || row.accessDisabled) {
+    if (!canOpenSolver || row.accessDisabled) {
       return;
     }
 
@@ -962,10 +966,11 @@ export function DetailView({
   const cycleSummaries = summary?.cycleSummaries ?? [];
   const latestCycleSummary = summary?.latestCycleSummary ?? cycleSummaries[0] ?? null;
   const latestAttempts = summary?.latestAttempts ?? [];
-  const hasStartedCycle = Boolean(currentCycle || latestCycleSummary || hasResumableCycle || cyclePuzzles.length > 0);
+  const hasCycleHistory = Boolean(currentCycle || latestCycleSummary || hasResumableCycle || cyclePuzzles.length > 0);
+  const canOpenSolver = currentCycle?.status === 'active';
   const totalProblems = summary?.puzzleCount ?? trainingPuzzles.length ?? puzzleCount;
-  const stats = buildStats(totalProblems, cycleStats, summary, analytics, hasStartedCycle);
-  const puzzleRows = buildPuzzleRows(trainingPuzzles, cyclePuzzles, latestAttempts, hasStartedCycle);
+  const stats = buildStats(totalProblems, cycleStats, summary, analytics, hasCycleHistory);
+  const puzzleRows = buildPuzzleRows(trainingPuzzles, cyclePuzzles, latestAttempts, canOpenSolver);
   const attemptCards = buildAttemptCards(latestAttempts);
   const canStartCycle = trainingPuzzles.length > 0;
 
@@ -973,7 +978,8 @@ export function DetailView({
     <div className="wp-page wp-detail-page">
       <DetailHeader
         canStartCycle={canStartCycle}
-        hasStartedCycle={hasStartedCycle}
+        canOpenSolver={canOpenSolver}
+        hasCycleHistory={hasCycleHistory}
         onEditTraining={onEditTraining}
         onImport={onImport}
         onOpenSolver={onOpenSolver}
@@ -990,14 +996,20 @@ export function DetailView({
       <DetailStatGrid stats={stats} />
 
       {trainingPuzzlesIsLoading ? <p className="wp-empty">Chargement des problèmes...</p> : null}
-      {summaryIsLoading && hasStartedCycle ? <p className="wp-empty">Chargement du cycle...</p> : null}
-      {analyticsIsLoading && hasStartedCycle ? <p className="wp-empty">Chargement des statistiques détaillées...</p> : null}
+      {summaryIsLoading && hasCycleHistory ? <p className="wp-empty">Chargement du cycle...</p> : null}
+      {analyticsIsLoading && hasCycleHistory ? <p className="wp-empty">Chargement des statistiques détaillées...</p> : null}
 
-      {hasStartedCycle ? (
+      {hasCycleHistory ? (
         <div className="wp-detail-layout">
           <div className="wp-detail-layout__main">
             <DetailCycleStatus currentCycle={currentCycle ?? latestCycleSummary?.cycle ?? null} cycleStats={cycleStats} cycleStatusLabel={cycleStatusLabel} />
-            <DetailCollection hasStartedCycle={true} onPuzzleSelect={onPuzzleSelect} rows={puzzleRows} totalProblems={totalProblems} />
+            <DetailCollection canOpenSolver={canOpenSolver} onPuzzleSelect={onPuzzleSelect} rows={puzzleRows} totalProblems={totalProblems} />
+            {!canOpenSolver ? (
+              <DetailInfoBanner>
+                <strong>Aucun cycle actif n'est disponible.</strong>
+                <p>Démarrez un nouveau cycle avant d'ouvrir un puzzle dans le solveur. Sans cycle actif, aucune tentative ni autosauvegarde ne peut être créée.</p>
+              </DetailInfoBanner>
+            ) : null}
           </div>
           <div className="wp-detail-layout__side">
             <DetailCycleHistory cycleSummaries={cycleSummaries} />
@@ -1006,7 +1018,7 @@ export function DetailView({
         </div>
       ) : (
         <div className="wp-detail-layout wp-detail-layout--single">
-          <DetailCollection hasStartedCycle={false} onPuzzleSelect={onPuzzleSelect} rows={puzzleRows} totalProblems={totalProblems} />
+          <DetailCollection canOpenSolver={false} onPuzzleSelect={onPuzzleSelect} rows={puzzleRows} totalProblems={totalProblems} />
           <DetailInfoBanner>
             <strong>Aucun cycle n'a encore été démarré.</strong>
             <p>Importez vos puzzles et lancez votre premier cycle pour commencer à vous entraîner.</p>

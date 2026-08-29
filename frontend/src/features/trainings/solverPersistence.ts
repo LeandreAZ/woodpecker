@@ -90,3 +90,22 @@ export function createSolverAttemptClientRequestId() {
 }
 
 export type { SolverAttemptSnapshot };
+
+
+type SolverNavigationSnapshotHandler = () => void;
+
+let solverNavigationSnapshotHandler: SolverNavigationSnapshotHandler | null = null;
+
+export function registerSolverNavigationSnapshotHandler(handler: SolverNavigationSnapshotHandler) {
+  solverNavigationSnapshotHandler = handler;
+
+  return () => {
+    if (solverNavigationSnapshotHandler === handler) {
+      solverNavigationSnapshotHandler = null;
+    }
+  };
+}
+
+export function flushSolverNavigationSnapshot() {
+  solverNavigationSnapshotHandler?.();
+}

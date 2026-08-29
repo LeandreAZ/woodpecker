@@ -5,7 +5,7 @@ import { DetailView } from './TrainingsDetailView';
 import CreateTrainingView from './TrainingsCreateView';
 import EditTrainingView from './TrainingsEditView';
 import SolverView from './TrainingsSolverView';
-import TrainingsStatsView from './TrainingsStatsView';
+import { TrainingsStatsView } from './TrainingsStatsView';
 import type { useTrainingsPanelState } from './useTrainingsPanelState';
 import './trainings-common.css';
 import './detail.css';
@@ -14,21 +14,17 @@ import {
   ImportView,
   SettingsOverviewView,
 } from './TrainingsPanelContentViews';
-
 type TrainingsPanelState = ReturnType<typeof useTrainingsPanelState>;
-
 type TrainingsPanelContentProps = {
   navigateToPuzzleSolver: (trainingPuzzleIri: string) => void;
   navigateToTraining: (trainingIri: string, view?: View) => void;
   navigateToView: (view: View) => void;
   state: TrainingsPanelState;
 };
-
 const emptyCyclePuzzles: CyclePuzzle[] = [];
 const emptyTrainingPuzzles: TrainingPuzzle[] = [];
 const emptySolverTrainingPuzzles: TrainingPuzzle[] = [];
-
-export function TrainingsPanelContentScreen({
+export default function TrainingsPanelContentScreen({
   navigateToPuzzleSolver,
   navigateToTraining,
   navigateToView,
@@ -43,25 +39,20 @@ export function TrainingsPanelContentScreen({
   const trainings = trainingsQuery.data ?? [];
   const hydratedEditTrainingIriRef = useRef<string | null>(null);
   const isEditLoading = activeView === 'edit' && !selectedTraining && (trainingsQuery.isLoading || trainingsQuery.isFetching);
-
   useEffect(() => {
     if (activeView !== 'edit') {
       hydratedEditTrainingIriRef.current = null;
       return;
     }
-
     if (!selectedTraining) {
       return;
     }
-
     if (hydratedEditTrainingIriRef.current === selectedTraining['@id']) {
       return;
     }
-
     hydrateTrainingDraft(selectedTraining);
     hydratedEditTrainingIriRef.current = selectedTraining['@id'];
   }, [activeView, hydrateTrainingDraft, selectedTraining]);
-
   return (
     <>
       <section className="wp-main">
@@ -74,12 +65,11 @@ export function TrainingsPanelContentScreen({
           isTrainingsLoading={state.trainingsQuery.isLoading || state.trainingsQuery.isFetching}
           onCreate={() => navigateToView('create')}
           onOpenTraining={navigateToTraining}
-          selectedTrainingIri={state.effectiveSelectedTrainingIri}
+          selectedTrainingIri={state.selectedTrainingIri}
           statsOverview={state.statsOverviewQuery.data ?? null}
           trainings={trainings}
         />
       )}
-
       {state.activeView === 'create' && (
         <CreateTrainingView
           description={state.description}
@@ -99,7 +89,6 @@ export function TrainingsPanelContentScreen({
           onSubmit={() => state.createTrainingMutation.mutate()}
         />
       )}
-
       {state.activeView === 'edit' && (
         <EditTrainingView
           description={state.description}
@@ -119,7 +108,6 @@ export function TrainingsPanelContentScreen({
           onSubmit={() => state.updateTrainingMutation.mutate()}
         />
       )}
-
       {state.activeView === 'detail' && (
         <DetailView
           analytics={state.trainingAnalyticsQuery.data ?? null}
@@ -172,7 +160,6 @@ export function TrainingsPanelContentScreen({
           trainingPuzzlesIsLoading={state.trainingPuzzlesQuery.isLoading}
         />
       )}
-
       {state.activeView === 'import' && (
         <ImportView
           csvErrors={state.csvErrors}
@@ -197,7 +184,6 @@ export function TrainingsPanelContentScreen({
           selectedTraining={state.selectedTraining}
         />
       )}
-
       {state.activeView === 'solver' && (
         <SolverView
           activeTrainingSessionIri={state.effectiveActiveTrainingSessionIri}
@@ -211,6 +197,7 @@ export function TrainingsPanelContentScreen({
           cycleStats={state.cycleStats}
           failedCyclePuzzleIris={state.failedCyclePuzzleIris}
           hasActiveCycle={Boolean(state.effectiveActiveCycleIri && state.effectiveActiveTrainingSessionIri)}
+          isTrainingSessionPending={Boolean(state.currentCycle) && !state.effectiveActiveTrainingSessionIri}
           onBackToDashboard={() => navigateToView('dashboard')}
           onBackToDetail={() => navigateToView('detail')}
           onPuzzleCompleted={(result) => {
@@ -253,7 +240,6 @@ export function TrainingsPanelContentScreen({
           trainingPuzzles={state.trainingPuzzlesQuery.data ?? emptySolverTrainingPuzzles}
         />
       )}
-
       {state.activeView === 'stats' && (
         <TrainingsStatsView
           errorMessage={state.statsOverviewQuery.error?.message}
@@ -261,7 +247,7 @@ export function TrainingsPanelContentScreen({
           isLoading={state.statsOverviewQuery.isLoading}
           onOpenTraining={navigateToTraining}
           onSelectTrainingIri={state.setSelectedTrainingIri}
-          selectedTrainingIri={state.effectiveSelectedTrainingIri}
+          selectedTrainingIri={state.selectedTrainingIri}
           statsOverview={state.statsOverviewQuery.data ?? null}
           summary={state.trainingSummaryQuery.data ?? null}
           summaryError={state.trainingSummaryQuery.error?.message}
@@ -269,7 +255,6 @@ export function TrainingsPanelContentScreen({
           summaryIsLoading={state.trainingSummaryQuery.isLoading}
         />
       )}
-
       {state.activeView === 'history' && (
         <HistoryOverviewView
           attemptHistory={state.trainingAttemptHistoryQuery.data ?? null}
@@ -286,13 +271,15 @@ export function TrainingsPanelContentScreen({
           selectedTraining={state.selectedTraining}
         />
       )}
-
       {state.activeView === 'settings' && (
         <SettingsOverviewView
           errorMessage={state.userSettingsOverviewQuery.error?.message}
           isError={state.userSettingsOverviewQuery.isError}
           isLoading={state.userSettingsOverviewQuery.isLoading}
+          isSaving={state.saveUserSettingsMutation.isPending}
           onBackToDashboard={() => navigateToView('dashboard')}
+          onSave={(value) => state.saveUserSettingsMutation.mutateAsync(value)}
+          saveErrorMessage={state.saveUserSettingsMutation.error?.message}
           settingsOverview={state.userSettingsOverviewQuery.data ?? null}
         />
       )}
@@ -300,15 +287,7 @@ export function TrainingsPanelContentScreen({
     </>
   );
 }
-
-export default TrainingsPanelContentScreen;
-
-
-
-
-
-
-
+export { TrainingsPanelContentScreen };
 
 
 

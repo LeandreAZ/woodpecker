@@ -52,10 +52,6 @@ class Attempt
     private array $playedMoves = [];
 
     #[ORM\Column]
-    #[Groups(['attempt:read', 'attempt:write'])]
-    private bool $successful = false;
-
-    #[ORM\Column]
     #[Assert\PositiveOrZero]
     #[Groups(['attempt:read', 'attempt:write'])]
     private int $mistakesCount = 0;
@@ -76,10 +72,6 @@ class Attempt
     #[ORM\Column(nullable: true)]
     #[Groups(['attempt:read', 'attempt:write'])]
     private ?\DateTimeImmutable $completedAt = null;
-
-    #[ORM\Column(nullable: true)]
-    #[Groups(['attempt:read'])]
-    private ?\DateTimeImmutable $attemptedAt = null;
 
     public function getId(): ?int
     {
@@ -148,12 +140,16 @@ class Attempt
 
     public function isSuccessful(): bool
     {
-        return $this->successful;
+        return AttemptStatus::Solved === $this->status;
     }
 
     public function setSuccessful(bool $successful): self
     {
-        $this->successful = $successful;
+        $this->status = $successful ? AttemptStatus::Solved : AttemptStatus::Failed;
+
+        if (AttemptStatus::Solved === $this->status || AttemptStatus::Failed === $this->status) {
+            $this->completedAt ??= new \DateTimeImmutable();
+        }
 
         return $this;
     }
@@ -220,12 +216,17 @@ class Attempt
 
     public function getAttemptedAt(): ?\DateTimeImmutable
     {
-        return $this->attemptedAt;
+        return $this->completedAt ?? $this->startedAt;
     }
 
     public function setAttemptedAt(?\DateTimeImmutable $attemptedAt): self
     {
-        $this->attemptedAt = $attemptedAt;
+        if (null === $attemptedAt) {
+            return $this;
+        }
+
+        $this->completedAt ??= $attemptedAt;
+        $this->startedAt ??= $attemptedAt;
 
         return $this;
     }
@@ -234,6 +235,5 @@ class Attempt
     public function initializeDates(): void
     {
         $this->startedAt ??= new \DateTimeImmutable();
-        $this->attemptedAt ??= $this->completedAt ?? $this->startedAt;
     }
 }

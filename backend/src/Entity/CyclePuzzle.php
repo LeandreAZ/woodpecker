@@ -52,16 +52,7 @@ class CyclePuzzle
     #[ORM\Column]
     #[Assert\PositiveOrZero]
     #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
-    private int $attemptCount = 0;
-
-    #[ORM\Column]
-    #[Assert\PositiveOrZero]
-    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
     private int $durationMilliseconds = 0;
-
-    #[ORM\Column(options: ['default' => false])]
-    #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
-    private bool $finallySolved = false;
 
     #[ORM\Column(nullable: true)]
     #[Groups(['cycle_puzzle:read', 'cycle_puzzle:write'])]
@@ -145,13 +136,14 @@ class CyclePuzzle
 
     public function getAttemptCount(): int
     {
-        return $this->attemptCount;
+        return count(array_filter(
+            $this->attempts->toArray(),
+            static fn (Attempt $attempt): bool => 'in_progress' !== $attempt->getStatus(),
+        ));
     }
 
     public function setAttemptCount(int $attemptCount): self
     {
-        $this->attemptCount = max(0, $attemptCount);
-
         return $this;
     }
 
@@ -167,17 +159,6 @@ class CyclePuzzle
         return $this;
     }
 
-    public function isFinallySolved(): bool
-    {
-        return $this->finallySolved;
-    }
-
-    public function setFinallySolved(bool $finallySolved): self
-    {
-        $this->finallySolved = $finallySolved;
-
-        return $this;
-    }
 
     /**
      * @return Collection<int, Attempt>

@@ -4,8 +4,12 @@ namespace App\Controller;
 
 use App\Entity\Training;
 use App\Entity\User;
+use App\Entity\UserPreference;
+use App\Enum\AuthenticationEventType;
+use App\Repository\AuthenticationEventRepository;
 use App\Repository\TrainingPuzzleRepository;
 use App\Repository\TrainingRepository;
+use App\Service\UserPreferenceManager;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -16,6 +20,8 @@ final class UserSettingsOverviewAction
         private readonly Security $security,
         private readonly TrainingRepository $trainingRepository,
         private readonly TrainingPuzzleRepository $trainingPuzzleRepository,
+        private readonly UserPreferenceManager $userPreferenceManager,
+        private readonly AuthenticationEventRepository $authenticationEventRepository,
     ) {
     }
 
@@ -27,6 +33,7 @@ final class UserSettingsOverviewAction
             throw new NotFoundHttpException();
         }
 
+        $preference = $this->userPreferenceManager->getOrCreate($user);
         $trainings = $this->trainingRepository->findOwnedByUserOrdered($user);
         $trainingCount = count($trainings);
         $activeTrainingCount = count(array_filter(
@@ -39,11 +46,12 @@ final class UserSettingsOverviewAction
         ));
 
         $puzzleCount = 0;
-        $mistakeLimitTotal = 0;
         foreach ($trainings as $training) {
             $puzzleCount += count($this->trainingPuzzleRepository->findByTrainingWithPuzzleOrdered($training));
-            $mistakeLimitTotal += $training->getMistakeLimit();
         }
+
+        $lastLogin = $this->authenticationEventRepository->findLatestByUserAndType($user, AuthenticationEventType::Login);
+        $lastLogout = $this->authenticationEventRepository->findLatestByUserAndType($user, AuthenticationEventType::Logout);
 
         $payload = [
             'user' => [
@@ -53,6 +61,30 @@ final class UserSettingsOverviewAction
                 'roles' => $user->getRoles(),
                 'createdAt' => $user->getCreatedAt()?->format(DATE_ATOM),
             ],
+            'profile' => [
+                'displayName' => $preference->getDisplayName(),
+                'avatarUrl' => null,
+            ],
+            'appearance' => [
+                'language' => $preference->getLanguage(),
+                'theme' => $preference->getTheme(),
+            ],
+            'board' => [
+                'lightSquareColor' => $preference->getBoardLightSquare(),
+                'darkSquareColor' => $preference->getBoardDarkSquare(),
+                'themeLabel' => $this->buildBoardThemeLabel($preference),
+            ],
+            'solverPreferences' => [
+                'showLegalMoves' => $preference->shouldShowLegalMoves(),
+                'showCoordinates' => $preference->shouldShowCoordinates(),
+                'animateMoves' => $preference->shouldAnimateMoves(),
+                'showRightClickTargets' => $preference->shouldShowRightClickTargets(),
+            ],
+            'security' => [
+                'lastLoginAt' => $lastLogin?->getCreatedAt()?->format(DATE_ATOM),
+                'lastLogoutAt' => $lastLogout?->getCreatedAt()?->format(DATE_ATOM),
+                'lastLogoutReason' => $lastLogout?->getLogoutReason(),
+            ],
             'workspace' => [
                 'trainingCount' => $trainingCount,
                 'activeTrainingCount' => $activeTrainingCount,
@@ -60,19 +92,21 @@ final class UserSettingsOverviewAction
                 'puzzleCount' => $puzzleCount,
                 'latestTrainingName' => ($trainings[0] ?? null)?->getName(),
             ],
-            'preferencesPreview' => [
-                'defaultMistakeLimit' => $trainingCount > 0 ? (int) round($mistakeLimitTotal / $trainingCount) : 3,
-                'lockTrainingAfterCycle' => true,
-                'trackedSolverByDefault' => true,
-            ],
-            'integrations' => [
-                'lichessConnected' => false,
-                'chessComConnected' => false,
-                'exportReady' => $trainingCount > 0,
-            ],
         ];
 
         return new JsonResponse($payload, headers: ['Content-Type' => 'application/ld+json; charset=utf-8']);
+    }
+
+    private function buildBoardThemeLabel(UserPreference $preference): string
+    {
+        if (
+            $preference->getBoardLightSquare() === UserPreference::DEFAULT_BOARD_LIGHT
+            && $preference->getBoardDarkSquare() === UserPreference::DEFAULT_BOARD_DARK
+        ) {
+            return 'Vert classique';
+        }
+
+        return 'Palette personnalisée';
     }
 
     private function iri(string $resource, ?int $id): ?string

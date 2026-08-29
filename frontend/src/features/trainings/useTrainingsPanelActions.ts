@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import type { PuzzleCompletionResult } from './PuzzleSolver';
+import type { SupportedLanguage, SupportedTheme } from './chessboardPreferences';
 import { parseOptionalRating, validatePuzzleInput } from './puzzleValidation';
 import {
   DEFAULT_TRAINING_BRANDING,
@@ -52,12 +53,70 @@ type SolverAttemptSyncInput = {
   trainingSession: string;
 };
 
+function getCompletedAttemptCount(cyclePuzzle: CyclePuzzle) {
+  if (typeof cyclePuzzle.completedAttemptCount === 'number') {
+    return cyclePuzzle.completedAttemptCount;
+  }
+
+  return cyclePuzzle.attempts?.filter((attempt) => attempt.status !== 'in_progress').length ?? 0;
+}
+
+function getHasSolvedAttempt(cyclePuzzle: CyclePuzzle) {
+  if (typeof cyclePuzzle.hasSolvedAttempt === 'boolean') {
+    return cyclePuzzle.hasSolvedAttempt;
+  }
+
+  return cyclePuzzle.attempts?.some((attempt) => attempt.status === 'solved') ?? false;
+}
+
+function buildOptimisticAttempt(cyclePuzzle: CyclePuzzle, value: SolverAttemptSyncInput): Attempt {
+  const matchingAttempt = cyclePuzzle.attempts?.find((attempt) =>
+    (value.clientRequestId && attempt.clientRequestId === value.clientRequestId)
+      || attempt.attemptNumber === value.attemptNumber
+  );
+
+  return {
+    '@id': matchingAttempt?.['@id'] ?? cyclePuzzle.activeAttempt?.['@id'] ?? '',
+    id: matchingAttempt?.id ?? cyclePuzzle.activeAttempt?.id ?? 0,
+    attemptNumber: value.attemptNumber,
+    clientRequestId: value.clientRequestId ?? matchingAttempt?.clientRequestId ?? cyclePuzzle.activeAttempt?.clientRequestId ?? null,
+    cyclePuzzle: cyclePuzzle['@id'],
+    trainingSession: value.trainingSession,
+    status: value.status,
+    playedMoves: value.playedMoves,
+    successful: value.status === 'solved',
+    mistakesCount: value.mistakesCount,
+    durationMilliseconds: value.durationMilliseconds,
+    startedAt: matchingAttempt?.startedAt ?? cyclePuzzle.activeAttempt?.startedAt ?? new Date().toISOString(),
+    completedAt: value.status === 'in_progress' ? null : new Date().toISOString(),
+    attemptedAt: value.status === 'in_progress' ? null : new Date().toISOString(),
+  };
+}
+
+function buildOptimisticAttempts(cyclePuzzle: CyclePuzzle, value: SolverAttemptSyncInput, optimisticAttempt: Attempt) {
+  const remainingAttempts = (cyclePuzzle.attempts ?? []).filter((attempt) => {
+    if (value.clientRequestId && attempt.clientRequestId === value.clientRequestId) {
+      return false;
+    }
+
+    return attempt.attemptNumber !== value.attemptNumber;
+  });
+
+  if (value.status === 'in_progress') {
+    return [...remainingAttempts, optimisticAttempt];
+  }
+
+  return [...remainingAttempts, optimisticAttempt]
+    .filter((attempt) => attempt.status !== 'in_progress');
+}
+
 export function useTrainingsPanelActions(
   session: AuthSession,
   uiState: UiState,
   queries: Queries,
 ) {
   const queryClient = useQueryClient();
+  const ensuredTrainingSessionCycleIriRef = useRef<string | null>(null);
 
   function updateCyclePuzzleOverviewCache(
     trainingIri: string | null | undefined,
@@ -89,44 +148,31 @@ export function useTrainingsPanelActions(
     cyclePuzzle: CyclePuzzle,
     value: SolverAttemptSyncInput,
   ): Partial<CyclePuzzle> {
-    const currentAttemptCount = cyclePuzzle.attemptCount ?? cyclePuzzle.completedAttemptCount ?? 0;
-    const nextAttemptCount = value.status === 'in_progress' ? currentAttemptCount : Math.max(currentAttemptCount, value.attemptNumber);
-    const nextStatus = value.status === 'solved'
-      ? cyclePuzzle.status === 'failed'
+    const optimisticAttempt = buildOptimisticAttempt(cyclePuzzle, value);
+    const optimisticAttempts = buildOptimisticAttempts(cyclePuzzle, value, optimisticAttempt);
+    const nextCompletedAttemptCount = optimisticAttempts.filter((attempt) => attempt.status !== 'in_progress').length;
+    const nextHasSolvedAttempt = optimisticAttempts.some((attempt) => attempt.status === 'solved');
+    const nextHasFailedAttempt = optimisticAttempts.some((attempt) => attempt.status === 'failed');
+    const nextStatus = nextHasSolvedAttempt
+      ? nextHasFailedAttempt
         ? 'failed'
         : 'solved'
-      : value.status === 'failed'
+      : value.status === 'failed' || nextHasFailedAttempt
         ? 'failed'
-        : cyclePuzzle.status === 'failed'
-          ? 'failed'
-          : 'in_progress';
-    const nextFinallySolved = value.status === 'solved' || Boolean(cyclePuzzle.finallySolved);
+        : value.status === 'in_progress'
+          ? 'in_progress'
+          : cyclePuzzle.status === 'in_progress'
+            ? 'in_progress'
+            : 'pending';
 
     return {
-      activeAttempt: value.status === 'in_progress'
-        ? {
-            '@id': cyclePuzzle.activeAttempt?.['@id'] ?? '',
-            id: cyclePuzzle.activeAttempt?.id ?? 0,
-            attemptNumber: value.attemptNumber,
-            clientRequestId: value.clientRequestId ?? null,
-            cyclePuzzle: cyclePuzzle['@id'],
-            trainingSession: value.trainingSession,
-            status: 'in_progress',
-            playedMoves: value.playedMoves,
-            successful: false,
-            mistakesCount: value.mistakesCount,
-            durationMilliseconds: value.durationMilliseconds,
-            startedAt: cyclePuzzle.activeAttempt?.startedAt ?? new Date().toISOString(),
-            completedAt: null,
-            attemptedAt: cyclePuzzle.activeAttempt?.attemptedAt ?? null,
-          }
-        : null,
-      attemptCount: nextAttemptCount,
-      completedAttemptCount: nextAttemptCount,
-      completedAt: value.status === 'solved' ? new Date().toISOString() : null,
+      activeAttempt: value.status === 'in_progress' ? optimisticAttempt : null,
+      attempts: optimisticAttempts,
+      attemptCount: nextCompletedAttemptCount,
+      completedAttemptCount: nextCompletedAttemptCount,
+      completedAt: nextHasSolvedAttempt ? cyclePuzzle.completedAt ?? new Date().toISOString() : null,
       durationMilliseconds: Math.max(cyclePuzzle.durationMilliseconds ?? 0, value.cyclePuzzleDurationMilliseconds),
-      finallySolved: nextFinallySolved,
-      hasSolvedAttempt: nextFinallySolved,
+      hasSolvedAttempt: nextHasSolvedAttempt,
       status: nextStatus,
     };
   }
@@ -388,6 +434,27 @@ export function useTrainingsPanelActions(
     },
   });
 
+  const saveUserSettingsMutation = useMutation({
+    mutationFn: async (value: {
+      appearance: { language: SupportedLanguage; theme: SupportedTheme };
+      board: { darkSquareColor: string; lightSquareColor: string };
+      profile: { displayName: string };
+      solverPreferences: {
+        animateMoves: boolean;
+        showCoordinates: boolean;
+        showLegalMoves: boolean;
+        showRightClickTargets: boolean;
+      };
+    }) =>
+      apiRequest('/users/me/settings', {
+        method: 'PUT',
+        token: session.token,
+        body: value,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['user-settings-overview', session.email] });
+    },
+  });
   const importCsvMutation = useMutation({
     mutationFn: async () => {
       if (!queries.effectiveSelectedTrainingIri) {
@@ -505,6 +572,32 @@ export function useTrainingsPanelActions(
     },
     onSuccess: async () => {
       await invalidateTrainingData();
+    },
+  });
+
+
+  const ensureActiveTrainingSessionMutation = useMutation({
+    mutationFn: async ({
+      cycleIri,
+      trainingIri,
+    }: {
+      cycleIri: string;
+      trainingIri: string;
+    }) =>
+      apiRequest<TrainingSession>('/training_sessions', {
+        method: 'POST',
+        token: session.token,
+        body: {
+          training: trainingIri,
+          cycle: cycleIri,
+          note: 'Session restaurée automatiquement',
+        },
+      }),
+    onSuccess: async (trainingSession) => {
+      uiState.setActiveTrainingSessionIri(trainingSession['@id']);
+      await queryClient.invalidateQueries({
+        queryKey: ['training-overview', session.email, queries.effectiveSelectedTrainingIri],
+      });
     },
   });
 
@@ -650,7 +743,6 @@ export function useTrainingsPanelActions(
           mistakesCount: value.mistakesCount,
           playedMoves: value.playedMoves,
           status: value.status,
-          successful: value.status === 'solved',
           trainingSession: value.trainingSession,
         },
         keepalive: value.keepalive,
@@ -724,7 +816,6 @@ export function useTrainingsPanelActions(
           mistakesCount: value.mistakesCount,
           playedMoves: value.playedMoves,
           status: value.status,
-          successful: value.status === 'solved',
           trainingSession: value.trainingSession,
         },
       });
@@ -733,7 +824,7 @@ export function useTrainingsPanelActions(
       const patch = buildOptimisticCyclePuzzlePatch(value.cyclePuzzle, value);
       updateCyclePuzzleOverviewCache(queries.effectiveSelectedTrainingIri, value.cyclePuzzle['@id'], patch);
 
-      if (patch.status === 'solved' || Boolean(patch.finallySolved)) {
+      if (patch.status === 'solved' || Boolean(patch.hasSolvedAttempt)) {
         uiState.setSavedCyclePuzzleIris((current) => new Set(current).add(value.cyclePuzzle['@id']));
       }
 
@@ -746,6 +837,34 @@ export function useTrainingsPanelActions(
       await invalidateTrainingData();
     },
   });
+
+
+  useEffect(() => {
+    if (!queries.effectiveSelectedTrainingIri || !queries.effectiveActiveCycleIri) {
+      ensuredTrainingSessionCycleIriRef.current = null;
+      return;
+    }
+
+    if (queries.effectiveActiveTrainingSessionIri) {
+      ensuredTrainingSessionCycleIriRef.current = queries.effectiveActiveCycleIri;
+      return;
+    }
+
+    if (ensuredTrainingSessionCycleIriRef.current === queries.effectiveActiveCycleIri || ensureActiveTrainingSessionMutation.isPending) {
+      return;
+    }
+
+    ensuredTrainingSessionCycleIriRef.current = queries.effectiveActiveCycleIri;
+    ensureActiveTrainingSessionMutation.mutate({
+      cycleIri: queries.effectiveActiveCycleIri,
+      trainingIri: queries.effectiveSelectedTrainingIri,
+    });
+  }, [
+    ensureActiveTrainingSessionMutation,
+    queries.effectiveActiveCycleIri,
+    queries.effectiveActiveTrainingSessionIri,
+    queries.effectiveSelectedTrainingIri,
+  ]);
 
   useEffect(() => {
     void flushPendingSolverPersistence();
@@ -799,6 +918,7 @@ export function useTrainingsPanelActions(
     hydrateTrainingDraft,
     resetTrainingDraft,
     deleteTrainingMutation,
+    ensureActiveTrainingSessionMutation,
     deleteTrainingPuzzleMutation,
     importCsvMutation,
     moveTrainingPuzzleMutation,
@@ -808,10 +928,14 @@ export function useTrainingsPanelActions(
     recordSolverAttempt,
     saveCyclePuzzleProgressMutation,
     persistSolverProgress,
+    saveUserSettingsMutation,
     updateTrainingMutation,
     startCycleMutation,
   };
 }
+
+
+
 
 
 

@@ -1,9 +1,9 @@
 import type { AppRoute } from '../../shared/routing/appRouter';
 import type { AuthSession } from '../auth/authStorage';
+import TrainingsPanelContent from './TrainingsPanelContent';
 import TrainingsAppShell from './layout/TrainingsAppShell';
-import TrainingsPanelContentScreen from './TrainingsPanelContent';
-import { useTrainingsPanelState } from './useTrainingsPanelState';
 import { useTrainingsPanelRouting } from './useTrainingsPanelRouting';
+import { useTrainingsPanelState } from './useTrainingsPanelState';
 import type { View } from './trainingsTypes';
 
 type TrainingsPanelProps = {
@@ -40,7 +40,7 @@ function TrainingsPanelView({ session, onLogout, onNavigate, route }: TrainingsP
       route={route}
       selectedTraining={state.selectedTraining}
     >
-      <TrainingsPanelContentScreen
+      <TrainingsPanelContent
         navigateToPuzzleSolver={navigateToPuzzleSolver}
         navigateToTraining={(trainingIri, view) => navigateToTraining(trainingIri, state.openTraining, view)}
         navigateToView={navigateToView}
@@ -80,11 +80,3 @@ function viewFromRoute(route: AppRoute): View {
 export type { TrainingsPanelProps };
 export { TrainingsPanelView };
 export default TrainingsPanelView;
-
-
-
-
-
-
-
-

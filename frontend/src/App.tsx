@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AuthPage } from './features/auth/AuthPage';
 import { loadStoredSession, saveStoredSession, type AuthSession } from './features/auth/authStorage';
-import { TrainingsPanel } from './features/trainings/TrainingsPanel';
+import TrainingsPanelView from './features/trainings/TrainingsPanelView';
 import { previewSession } from './features/trainings/previewData';
+import type { SupportedTheme } from './features/trainings/chessboardPreferences';
 import { getRouteDocumentTitle, useAppRoute } from './shared/routing/appRouter';
-import { unauthorizedEventName } from './shared/api/client';
+import { apiRequest, unauthorizedEventName } from './shared/api/client';
+
+const LOCAL_THEME_STORAGE_KEY = 'woodpecker-theme';
 
 function getPreviewSessionFromLocation(): AuthSession | null {
   const params = new URLSearchParams(window.location.search);
@@ -16,11 +19,25 @@ function isExpiredPreviewRequested(): boolean {
   return params.get('expired') === '1';
 }
 
-const App = () => {
+function applyTheme(theme: SupportedTheme) {
+  document.documentElement.dataset.theme = theme;
+  document.body.dataset.theme = theme;
+}
+
+function loadStoredTheme(): SupportedTheme {
+  const storedTheme = window.localStorage.getItem(LOCAL_THEME_STORAGE_KEY);
+  return storedTheme === 'light' ? 'light' : 'dark';
+}
+
+function App() {
   const [session, setSession] = useState<AuthSession | null>(() => getPreviewSessionFromLocation() ?? loadStoredSession());
   const [sessionMessage, setSessionMessage] = useState<string | null>(() => (isExpiredPreviewRequested() ? 'Reconnecte-toi pour continuer ton entraînement.' : null));
   const { navigate, route } = useAppRoute();
   const authPreviewExpired = useMemo(() => isExpiredPreviewRequested(), []);
+
+  useEffect(() => {
+    applyTheme(loadStoredTheme());
+  }, []);
 
   useEffect(() => {
     document.title = getRouteDocumentTitle(route);
@@ -54,7 +71,6 @@ const App = () => {
   }, [navigate, route.name]);
 
   useEffect(() => {
-
     const preview = getPreviewSessionFromLocation();
 
     if (preview) {
@@ -82,6 +98,34 @@ const App = () => {
     }
   }, [navigate, route.name, session]);
 
+  useEffect(() => {
+    if (!session || getPreviewSessionFromLocation()) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void apiRequest<{ appearance?: { theme?: SupportedTheme } }>('/users/me/overview', { token: session.token })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+
+        const theme = payload.appearance?.theme === 'light' ? 'light' : 'dark';
+        window.localStorage.setItem(LOCAL_THEME_STORAGE_KEY, theme);
+        applyTheme(theme);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          applyTheme(loadStoredTheme());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
   function handleAuthenticated(nextSession: AuthSession) {
     saveStoredSession(nextSession);
     setSession(nextSession);
@@ -89,11 +133,25 @@ const App = () => {
     navigate({ name: 'dashboard' }, { replace: true });
   }
 
-  function handleLogout() {
+  async function handleLogout() {
     if (getPreviewSessionFromLocation()) {
       setSession(previewSession);
       navigate({ name: 'dashboard' }, { replace: true });
       return;
+    }
+
+    const currentSession = session;
+
+    try {
+      if (currentSession?.token) {
+        await apiRequest('/auth/logout', {
+          method: 'POST',
+          token: currentSession.token,
+          keepalive: true,
+        });
+      }
+    } catch {
+      // Best effort: logout must still clear the local session even if the persistence call fails.
     }
 
     saveStoredSession(null);
@@ -103,12 +161,11 @@ const App = () => {
   }
 
   if (session) {
-    return <TrainingsPanel onLogout={handleLogout} onNavigate={navigate} route={route} session={session} />;
+    return <TrainingsPanelView onLogout={handleLogout} onNavigate={navigate} route={route} session={session} />;
   }
 
   return <AuthPage onAuthenticated={handleAuthenticated} sessionMessage={sessionMessage} />;
-};
+}
 
 export { App };
 export default App;
-

@@ -42,6 +42,10 @@ services:
         public: true
         tags: ['controller.service_arguments']
 
+    App\Controller\AuthLogoutAction:
+        public: true
+        tags: ['controller.service_arguments']
+
     App\Controller\UserSettingsOverviewAction:
         public: true
         tags: ['controller.service_arguments']
@@ -50,3 +54,4 @@ services:
         tags:
             - { name: api_platform.doctrine.orm.query_extension.collection }
             - { name: api_platform.doctrine.orm.query_extension.item }
+

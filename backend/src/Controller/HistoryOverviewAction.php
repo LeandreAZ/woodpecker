@@ -3,13 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\Attempt;
-use App\Entity\Cycle;
-use App\Entity\CyclePuzzle;
+use App\Entity\AuthenticationEvent;
 use App\Entity\Training;
 use App\Entity\User;
 use App\Repository\AttemptRepository;
-use App\Repository\CyclePuzzleRepository;
-use App\Repository\CycleRepository;
+use App\Repository\AuthenticationEventRepository;
 use App\Repository\TrainingRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -20,9 +18,8 @@ final class HistoryOverviewAction
     public function __construct(
         private readonly Security $security,
         private readonly TrainingRepository $trainingRepository,
-        private readonly CycleRepository $cycleRepository,
-        private readonly CyclePuzzleRepository $cyclePuzzleRepository,
         private readonly AttemptRepository $attemptRepository,
+        private readonly AuthenticationEventRepository $authenticationEventRepository,
     ) {
     }
 
@@ -35,154 +32,102 @@ final class HistoryOverviewAction
         }
 
         $trainings = $this->trainingRepository->findOwnedByUserOrdered($user);
-        $recentAttempts = [];
-        $recentCycles = [];
-        $successfulAttemptCount = 0;
-        $latestAttemptedAt = null;
-        $activeCycleCount = 0;
-        $completedCycleCount = 0;
-        $cycleCount = 0;
+        $availableTrainings = array_map(fn (Training $training): array => $this->normalizeTraining($training), $trainings);
+        $items = [];
 
         foreach ($trainings as $training) {
-            $cycles = $this->cycleRepository->findByTrainingOrdered($training);
-            $cyclePuzzles = $this->cyclePuzzleRepository->findByTrainingOrdered($training);
-            $attempts = $this->attemptRepository->findByTrainingOrdered($training);
-
-            $cyclePuzzlesByCycle = [];
-            foreach ($cyclePuzzles as $cyclePuzzle) {
-                $cycleId = $cyclePuzzle->getCycle()?->getId();
-                if (null === $cycleId) {
+            foreach ($this->attemptRepository->findByTrainingOrdered($training) as $attempt) {
+                if ('in_progress' === $attempt->getStatus()) {
                     continue;
                 }
 
-                $cyclePuzzlesByCycle[$cycleId][] = $cyclePuzzle;
-            }
-
-            $attemptsByCyclePuzzle = [];
-            foreach ($attempts as $attempt) {
-                if ($attempt->isSuccessful()) {
-                    $successfulAttemptCount += 1;
-                }
-
-                $attemptedAt = $attempt->getAttemptedAt();
-                if ($attemptedAt instanceof \DateTimeImmutable && (null === $latestAttemptedAt || $attemptedAt > $latestAttemptedAt)) {
-                    $latestAttemptedAt = $attemptedAt;
-                }
-
-                $cyclePuzzleId = $attempt->getCyclePuzzle()?->getId();
-                if (null !== $cyclePuzzleId) {
-                    $attemptsByCyclePuzzle[$cyclePuzzleId][] = $attempt;
-                }
-
-                $recentAttempts[] = $this->normalizeAttemptSummary($training, $attempt);
-            }
-
-            foreach ($cycles as $cycle) {
-                $cycleCount += 1;
-
-                if ('active' === $cycle->getStatus()) {
-                    $activeCycleCount += 1;
-                }
-
-                if ('completed' === $cycle->getStatus()) {
-                    $completedCycleCount += 1;
-                }
-
-                $recentCycles[] = $this->buildCycleSummary(
-                    $training,
-                    $cycle,
-                    $cyclePuzzlesByCycle[$cycle->getId() ?? 0] ?? [],
-                    $attemptsByCyclePuzzle,
-                );
+                $items[] = $this->buildAttemptHistoryItem($training, $attempt);
             }
         }
 
-        usort(
-            $recentAttempts,
-            fn (array $left, array $right): int => strcmp($right['attemptedAt'] ?? '', $left['attemptedAt'] ?? ''),
-        );
-        usort(
-            $recentCycles,
-            fn (array $left, array $right): int => strcmp($this->cycleSortValue($right), $this->cycleSortValue($left)),
-        );
-
-        $attemptCount = count($recentAttempts);
-
-        $payload = [
-            'attemptCount' => $attemptCount,
-            'successfulAttemptCount' => $successfulAttemptCount,
-            'failedAttemptCount' => $attemptCount - $successfulAttemptCount,
-            'cycleCount' => $cycleCount,
-            'activeCycleCount' => $activeCycleCount,
-            'completedCycleCount' => $completedCycleCount,
-            'latestAttemptedAt' => $latestAttemptedAt?->format(DATE_ATOM),
-            'recentAttempts' => array_slice($recentAttempts, 0, 12),
-            'recentCycles' => array_slice($recentCycles, 0, 12),
-        ];
-
-        return new JsonResponse($payload, headers: ['Content-Type' => 'application/ld+json; charset=utf-8']);
-    }
-
-    /**
-     * @param list<CyclePuzzle> $cyclePuzzles
-     * @param array<int, list<Attempt>> $attemptsByCyclePuzzle
-     *
-     * @return array<string, mixed>
-     */
-    private function buildCycleSummary(Training $training, Cycle $cycle, array $cyclePuzzles, array $attemptsByCyclePuzzle): array
-    {
-        $solved = count(array_filter(
-            $cyclePuzzles,
-            fn (CyclePuzzle $cyclePuzzle): bool => 'solved' === $cyclePuzzle->getStatus(),
-        ));
-        $failed = count(array_filter(
-            $cyclePuzzles,
-            fn (CyclePuzzle $cyclePuzzle): bool => 'failed' === $cyclePuzzle->getStatus(),
-        ));
-        $pending = count(array_filter(
-            $cyclePuzzles,
-            fn (CyclePuzzle $cyclePuzzle): bool => 'pending' === $cyclePuzzle->getStatus(),
-        ));
-        $attemptCount = 0;
-
-        foreach ($cyclePuzzles as $cyclePuzzle) {
-            $attemptCount += count($attemptsByCyclePuzzle[$cyclePuzzle->getId() ?? 0] ?? []);
+        foreach ($this->authenticationEventRepository->findByUserOrdered($user) as $authenticationEvent) {
+            $items[] = $this->buildAuthenticationHistoryItem($authenticationEvent);
         }
 
-        $total = count($cyclePuzzles);
+        usort(
+            $items,
+            fn (array $left, array $right): int => strcmp((string) ($right['occurredAt'] ?? ''), (string) ($left['occurredAt'] ?? '')),
+        );
 
-        return [
-            'training' => $this->normalizeTraining($training),
-            'cycle' => $this->normalizeCycle($cycle),
-            'solved' => $solved,
-            'failed' => $failed,
-            'pending' => $pending,
-            'total' => $total,
-            'progressPercent' => $total > 0 ? (int) round(($solved / $total) * 100) : 0,
-            'attemptCount' => $attemptCount,
-            'hasResumableCycle' => 'active' === $cycle->getStatus() && $pending > 0,
-        ];
+        return new JsonResponse([
+            'availableTrainings' => $availableTrainings,
+            'items' => $items,
+            'latestOccurredAt' => $items[0]['occurredAt'] ?? null,
+            'supportsConnectionHistory' => true,
+            'totalItems' => count($items),
+        ], headers: ['Content-Type' => 'application/ld+json; charset=utf-8']);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function normalizeAttemptSummary(Training $training, Attempt $attempt): array
+    private function buildAttemptHistoryItem(Training $training, Attempt $attempt): array
     {
         $cyclePuzzle = $attempt->getCyclePuzzle();
+        $cycle = $cyclePuzzle?->getCycle();
         $trainingPuzzle = $cyclePuzzle?->getTrainingPuzzle();
+        $position = $trainingPuzzle?->getPosition() ?? $cyclePuzzle?->getPosition() ?? 0;
+        $status = 'failed' === $attempt->getStatus() ? 'failed' : 'solved';
 
         return [
             '@id' => $this->iri('attempts', $attempt->getId()),
             'id' => $attempt->getId(),
+            'activityType' => 'attempt',
             'training' => $this->normalizeTraining($training),
-            'successful' => $attempt->isSuccessful(),
-            'mistakesCount' => $attempt->getMistakesCount(),
+            'cycle' => $cycle ? $this->normalizeCycle($cycle) : null,
+            'cyclePuzzle' => $cyclePuzzle ? [
+                '@id' => $this->iri('cycle_puzzles', $cyclePuzzle->getId()),
+                'id' => $cyclePuzzle->getId(),
+                'position' => $cyclePuzzle->getPosition(),
+                'status' => $cyclePuzzle->getStatus(),
+            ] : null,
+            'label' => sprintf('Puzzle #%d', $position + 1),
+            'detail' => 'failed' === $status ? 'Tentative échouée' : 'Tentative réussie',
+            'status' => $status,
+            'statusLabel' => 'failed' === $status ? 'Raté' : 'Réussi',
+            'attemptNumber' => $attempt->getAttemptNumber(),
             'durationMilliseconds' => $attempt->getDurationMilliseconds(),
-            'attemptedAt' => $this->formatDateTime($attempt->getAttemptedAt()),
-            'cycleNumber' => $cyclePuzzle?->getCycle()?->getNumber(),
-            'trainingPuzzlePosition' => $trainingPuzzle?->getPosition(),
+            'occurredAt' => $this->formatDateTime($attempt->getAttemptedAt()),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildAuthenticationHistoryItem(AuthenticationEvent $authenticationEvent): array
+    {
+        return [
+            '@id' => $this->iri('authentication_events', $authenticationEvent->getId()),
+            'id' => $authenticationEvent->getId(),
+            'activityType' => 'login' === $authenticationEvent->getType() ? 'connection' : 'disconnection',
+            'training' => null,
+            'cycle' => null,
+            'cyclePuzzle' => null,
+            'label' => 'login' === $authenticationEvent->getType() ? 'Connexion' : 'Déconnexion',
+            'detail' => $this->buildAuthenticationDetail($authenticationEvent),
+            'status' => null,
+            'statusLabel' => null,
+            'attemptNumber' => null,
+            'durationMilliseconds' => 0,
+            'occurredAt' => $this->formatDateTime($authenticationEvent->getCreatedAt()),
+        ];
+    }
+
+    private function buildAuthenticationDetail(AuthenticationEvent $authenticationEvent): string
+    {
+        $parts = array_values(array_filter([
+            'expired' === $authenticationEvent->getLogoutReason() ? 'Session expirée' : null,
+            $authenticationEvent->getPlatform(),
+            $authenticationEvent->getBrowser(),
+            $authenticationEvent->getDevice(),
+        ], static fn (?string $value): bool => null !== $value && '' !== trim($value)));
+
+        return [] === $parts ? 'Activité authentifiée' : implode(' · ', $parts);
     }
 
     /**
@@ -206,7 +151,7 @@ final class HistoryOverviewAction
     /**
      * @return array<string, mixed>
      */
-    private function normalizeCycle(Cycle $cycle): array
+    private function normalizeCycle(object $cycle): array
     {
         return [
             '@id' => $this->iri('cycles', $cycle->getId()),
@@ -217,16 +162,6 @@ final class HistoryOverviewAction
             'startedAt' => $this->formatDateTime($cycle->getStartedAt()),
             'completedAt' => $this->formatDateTime($cycle->getCompletedAt()),
         ];
-    }
-
-    /**
-     * @param array<string, mixed> $cycleSummary
-     */
-    private function cycleSortValue(array $cycleSummary): string
-    {
-        $cycle = $cycleSummary['cycle'] ?? [];
-
-        return (string) ($cycle['completedAt'] ?? $cycle['startedAt'] ?? '');
     }
 
     private function iri(string $resource, ?int $id): ?string

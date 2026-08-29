@@ -32,13 +32,13 @@ export function PageHeader({
 }: {
   action?: ReactNode;
   description: string;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
 }) {
   return (
     <header className="wp-page-header">
       <div>
-        <p className="eyebrow">{eyebrow}</p>
+        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h2>{title}</h2>
         <p>{description}</p>
       </div>

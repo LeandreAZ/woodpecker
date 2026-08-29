@@ -141,7 +141,6 @@ final class TrainingOverviewAction
             'status' => $cyclePuzzle->getStatus(),
             'attemptCount' => $cyclePuzzle->getAttemptCount(),
             'durationMilliseconds' => $cyclePuzzle->getDurationMilliseconds(),
-            'finallySolved' => $cyclePuzzle->isFinallySolved(),
             'completedAt' => $this->formatDateTime($cyclePuzzle->getCompletedAt()),
             'attempts' => $normalizedAttempts,
             'activeAttempt' => $activeAttempt,

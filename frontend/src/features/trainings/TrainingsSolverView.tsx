@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import * as AppIcons from '../../shared/AppIcons';
 import { PuzzleSolver, type PuzzleCompletionResult, type PuzzleSolverSnapshot } from './PuzzleSolver';
 import {
   createSolverAttemptClientRequestId,
   getLatestPendingSolverAttemptForCyclePuzzle,
+  registerSolverNavigationSnapshotHandler,
   removePendingSolverAttempt,
   upsertPendingSolverAttempt,
 } from './solverPersistence';
-import type { Attempt, Cycle, CyclePuzzle, CycleStats, Puzzle, Training, TrainingPuzzle, TrainingSummary } from './trainingsTypes';
+import { getSideToMoveMeta } from './chessboardPreferences';
+import type { Cycle, CyclePuzzle, CycleStats, Puzzle, Training, TrainingPuzzle, TrainingSummary, UserSettingsOverview } from './trainingsTypes';
 import './solver.css';
 
 type AttemptSyncPayload = {
@@ -35,6 +37,7 @@ type SolverViewProps = {
   currentCyclePuzzle: CyclePuzzle | null;
   failedCyclePuzzleIris: Set<string>;
   hasActiveCycle: boolean;
+  isTrainingSessionPending?: boolean;
   onBackToDashboard: () => void;
   onBackToDetail: () => void;
   onPuzzleCompleted: (result: PuzzleCompletionResult & AttemptSyncPayload) => void | Promise<void>;
@@ -48,6 +51,7 @@ type SolverViewProps = {
   selectedTrainingPuzzle: TrainingPuzzle | null;
   summary: TrainingSummary | null;
   trainingPuzzles: TrainingPuzzle[];
+  userSettingsOverview?: UserSettingsOverview | null;
 };
 
 type PuzzleListTone = 'current' | 'failed' | 'pending' | 'solved';
@@ -67,7 +71,7 @@ type SolverStatusSummary = {
   label: string;
 };
 
-type SolverDetailSummary = {
+type SolverSideSummary = {
   description: string;
   label: string;
 };
@@ -99,6 +103,23 @@ function formatDuration(milliseconds: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+function getCompletedAttemptCount(cyclePuzzle?: CyclePuzzle | null) {
+  if (!cyclePuzzle) return 0;
+  if (typeof cyclePuzzle.completedAttemptCount === 'number') return cyclePuzzle.completedAttemptCount;
+  return cyclePuzzle.attempts?.filter((attempt) => attempt.status !== 'in_progress').length ?? 0;
+}
+
+function getHasSolvedAttempt(cyclePuzzle?: CyclePuzzle | null) {
+  if (!cyclePuzzle) return false;
+  if (typeof cyclePuzzle.hasSolvedAttempt === 'boolean') return cyclePuzzle.hasSolvedAttempt;
+  return cyclePuzzle.attempts?.some((attempt) => attempt.status === 'solved') ?? false;
+}
+
+function getActiveAttempt(cyclePuzzle?: CyclePuzzle | null) {
+  if (!cyclePuzzle) return null;
+  return cyclePuzzle.activeAttempt ?? cyclePuzzle.attempts?.find((attempt) => attempt.status === 'in_progress') ?? null;
+}
+
 function isSolved(cyclePuzzle?: CyclePuzzle | null, saved?: Set<string>) {
   return Boolean(cyclePuzzle && (cyclePuzzle.status === 'solved' || saved?.has(cyclePuzzle['@id'])));
 }
@@ -110,15 +131,15 @@ function isFailed(cyclePuzzle?: CyclePuzzle | null, failed?: Set<string>) {
 function isFrozen(cyclePuzzle?: CyclePuzzle | null, saved?: Set<string>) {
   if (!cyclePuzzle) return false;
   return cyclePuzzle.status === 'solved'
-    || (cyclePuzzle.status === 'failed' && Boolean(cyclePuzzle.hasSolvedAttempt ?? cyclePuzzle.finallySolved))
+    || (cyclePuzzle.status === 'failed' && getHasSolvedAttempt(cyclePuzzle))
     || Boolean(saved?.has(cyclePuzzle['@id']));
 }
 
-function getPuzzleListStatus(cyclePuzzle: CyclePuzzle | undefined, active: boolean, failed: boolean, solved: boolean) {
-  if (solved) return { label: 'Résolu', tone: 'solved' as PuzzleListTone };
-  if (failed) return { label: 'Raté', tone: 'failed' as PuzzleListTone };
-  if (active || cyclePuzzle?.status === 'in_progress') return { label: 'En cours', tone: 'current' as PuzzleListTone };
-  return { label: 'Non tenté', tone: 'pending' as PuzzleListTone };
+function getPuzzleListStatus(cyclePuzzle?: CyclePuzzle | null) {
+  if (!cyclePuzzle || cyclePuzzle.status === 'pending') return { label: 'Non tenté', tone: 'pending' as PuzzleListTone };
+  if (cyclePuzzle.status === 'in_progress') return { label: 'En cours', tone: 'current' as PuzzleListTone };
+  if (cyclePuzzle.status === 'solved') return { label: 'Résolu', tone: 'solved' as PuzzleListTone };
+  return { label: 'Raté', tone: 'failed' as PuzzleListTone };
 }
 
 function getAttemptSummaryLabel(attemptCount: number) {
@@ -147,7 +168,7 @@ function createInitialSnapshot(cyclePuzzle: CyclePuzzle | null): PuzzleSolverSna
       resolved: true,
     };
   }
-  if (cyclePuzzle.status === 'failed' && (cyclePuzzle.hasSolvedAttempt ?? cyclePuzzle.finallySolved)) {
+  if (cyclePuzzle.status === 'failed' && getHasSolvedAttempt(cyclePuzzle)) {
     return {
       ...INITIAL_SOLVER_SNAPSHOT,
       completed: true,
@@ -169,49 +190,97 @@ function createInitialSnapshot(cyclePuzzle: CyclePuzzle | null): PuzzleSolverSna
   return INITIAL_SOLVER_SNAPSHOT;
 }
 
-function buildStatusSummary(evaluationFailed: boolean, frozen: boolean, resolved: boolean): SolverStatusSummary {
+function buildStatusSummary(evaluationFailed: boolean, frozen: boolean, resolved: boolean, inProgress: boolean): SolverStatusSummary {
   if (resolved && evaluationFailed) return { accent: 'danger', description: 'Trouvez le meilleur coup.', label: 'Raté' };
   if (resolved) return { accent: 'success', description: 'Vous avez trouvé le meilleur coup.', label: frozen ? 'Réussi' : 'Trouvé' };
   if (evaluationFailed) return { accent: 'danger', description: 'Trouvez le meilleur coup.', label: 'Raté' };
+  if (inProgress) return { accent: 'info', description: 'Trouvez le meilleur coup !', label: 'En cours' };
   return { accent: 'info', description: 'Trouvez le meilleur coup.', label: 'À vous de jouer' };
 }
 
-function buildStatusDetailSummary(evaluationFailed: boolean, resolved: boolean): SolverDetailSummary {
-  if (resolved && !evaluationFailed) return { label: 'Hors évaluation', description: 'Les tentatives ne sont plus enregistrées.' };
-  if (evaluationFailed) return { label: 'Hors évaluation', description: resolved ? 'Les tentatives ne sont plus enregistrées.' : 'Les tentatives sont encore enregistrées.' };
-  return { label: 'En cours d\'évaluation', description: 'Les tentatives sont enregistrées.' };
+function buildSideSummary(fen?: string | null): SolverSideSummary {
+  const side = getSideToMoveMeta(fen);
+  return { label: side.label, description: side.description };
 }
 
-function buildAttemptSession(cyclePuzzle: CyclePuzzle, trainingSession: string, pending: ReturnType<typeof getLatestPendingSolverAttemptForCyclePuzzle>): AttemptSession {
-  const activeAttempt = cyclePuzzle.activeAttempt;
-  if (pending?.status === 'in_progress') {
+function buildAttemptSession(
+  cyclePuzzle: CyclePuzzle,
+  trainingSession: string,
+  pending: ReturnType<typeof getLatestPendingSolverAttemptForCyclePuzzle>,
+  currentSession: AttemptSession | null,
+): AttemptSession | null {
+  const activeAttempt = getActiveAttempt(cyclePuzzle);
+  const completedAttemptCount = getCompletedAttemptCount(cyclePuzzle);
+  const pendingIsReusable = pending?.status === 'in_progress'
+    && pending.attemptNumber > completedAttemptCount
+    && cyclePuzzle.status !== 'failed';
+  const reusableCurrentSession = currentSession?.cyclePuzzleIri === cyclePuzzle['@id']
+    && currentSession.trainingSession === trainingSession
+      ? currentSession
+      : null;
+
+  function createSession(attemptNumber: number, clientRequestId: string, persistedDurationMilliseconds: number) {
+    const sameIdentity = reusableCurrentSession
+      && reusableCurrentSession.attemptNumber === attemptNumber
+      && reusableCurrentSession.clientRequestId === clientRequestId;
+
+    if (sameIdentity && reusableCurrentSession.persistedDurationMilliseconds === persistedDurationMilliseconds) {
+      return reusableCurrentSession;
+    }
+
     return {
-      attemptNumber: pending.attemptNumber,
-      clientRequestId: pending.clientRequestId,
+      attemptNumber,
+      clientRequestId,
       cyclePuzzleIri: cyclePuzzle['@id'],
-      persistedDurationMilliseconds: pending.durationMilliseconds,
-      startedAt: Date.now(),
+      persistedDurationMilliseconds,
+      startedAt: sameIdentity ? reusableCurrentSession.startedAt : Date.now(),
       trainingSession,
     };
   }
+
   if (activeAttempt?.status === 'in_progress') {
-    return {
-      attemptNumber: activeAttempt.attemptNumber,
-      clientRequestId: activeAttempt.clientRequestId ?? createSolverAttemptClientRequestId(),
-      cyclePuzzleIri: cyclePuzzle['@id'],
-      persistedDurationMilliseconds: activeAttempt.durationMilliseconds ?? 0,
-      startedAt: Date.now(),
-      trainingSession,
-    };
+    return createSession(
+      activeAttempt.attemptNumber,
+      activeAttempt.clientRequestId ?? reusableCurrentSession?.clientRequestId ?? pending?.clientRequestId ?? createSolverAttemptClientRequestId(),
+      Math.max(activeAttempt.durationMilliseconds ?? 0, pendingIsReusable ? pending.durationMilliseconds : 0),
+    );
   }
-  return {
-    attemptNumber: (cyclePuzzle.completedAttemptCount ?? cyclePuzzle.attemptCount ?? 0) + 1,
-    clientRequestId: createSolverAttemptClientRequestId(),
-    cyclePuzzleIri: cyclePuzzle['@id'],
-    persistedDurationMilliseconds: 0,
-    startedAt: Date.now(),
-    trainingSession,
-  };
+
+  if (pendingIsReusable) {
+    return createSession(pending.attemptNumber, pending.clientRequestId, pending.durationMilliseconds);
+  }
+
+  if (reusableCurrentSession && reusableCurrentSession.attemptNumber === completedAttemptCount + 1) {
+    return reusableCurrentSession;
+  }
+
+  return createSession(
+    completedAttemptCount + 1,
+    reusableCurrentSession?.clientRequestId ?? createSolverAttemptClientRequestId(),
+    0,
+  );
+}
+
+function attemptSessionsMatch(left: AttemptSession | null, right: AttemptSession | null) {
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return left.attemptNumber === right.attemptNumber
+    && left.clientRequestId === right.clientRequestId
+    && left.cyclePuzzleIri === right.cyclePuzzleIri
+    && left.trainingSession === right.trainingSession;
+}
+
+function solverSnapshotsMatch(left: PuzzleSolverSnapshot, right: PuzzleSolverSnapshot) {
+  return left.completed === right.completed
+    && left.evaluationFailed === right.evaluationFailed
+    && left.feedback.kind === right.feedback.kind
+    && left.feedback.message === right.feedback.message
+    && left.mistakesCount === right.mistakesCount
+    && left.resolved === right.resolved
+    && left.playedMoves.length === right.playedMoves.length
+    && left.playedMoves.every((move, index) => move === right.playedMoves[index]);
 }
 
 export function SolverView({
@@ -226,6 +295,7 @@ export function SolverView({
   currentCyclePuzzle,
   failedCyclePuzzleIris,
   hasActiveCycle,
+  isTrainingSessionPending = false,
   onBackToDashboard,
   onBackToDetail,
   onPuzzleCompleted,
@@ -239,6 +309,7 @@ export function SolverView({
   selectedTrainingPuzzle,
   summary: _summary,
   trainingPuzzles,
+  userSettingsOverview,
 }: SolverViewProps) {
   const [isPuzzleListOpen, setIsPuzzleListOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -246,6 +317,9 @@ export function SolverView({
   const [puzzlePage, setPuzzlePage] = useState(0);
   const [solverSnapshot, setSolverSnapshot] = useState<PuzzleSolverSnapshot>(() => createInitialSnapshot(currentCyclePuzzle));
   const [attemptSession, setAttemptSession] = useState<AttemptSession | null>(null);
+  const attemptSessionRef = useRef<AttemptSession | null>(null);
+  const draftAttemptSessionsRef = useRef<Record<string, AttemptSession>>({});
+  const previousPuzzleSelectionKeyRef = useRef('');
   const progressRef = useRef<{
     cyclePuzzle: CyclePuzzle | null;
     cyclePuzzleDurationMilliseconds: number;
@@ -255,13 +329,29 @@ export function SolverView({
     session: AttemptSession | null;
     solverSnapshot: PuzzleSolverSnapshot;
   } | null>(null);
+  const onPuzzleProgressRef = useRef(onPuzzleProgress);
   const lastSavedSignatureRef = useRef('');
 
   const currentCyclePuzzleIri = currentCyclePuzzle?.['@id'] ?? null;
   const pendingAttemptSnapshot = getLatestPendingSolverAttemptForCyclePuzzle(selectedTraining?.['@id'], currentCyclePuzzleIri);
   const currentCyclePuzzleIsFailed = isFailed(currentCyclePuzzle, failedCyclePuzzleIris);
   const currentCyclePuzzleIsFrozen = isFrozen(currentCyclePuzzle, savedCyclePuzzleIris);
-  const persistedAttemptCount = currentCyclePuzzle?.completedAttemptCount ?? currentCyclePuzzle?.attemptCount ?? 0;
+  const puzzleSelectionKey = [
+    activeTrainingSessionIri ?? '',
+    currentCyclePuzzle?.['@id'] ?? '',
+  ].join('|');
+  const currentCyclePuzzleSessionKey = [
+    activeTrainingSessionIri ?? '',
+    currentCyclePuzzle?.['@id'] ?? '',
+    currentCyclePuzzle?.status ?? '',
+    String(currentCyclePuzzle?.completedAttemptCount ?? ''),
+    currentCyclePuzzle?.activeAttempt?.clientRequestId ?? '',
+    String(currentCyclePuzzle?.activeAttempt?.attemptNumber ?? ''),
+    currentCyclePuzzle?.activeAttempt?.status ?? '',
+    currentCyclePuzzleIsFrozen ? '1' : '0',
+    hasActiveCycle ? '1' : '0',
+  ].join('|');
+  const persistedAttemptCount = getCompletedAttemptCount(currentCyclePuzzle);
   const selectedPosition = selectedTrainingPuzzle ? selectedTrainingPuzzle.position + 1 : null;
   const currentIndex = selectedTrainingPuzzle ? trainingPuzzles.findIndex((item) => item['@id'] === selectedTrainingPuzzle['@id']) : -1;
   const previousPuzzle = currentIndex > 0 ? trainingPuzzles[currentIndex - 1] : null;
@@ -280,32 +370,86 @@ export function SolverView({
   const pageStartIndex = puzzlePage * puzzlePageSize;
   const visibleTrainingPuzzles = trainingPuzzles.slice(pageStartIndex, pageStartIndex + puzzlePageSize);
   const showPagination = trainingPuzzles.length > puzzlePageSize;
+  const activeAttempt = getActiveAttempt(currentCyclePuzzle);
+  const activeAttemptSession = attemptSession?.cyclePuzzleIri === currentCyclePuzzle?.['@id'] ? attemptSession : null;
   const mergedPersistedDurationMilliseconds = Math.max(currentCyclePuzzle?.durationMilliseconds ?? 0, pendingAttemptSnapshot?.cyclePuzzleDurationMilliseconds ?? 0);
-  const mergedActiveAttemptDurationMilliseconds = Math.max(currentCyclePuzzle?.activeAttempt?.durationMilliseconds ?? 0, pendingAttemptSnapshot?.status === 'in_progress' ? pendingAttemptSnapshot.durationMilliseconds : 0);
+  const mergedActiveAttemptDurationMilliseconds = Math.max(activeAttempt?.durationMilliseconds ?? 0, pendingAttemptSnapshot?.status === 'in_progress' ? pendingAttemptSnapshot.durationMilliseconds : 0);
   const completedDurationBase = Math.max(0, mergedPersistedDurationMilliseconds - mergedActiveAttemptDurationMilliseconds);
-  const currentAttemptDurationMilliseconds = currentCyclePuzzleIsFrozen || !attemptSession
+  const currentAttemptDurationMilliseconds = currentCyclePuzzleIsFrozen || !activeAttemptSession
     ? 0
-    : attemptSession.persistedDurationMilliseconds + Math.max(now - attemptSession.startedAt, 0);
+    : activeAttemptSession.persistedDurationMilliseconds + Math.max(now - activeAttemptSession.startedAt, 0);
   const elapsedMilliseconds = currentCyclePuzzleIsFrozen ? mergedPersistedDurationMilliseconds : completedDurationBase + currentAttemptDurationMilliseconds;
   const elapsedLabel = formatDuration(elapsedMilliseconds);
-  const statusSummary = buildStatusSummary(evaluationFailed, currentCyclePuzzleIsFrozen, resolved);
-  const statusDetailSummary = buildStatusDetailSummary(evaluationFailed, resolved);
+  const isAttemptInProgress = !currentCyclePuzzleIsFrozen && Boolean(
+    activeAttemptSession
+    || currentCyclePuzzle?.status === 'in_progress'
+    || pendingAttemptSnapshot?.status === 'in_progress',
+  );
+  const statusSummary = buildStatusSummary(evaluationFailed, currentCyclePuzzleIsFrozen, resolved, isAttemptInProgress);
+  const sideSummary = buildSideSummary(selectedPuzzle?.fen);
+  const boardSettings = userSettingsOverview?.board;
+  const solverPreferences = userSettingsOverview?.solverPreferences;
+  const hasRunnableAttempt = Boolean(currentCyclePuzzle && !currentCyclePuzzleIsFrozen && activeTrainingSessionIri && hasActiveCycle);
+
+  function setCurrentAttemptSession(value: AttemptSession | null) {
+    if (attemptSessionsMatch(attemptSessionRef.current, value)) {
+      return;
+    }
+
+    attemptSessionRef.current = value;
+    setAttemptSession((current) => (attemptSessionsMatch(current, value) ? current : value));
+  }
+
+  const setSolverSnapshotSafely = useCallback((nextValue: PuzzleSolverSnapshot | ((current: PuzzleSolverSnapshot) => PuzzleSolverSnapshot)) => {
+    setSolverSnapshot((current) => {
+      const nextSnapshot = typeof nextValue === 'function'
+        ? (nextValue as (current: PuzzleSolverSnapshot) => PuzzleSolverSnapshot)(current)
+        : nextValue;
+
+      return solverSnapshotsMatch(current, nextSnapshot) ? current : nextSnapshot;
+    });
+  }, []);
 
   useEffect(() => {
-    setAttemptSession(currentCyclePuzzle && !currentCyclePuzzleIsFrozen && activeTrainingSessionIri
-      ? buildAttemptSession(currentCyclePuzzle, activeTrainingSessionIri, pendingAttemptSnapshot)
-      : null);
-    setNow(Date.now());
-    setIsPuzzleListOpen(false);
-    setSolverSnapshot(createInitialSnapshot(currentCyclePuzzle));
-    lastSavedSignatureRef.current = '';
-  }, [activeTrainingSessionIri, currentCyclePuzzle?.['@id'], currentCyclePuzzleIsFrozen, pendingAttemptSnapshot?.clientRequestId]);
+    onPuzzleProgressRef.current = onPuzzleProgress;
+  }, [onPuzzleProgress]);
 
   useEffect(() => {
-    if (currentCyclePuzzleIsFrozen) return;
+    const currentDraftAttemptSession = draftAttemptSessionsRef.current[puzzleSelectionKey] ?? null;
+    const currentAttemptSession = attemptSessionRef.current?.cyclePuzzleIri === currentCyclePuzzle?.['@id']
+      ? attemptSessionRef.current
+      : currentDraftAttemptSession;
+    const nextAttemptSession = hasRunnableAttempt
+      ? buildAttemptSession(currentCyclePuzzle!, activeTrainingSessionIri!, pendingAttemptSnapshot, currentAttemptSession)
+      : null;
+    const attemptSessionChanged = !attemptSessionsMatch(attemptSessionRef.current, nextAttemptSession);
+    const puzzleSelectionChanged = previousPuzzleSelectionKeyRef.current !== puzzleSelectionKey;
+
+    previousPuzzleSelectionKeyRef.current = puzzleSelectionKey;
+
+    if (nextAttemptSession) {
+      draftAttemptSessionsRef.current[puzzleSelectionKey] = nextAttemptSession;
+    } else {
+      delete draftAttemptSessionsRef.current[puzzleSelectionKey];
+    }
+
+    if (attemptSessionChanged) {
+      setCurrentAttemptSession(nextAttemptSession);
+    }
+
+    if (attemptSessionChanged || puzzleSelectionChanged) {
+      setNow(Date.now());
+      setIsPuzzleListOpen(false);
+      setSolverSnapshotSafely(createInitialSnapshot(currentCyclePuzzle));
+      lastSavedSignatureRef.current = '';
+    }
+  }, [currentCyclePuzzleSessionKey, hasRunnableAttempt, puzzleSelectionKey, setSolverSnapshotSafely]);
+
+  useEffect(() => {
+    if (currentCyclePuzzleIsFrozen || !activeAttemptSession) return;
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
-  }, [currentCyclePuzzleIsFrozen, currentCyclePuzzle?.['@id']]);
+  }, [activeAttemptSession?.clientRequestId, currentCyclePuzzleIsFrozen, currentCyclePuzzle?.['@id']]);
 
   useEffect(() => {
     const handleResize = () => setPuzzlePageSize(getPuzzlePageSize(window.innerWidth));
@@ -333,16 +477,16 @@ export function SolverView({
       durationMilliseconds: currentAttemptDurationMilliseconds,
       frozen: currentCyclePuzzleIsFrozen,
       hasActiveCycle,
-      session: attemptSession,
+      session: activeAttemptSession,
       solverSnapshot,
     };
-  }, [attemptSession, currentAttemptDurationMilliseconds, currentCyclePuzzle, currentCyclePuzzleIsFrozen, elapsedMilliseconds, hasActiveCycle, solverSnapshot]);
+  }, [activeAttemptSession, currentAttemptDurationMilliseconds, currentCyclePuzzle, currentCyclePuzzleIsFrozen, elapsedMilliseconds, hasActiveCycle, solverSnapshot]);
 
   useEffect(() => {
-    if (!selectedTraining || !attemptSession || !currentCyclePuzzle || currentCyclePuzzleIsFrozen) return;
+    if (!selectedTraining || !activeAttemptSession || !currentCyclePuzzle || currentCyclePuzzleIsFrozen) return;
     upsertPendingSolverAttempt({
-      attemptNumber: attemptSession.attemptNumber,
-      clientRequestId: attemptSession.clientRequestId,
+      attemptNumber: activeAttemptSession.attemptNumber,
+      clientRequestId: activeAttemptSession.clientRequestId,
       cyclePuzzleDurationMilliseconds: elapsedMilliseconds,
       cyclePuzzleIri: currentCyclePuzzle['@id'],
       durationMilliseconds: currentAttemptDurationMilliseconds,
@@ -350,16 +494,44 @@ export function SolverView({
       playedMoves: solverSnapshot.playedMoves,
       status: resolved ? (evaluationFailed ? 'failed' : 'solved') : 'in_progress',
       trainingIri: selectedTraining['@id'],
-      trainingSession: attemptSession.trainingSession,
+      trainingSession: activeAttemptSession.trainingSession,
     });
-  }, [attemptSession, currentAttemptDurationMilliseconds, currentCyclePuzzle, currentCyclePuzzleIsFrozen, elapsedMilliseconds, evaluationFailed, resolved, selectedTraining, solverSnapshot.mistakesCount, solverSnapshot.playedMoves]);
+  }, [activeAttemptSession, currentAttemptDurationMilliseconds, currentCyclePuzzle, currentCyclePuzzleIsFrozen, elapsedMilliseconds, evaluationFailed, resolved, selectedTraining, solverSnapshot.mistakesCount, solverSnapshot.playedMoves]);
 
   async function persistCurrentProgress(force = false, keepalive = false) {
     const currentProgress = progressRef.current;
-    if (!currentProgress || !currentProgress.cyclePuzzle || !currentProgress.hasActiveCycle || currentProgress.frozen || !onPuzzleProgress || !currentProgress.session) return false;
+    const progressHandler = onPuzzleProgressRef.current;
+    if (!currentProgress || !currentProgress.cyclePuzzle || !currentProgress.hasActiveCycle || currentProgress.frozen || !progressHandler || !currentProgress.session) {
+      return false;
+    }
+
+    const liveAttemptDurationMilliseconds = currentProgress.session.persistedDurationMilliseconds + Math.max(Date.now() - currentProgress.session.startedAt, 0);
+    const completedDurationMilliseconds = Math.max(0, currentProgress.cyclePuzzleDurationMilliseconds - currentProgress.durationMilliseconds);
+    const liveCyclePuzzleDurationMilliseconds = completedDurationMilliseconds + liveAttemptDurationMilliseconds;
+    const nextStatus = currentProgress.solverSnapshot.resolved
+      ? currentProgress.solverSnapshot.evaluationFailed
+        ? 'failed'
+        : 'solved'
+      : 'in_progress';
+
+    if (selectedTraining) {
+      upsertPendingSolverAttempt({
+        attemptNumber: currentProgress.session.attemptNumber,
+        clientRequestId: currentProgress.session.clientRequestId,
+        cyclePuzzleDurationMilliseconds: liveCyclePuzzleDurationMilliseconds,
+        cyclePuzzleIri: currentProgress.cyclePuzzle['@id'],
+        durationMilliseconds: liveAttemptDurationMilliseconds,
+        mistakesCount: currentProgress.solverSnapshot.mistakesCount,
+        playedMoves: currentProgress.solverSnapshot.playedMoves,
+        status: nextStatus,
+        trainingIri: selectedTraining['@id'],
+        trainingSession: currentProgress.session.trainingSession,
+      });
+    }
+
     const durationSignature = force
-      ? currentProgress.cyclePuzzleDurationMilliseconds
-      : Math.floor(currentProgress.cyclePuzzleDurationMilliseconds / PROGRESS_SAVE_INTERVAL_MS) * PROGRESS_SAVE_INTERVAL_MS;
+      ? liveCyclePuzzleDurationMilliseconds
+      : Math.floor(liveCyclePuzzleDurationMilliseconds / PROGRESS_SAVE_INTERVAL_MS) * PROGRESS_SAVE_INTERVAL_MS;
     const signature = [
       currentProgress.cyclePuzzle['@id'],
       currentProgress.session.clientRequestId,
@@ -369,12 +541,12 @@ export function SolverView({
     ].join('|');
     if (!force && lastSavedSignatureRef.current === signature) return false;
     lastSavedSignatureRef.current = signature;
-    await Promise.resolve(onPuzzleProgress({
+    await Promise.resolve(progressHandler({
       attemptNumber: currentProgress.session.attemptNumber,
       clientRequestId: currentProgress.session.clientRequestId,
       cyclePuzzle: currentProgress.cyclePuzzle,
-      cyclePuzzleDurationMilliseconds: currentProgress.cyclePuzzleDurationMilliseconds,
-      durationMilliseconds: currentProgress.durationMilliseconds,
+      cyclePuzzleDurationMilliseconds: liveCyclePuzzleDurationMilliseconds,
+      durationMilliseconds: liveAttemptDurationMilliseconds,
       keepalive,
       mistakesCount: currentProgress.solverSnapshot.mistakesCount,
       playedMoves: currentProgress.solverSnapshot.playedMoves,
@@ -384,15 +556,20 @@ export function SolverView({
   }
 
   useEffect(() => {
-    if (!attemptSession || !currentCyclePuzzle || currentCyclePuzzleIsFrozen || !hasActiveCycle || !onPuzzleProgress) return;
+    if (!activeAttemptSession || !currentCyclePuzzle || currentCyclePuzzleIsFrozen || !hasActiveCycle || !onPuzzleProgress) return;
     void persistCurrentProgress(true);
-  }, [attemptSession?.clientRequestId, currentCyclePuzzle?.['@id'], currentCyclePuzzleIsFrozen, hasActiveCycle, onPuzzleProgress]);
+  }, [activeAttemptSession?.clientRequestId, currentCyclePuzzle?.['@id'], currentCyclePuzzleIsFrozen, hasActiveCycle]);
 
   useEffect(() => {
-    if (!attemptSession || !currentCyclePuzzle || currentCyclePuzzleIsFrozen || !hasActiveCycle || !onPuzzleProgress) return;
+    if (!activeAttemptSession || !currentCyclePuzzle || currentCyclePuzzleIsFrozen || !hasActiveCycle || !onPuzzleProgress) return;
     const interval = window.setInterval(() => { void persistCurrentProgress(false); }, PROGRESS_SAVE_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [attemptSession?.clientRequestId, currentCyclePuzzle?.['@id'], currentCyclePuzzleIsFrozen, hasActiveCycle, onPuzzleProgress]);
+  }, [activeAttemptSession?.clientRequestId, currentCyclePuzzle?.['@id'], currentCyclePuzzleIsFrozen, hasActiveCycle]);
+
+
+  useEffect(() => registerSolverNavigationSnapshotHandler(() => {
+    void persistCurrentProgress(true, true);
+  }), [activeAttemptSession?.clientRequestId, currentCyclePuzzle?.['@id']]);
 
   useEffect(() => {
     const persistForExit = () => { void persistCurrentProgress(true, true); };
@@ -405,13 +582,27 @@ export function SolverView({
       window.removeEventListener('beforeunload', persistForExit);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [attemptSession?.clientRequestId, currentCyclePuzzle?.['@id']]);
+  }, [activeAttemptSession?.clientRequestId, currentCyclePuzzle?.['@id']]);
+
+  function switchPuzzle(trainingPuzzleIri: string) {
+    void persistCurrentProgress(true, true);
+    setIsPuzzleListOpen(false);
+    onPuzzleSelect(trainingPuzzleIri);
+  }
 
   if (!selectedTraining) {
     return <div className="wp-page solver-page"><div className="wp-empty-card"><h3>Aucun entraînement ouvert</h3><p>Retournez au tableau de bord pour choisir un entraînement, puis relancez le solveur depuis sa page détail.</p><button className="wp-primary" type="button" onClick={onBackToDashboard}>Ouvrir le tableau de bord</button></div></div>;
   }
   if (trainingPuzzles.length === 0) {
     return <div className="wp-page solver-page"><div className="wp-empty-card"><h3>Ce training ne contient pas encore de puzzle</h3><p>Ajoutez des puzzles manuellement ou importez un CSV avant d’ouvrir une vraie session de résolution.</p><button className="wp-primary" type="button" onClick={onBackToDetail}>Retour au détail du training</button></div></div>;
+  }
+
+  if (currentCyclePuzzle && !currentCyclePuzzleIsFrozen && isTrainingSessionPending) {
+    return <div className="wp-page solver-page"><div className="wp-empty-card"><h3>Préparation de la session</h3><p>Le solver restaure la session active avant de démarrer le chrono et la tentative en cours.</p></div></div>;
+  }
+
+  if (selectedTrainingPuzzle && (!currentCyclePuzzle || !hasActiveCycle || !activeTrainingSessionIri)) {
+    return <div className="wp-page solver-page"><div className="wp-empty-card"><h3>Aucun cycle actif exploitable</h3><p>Ce puzzle est affiché sans session de solver réellement active. Revenez au détail de l’entraînement puis démarrez ou reprenez un cycle avant d’ouvrir ce puzzle.</p><button className="wp-primary" type="button" onClick={onBackToDetail}>Retour au détail du training</button></div></div>;
   }
 
   return (
@@ -432,12 +623,10 @@ export function SolverView({
           <div className="wp-solver-list-v2__body">
             {visibleTrainingPuzzles.map((trainingPuzzle) => {
               const cyclePuzzle = cyclePuzzles.find((item) => item.trainingPuzzle === trainingPuzzle['@id']);
-              const solved = isSolved(cyclePuzzle, savedCyclePuzzleIris) || Boolean(cyclePuzzle?.status === 'failed' && (cyclePuzzle.hasSolvedAttempt ?? cyclePuzzle.finallySolved));
-              const failed = isFailed(cyclePuzzle, failedCyclePuzzleIris);
-              const active = trainingPuzzle['@id'] === selectedTrainingPuzzle?.['@id'] && !solved && !failed;
-              const status = getPuzzleListStatus(cyclePuzzle, active, failed, solved);
-              const className = ['wp-solver-list-v2__row', status.tone === 'current' ? 'is-active' : '', status.tone === 'solved' ? 'is-solved' : '', status.tone === 'failed' ? 'is-failed' : ''].filter(Boolean).join(' ');
-              return <button className={className} key={trainingPuzzle['@id']} type="button" onClick={() => { void persistCurrentProgress(true, true); setIsPuzzleListOpen(false); onPuzzleSelect(trainingPuzzle['@id']); }}><span className={`wp-solver-list-v2__index tone-${status.tone}`} aria-hidden="true" /><span className="wp-solver-list-v2__position">{trainingPuzzle.position + 1}</span><span className="wp-solver-list-v2__status"><strong>{status.label}</strong></span></button>;
+              const status = getPuzzleListStatus(cyclePuzzle);
+              const isSelected = trainingPuzzle['@id'] === selectedTrainingPuzzle?.['@id'];
+              const className = ['wp-solver-list-v2__row', isSelected ? 'is-active' : '', status.tone === 'solved' ? 'is-solved' : '', status.tone === 'failed' ? 'is-failed' : ''].filter(Boolean).join(' ');
+              return <button className={className} key={trainingPuzzle['@id']} type="button" onClick={() => switchPuzzle(trainingPuzzle['@id'])}><span className={`wp-solver-list-v2__index tone-${status.tone}`} aria-hidden="true" /><span className="wp-solver-list-v2__position">{trainingPuzzle.position + 1}</span><span className="wp-solver-list-v2__status"><strong>{status.label}</strong></span></button>;
             })}
           </div>
           {showPagination ? <div className="wp-solver-list-v2__pager"><button className="wp-solver-list-v2__pager-button" disabled={puzzlePage === 0} type="button" onClick={() => setPuzzlePage((current) => Math.max(0, current - 1))}><ChevronLeft aria-hidden="true" size={18} strokeWidth={2} /><span>Précédent</span></button><button className="wp-solver-list-v2__pager-button" disabled={puzzlePage >= pageCount - 1} type="button" onClick={() => setPuzzlePage((current) => Math.min(pageCount - 1, current + 1))}><span>Suivant</span><ChevronRight aria-hidden="true" size={18} strokeWidth={2} /></button></div> : null}
@@ -448,26 +637,30 @@ export function SolverView({
           <div className="wp-solver-stage-v2">
             <div className="wp-solver-board-panel-v2__body">
               {selectedTrainingPuzzle && selectedPuzzle ? <PuzzleSolver key={selectedTrainingPuzzle['@id']} fen={selectedPuzzle.fen} initialEvaluationFailed={currentCyclePuzzleIsFailed} onCompleted={async (result) => {
-                if (!currentCyclePuzzle || !attemptSession) return;
-                const payload = { attemptNumber: attemptSession.attemptNumber, clientRequestId: attemptSession.clientRequestId, cyclePuzzle: currentCyclePuzzle, cyclePuzzleDurationMilliseconds: elapsedMilliseconds, durationMilliseconds: currentAttemptDurationMilliseconds, trainingSession: attemptSession.trainingSession };
+                const activeSession = attemptSessionRef.current;
+                if (!currentCyclePuzzle || !activeSession) return;
+                const payload = { attemptNumber: activeSession.attemptNumber, clientRequestId: activeSession.clientRequestId, cyclePuzzle: currentCyclePuzzle, cyclePuzzleDurationMilliseconds: elapsedMilliseconds, durationMilliseconds: currentAttemptDurationMilliseconds, mistakesCount: result.mistakesCount, playedMoves: result.playedMoves, trainingSession: activeSession.trainingSession };
                 await onPuzzleCompleted({ ...result, ...payload });
-                setAttemptSession(null);
-                removePendingSolverAttempt(attemptSession.clientRequestId);
+                delete draftAttemptSessionsRef.current[activeSession.trainingSession + '|' + activeSession.cyclePuzzleIri];
+                setCurrentAttemptSession(null);
+                removePendingSolverAttempt(activeSession.clientRequestId);
               }} onFailed={async (result) => {
-                if (!currentCyclePuzzle || !attemptSession) return;
-                const payload = { attemptNumber: attemptSession.attemptNumber, clientRequestId: attemptSession.clientRequestId, cyclePuzzle: currentCyclePuzzle, cyclePuzzleDurationMilliseconds: elapsedMilliseconds, durationMilliseconds: currentAttemptDurationMilliseconds, trainingSession: attemptSession.trainingSession };
+                const activeSession = attemptSessionRef.current;
+                if (!currentCyclePuzzle || !activeSession) return;
+                const payload = { attemptNumber: activeSession.attemptNumber, clientRequestId: activeSession.clientRequestId, cyclePuzzle: currentCyclePuzzle, cyclePuzzleDurationMilliseconds: elapsedMilliseconds, durationMilliseconds: currentAttemptDurationMilliseconds, mistakesCount: result.mistakesCount, playedMoves: result.playedMoves, trainingSession: activeSession.trainingSession };
                 await onPuzzleFailed({ ...result, ...payload });
-                setAttemptSession({ attemptNumber: attemptSession.attemptNumber + 1, clientRequestId: createSolverAttemptClientRequestId(), cyclePuzzleIri: attemptSession.cyclePuzzleIri, persistedDurationMilliseconds: 0, startedAt: Date.now(), trainingSession: attemptSession.trainingSession });
+                delete draftAttemptSessionsRef.current[activeSession.trainingSession + '|' + activeSession.cyclePuzzleIri];
+                setCurrentAttemptSession(null);
                 lastSavedSignatureRef.current = '';
-              }} onFirstMistake={(result) => { setSolverSnapshot((current) => ({ ...current, evaluationFailed: true, feedback: { kind: 'error', message: 'Puzzle raté. Continuez à chercher mais les tentatives seront encore enregistrées.' } })); onPuzzleFirstMistake?.(result); }} onStateChange={setSolverSnapshot} solution={selectedPuzzle.solution} /> : <p className="wp-empty">Chargement du puzzle sélectionné...</p>}
+              }} onFirstMistake={(result) => { setSolverSnapshotSafely((current) => ({ ...current, evaluationFailed: true, feedback: { kind: 'error', message: 'Puzzle raté. Continuez à chercher mais les tentatives seront encore enregistrées.' } })); onPuzzleFirstMistake?.(result); }} onStateChange={setSolverSnapshotSafely} solution={selectedPuzzle.solution} /> : <p className="wp-empty">Chargement du puzzle sélectionné...</p>}
             </div>
             <div className="wp-solver-summary-v2">
               <div className={`wp-solver-summary-v2__item is-${statusSummary.accent}`}><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon">{statusSummary.accent === 'success' ? <AppIcons.CheckCircleIcon /> : statusSummary.accent === 'danger' ? <AppIcons.AlertIcon /> : <AppIcons.TargetIcon />}</span><span className="wp-solver-summary-v2__label">Résultat</span></div><div className="wp-solver-summary-v2__content"><strong>{statusSummary.label}</strong><p>{statusSummary.description}</p></div></div>
               <div className="wp-solver-summary-v2__item is-accent-blue"><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon"><AppIcons.HistoryIcon /></span><span className="wp-solver-summary-v2__label">Tentatives</span></div><div className="wp-solver-summary-v2__content"><p className="wp-solver-summary-v2__attempt-text">{getAttemptSummaryLabel(persistedAttemptCount)}</p></div></div>
-              <div className="wp-solver-summary-v2__item is-accent-blue"><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon"><AppIcons.ChartIcon /></span><span className="wp-solver-summary-v2__label">Statut</span></div><div className="wp-solver-summary-v2__content"><strong>{statusDetailSummary.label}</strong><p>{statusDetailSummary.description}</p></div></div>
+              <div className="wp-solver-summary-v2__item is-accent-blue"><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon"><AppIcons.PawnIcon /></span><span className="wp-solver-summary-v2__label">Trait</span></div><div className="wp-solver-summary-v2__content"><strong>{sideSummary.label}</strong><p>{sideSummary.description}</p></div></div>
             </div>
           </div>
-          <div className="wp-solver-board-nav-v2"><button className="wp-secondary wp-solver-nav-button" disabled={!previousPuzzle} type="button" onClick={() => { void persistCurrentProgress(true, true); if (previousPuzzle) onPuzzleSelect(previousPuzzle['@id']); }}><ChevronLeft aria-hidden="true" size={18} strokeWidth={2} /><span>Précédent</span></button><button className="wp-primary wp-solver-nav-button" disabled={!nextPuzzle} type="button" onClick={() => { void persistCurrentProgress(true, true); if (nextPuzzle) onPuzzleSelect(nextPuzzle['@id']); }}><span>Suivant</span><ChevronRight aria-hidden="true" size={18} strokeWidth={2} /></button></div>
+          <div className="wp-solver-board-nav-v2"><button className="wp-secondary wp-solver-nav-button" disabled={!previousPuzzle} type="button" onClick={() => { if (previousPuzzle) switchPuzzle(previousPuzzle['@id']); }}><ChevronLeft aria-hidden="true" size={18} strokeWidth={2} /><span>Précédent</span></button><button className="wp-primary wp-solver-nav-button" disabled={!nextPuzzle} type="button" onClick={() => { if (nextPuzzle) switchPuzzle(nextPuzzle['@id']); }}><span>Suivant</span><ChevronRight aria-hidden="true" size={18} strokeWidth={2} /></button></div>
         </section>
       </div>
     </div>
@@ -475,3 +668,13 @@ export function SolverView({
 }
 
 export default SolverView;
+
+
+
+
+
+
+
+
+
+

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { AppRoute } from '../../shared/routing/appRouter';
 import { normalizeRoute, routesEqual } from '../../shared/routing/appRouter';
+import { flushSolverNavigationSnapshot } from './solverPersistence';
 import type { Training, View } from './trainingsTypes';
 
 type UseTrainingsPanelRoutingArgs = {
@@ -112,6 +113,7 @@ function useTrainingsPanelRouting({
   }, [desiredRoute, onNavigate, route, selectedTraining, trainings, trainingsArePending]);
 
   function navigateToView(nextView: View) {
+    flushSolverNavigationSnapshot();
     setActiveView(nextView);
     onNavigate(normalizeRoute(buildRouteFromState(nextView, selectedTraining)));
   }
@@ -121,6 +123,7 @@ function useTrainingsPanelRouting({
     openTraining: (value: string, view?: View) => void,
     view: View = 'detail',
   ) {
+    flushSolverNavigationSnapshot();
     openTraining(trainingIri, view);
 
     const training = trainings.find((item) => item['@id'] === trainingIri) ?? null;
@@ -128,6 +131,7 @@ function useTrainingsPanelRouting({
   }
 
   function navigateToPuzzleSolver(trainingPuzzleIri: string) {
+    flushSolverNavigationSnapshot();
     setSelectedTrainingPuzzleIri(trainingPuzzleIri);
     setActiveView('solver');
     onNavigate(normalizeRoute(buildRouteFromState('solver', selectedTraining)));

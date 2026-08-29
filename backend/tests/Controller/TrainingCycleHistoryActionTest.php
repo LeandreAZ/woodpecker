@@ -134,20 +134,22 @@ final class TrainingCycleHistoryActionTest extends TestCase
             ->setCyclePuzzle($activeSolvedPuzzle)
             ->setTrainingSession($session)
             ->setPlayedMoves(['e2e4'])
-            ->setSuccessful(true)
+            ->setStatus('solved')
             ->setMistakesCount(1)
             ->setDurationMilliseconds(18000)
-            ->setAttemptedAt(new \DateTimeImmutable('2026-08-05T10:10:00+00:00'));
+            ->setStartedAt(new \DateTimeImmutable('2026-08-05T10:10:00+00:00'))
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-05T10:10:00+00:00'));
         $this->setEntityId($latestAttempt, 601);
 
         $olderAttempt = (new Attempt())
             ->setCyclePuzzle($completedSolvedPuzzle)
             ->setTrainingSession($session)
             ->setPlayedMoves(['e2e4'])
-            ->setSuccessful(true)
+            ->setStatus('solved')
             ->setMistakesCount(0)
             ->setDurationMilliseconds(12000)
-            ->setAttemptedAt(new \DateTimeImmutable('2026-08-02T10:10:00+00:00'));
+            ->setStartedAt(new \DateTimeImmutable('2026-08-02T10:10:00+00:00'))
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-02T10:10:00+00:00'));
         $this->setEntityId($olderAttempt, 602);
 
         $this->security->method('getUser')->willReturn($owner);
@@ -187,6 +189,7 @@ final class TrainingCycleHistoryActionTest extends TestCase
         self::assertTrue($payload['cycles'][0]['hasResumableCycle']);
         self::assertCount(2, $payload['cycles'][0]['cyclePuzzles']);
         self::assertSame('First motif', $payload['cycles'][0]['cyclePuzzles'][0]['trainingPuzzle']['personalNote']);
+        self::assertArrayNotHasKey('finallySolved', $payload['cycles'][0]['cyclePuzzles'][0]);
         self::assertSame(1, $payload['cycles'][1]['cycle']['number']);
         self::assertSame('completed', $payload['cycles'][1]['cycle']['status']);
         self::assertFalse($payload['cycles'][1]['hasResumableCycle']);

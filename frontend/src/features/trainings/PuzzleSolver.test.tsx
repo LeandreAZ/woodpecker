@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { PuzzleSolver } from './PuzzleSolver';
 
@@ -67,6 +68,32 @@ describe('PuzzleSolver', () => {
       mistakesCount: 0,
       playedMoves: ['e2e4'],
     });
+  });
+
+
+  it('ne boucle pas quand le parent rerend avec une solution equivalente apres un coup joue', () => {
+    function Harness() {
+      const [lastSnapshotMessage, setLastSnapshotMessage] = useState('aucun');
+
+      return (
+        <>
+          <div data-testid="snapshot-message">{lastSnapshotMessage}</div>
+          <PuzzleSolver
+            onStateChange={(snapshot) => setLastSnapshotMessage(snapshot.feedback.message)}
+            solution={['e2e4']}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+
+    expect(screen.getByTestId('snapshot-message')).toHaveTextContent('Trouvez le meilleur coup.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer coup juste' }));
+
+    expect(screen.getByTestId('snapshot-message')).toHaveTextContent('Bravo, solution trouvée du premier coup.');
+    expect(screen.getByText('Jouer coup juste')).toBeInTheDocument();
   });
 
   it('garde l orientation initiale issue du fen', () => {
