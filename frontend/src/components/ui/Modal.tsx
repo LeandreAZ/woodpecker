@@ -1,12 +1,13 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 
 type ModalProps = PropsWithChildren<{
+  contentClassName?: string;
   onClose?: () => void;
   open: boolean;
   title?: ReactNode;
 }>;
 
-export function Modal({ children, onClose, open, title }: ModalProps) {
+export function Modal({ children, contentClassName, onClose, open, title }: ModalProps) {
   if (!open) {
     return null;
   }
@@ -19,7 +20,7 @@ export function Modal({ children, onClose, open, title }: ModalProps) {
         type="button"
         onClick={onClose}
       />
-      <div className="ui-modal__content">
+      <div className={contentClassName ? "ui-modal__content " + contentClassName : "ui-modal__content"}>
         {title ? <div className="ui-card">{title}</div> : null}
         {children}
       </div>

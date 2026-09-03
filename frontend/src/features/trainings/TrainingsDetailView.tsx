@@ -5,21 +5,26 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleOff,
-  Clock3,  FileUp,
+  Clock3,
+  FileUp,
   Info,
   List,
   Lock,
   Pencil,
   Play,
   RefreshCw,
+  Trash2,
   TrendingDown,
   TrendingUp,
+  X,
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { PageHeader } from './TrainingsViewPrimitives';
+import { Modal } from '../../components/ui';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { TrainingLogoBadge } from './TrainingBranding';
-import { formatDateTime, getCycleStatusLabel } from './trainingsUtils';
+import { formatDateTime, formatStatsDuration, getCycleStatusLabel } from './trainingsUtils';
 import type {
   Cycle,
   CyclePuzzle,
@@ -51,6 +56,8 @@ type DetailViewProps = {
   movePuzzleIsError: boolean;
   movePuzzleIsPending: boolean;
   onBackToDashboard: () => void;
+  onDeleteTraining: () => void;
+  deleteTrainingIsPending: boolean;
   onEditTraining: () => void;
   onFenChange: (value: string) => void;
   onImport: () => void;
@@ -63,6 +70,7 @@ type DetailViewProps = {
   onSolutionTextChange: (value: string) => void;
   onStartCycle: () => void;
   onThemesTextChange: (value: string) => void;
+  onViewAllAttemptHistory: () => void;
   personalNote: string;
   puzzleCount: number;
   puzzleListIsLocked: boolean;
@@ -87,7 +95,6 @@ type DetailViewProps = {
 type DetailStat = {
   icon: LucideIcon;
   label: string;
-  meta: string;
   tone: 'success' | 'primary' | 'info' | 'danger' | 'neutral' | 'violet';
   value: string;
 };
@@ -238,7 +245,10 @@ function getProgressDelta(cycleSummaries: TrainingCycleSummary[]) {
     return null;
   }
 
-  return cycleSummaries[0].progressPercent - cycleSummaries[1].progressPercent;
+  const current = cycleSummaries[0].successRate ?? cycleSummaries[0].progressPercent;
+  const previous = cycleSummaries[1].successRate ?? cycleSummaries[1].progressPercent;
+
+  return current - previous;
 }
 
 function getSuccessRateValue(summary: TrainingSummary | null, analytics: TrainingAnalytics | null, cycleStats: CycleStats) {
@@ -280,13 +290,14 @@ function getPuzzleAttemptSummary(
   trainingPuzzle: TrainingPuzzle,
   cyclePuzzle: CyclePuzzle | null,
   latestAttempts: TrainingAttemptSummary[],
+  hasStartedCycle: boolean,
 ) {
   const attempt = latestAttempts.find((item) => item.trainingPuzzlePosition === trainingPuzzle.position) ?? null;
 
   if (!cyclePuzzle) {
     return {
       attemptedAtLabel: '—',
-      attemptsLabel: '—',
+      attemptsLabel: hasStartedCycle ? '0' : '—',
       firstAttemptLabel: '—',
       statusLabel: 'Non tenté',
       statusTone: 'neutral' as const,
@@ -296,7 +307,7 @@ function getPuzzleAttemptSummary(
   if (cyclePuzzle.status === 'pending') {
     return {
       attemptedAtLabel: '—',
-      attemptsLabel: '—',
+      attemptsLabel: '0',
       firstAttemptLabel: '—',
       statusLabel: 'Non tenté',
       statusTone: 'neutral' as const,
@@ -305,8 +316,8 @@ function getPuzzleAttemptSummary(
 
   if (!attempt) {
     return {
-      attemptedAtLabel: '—',
-      attemptsLabel: '—',
+      attemptedAtLabel: formatCompactDateTime(cyclePuzzle.completedAt),
+      attemptsLabel: String(cyclePuzzle.attemptCount ?? cyclePuzzle.completedAttemptCount ?? cyclePuzzle.attempts?.filter((item) => item.status !== 'in_progress').length ?? 1),
       firstAttemptLabel: '—',
       statusLabel: cyclePuzzle.status === 'solved' ? 'Résolu' : 'Raté',
       statusTone: cyclePuzzle.status === 'solved' ? ('success' as const) : ('danger' as const),
@@ -320,8 +331,8 @@ function getPuzzleAttemptSummary(
       : 'Non';
 
   return {
-    attemptedAtLabel: formatCompactDateTime(attempt.attemptedAt),
-    attemptsLabel: '—',
+    attemptedAtLabel: formatCompactDateTime(cyclePuzzle.completedAt ?? attempt.attemptedAt),
+    attemptsLabel: String(cyclePuzzle.attemptCount ?? cyclePuzzle.completedAttemptCount ?? cyclePuzzle.attempts?.filter((item) => item.status !== 'in_progress').length ?? 1),
     firstAttemptLabel,
     statusLabel: cyclePuzzle.status === 'solved' ? 'Résolu' : 'Raté',
     statusTone: cyclePuzzle.status === 'solved' ? ('success' as const) : ('danger' as const),
@@ -337,7 +348,7 @@ function buildPuzzleRows(
   return trainingPuzzles.map((trainingPuzzle) => {
     const puzzle = typeof trainingPuzzle.puzzle === 'string' ? null : trainingPuzzle.puzzle;
     const cyclePuzzle = cyclePuzzles.find((item) => item.trainingPuzzle === trainingPuzzle['@id']) ?? null;
-    const attemptSummary = getPuzzleAttemptSummary(trainingPuzzle, cyclePuzzle, latestAttempts);
+    const attemptSummary = getPuzzleAttemptSummary(trainingPuzzle, cyclePuzzle, latestAttempts, hasStartedCycle);
 
     return {
       accessDisabled: !hasStartedCycle,
@@ -371,49 +382,42 @@ function buildStats(
     {
       icon: CheckCircle2,
       label: 'Taux de réussite',
-      meta: hasStartedCycle ? 'Premier coup' : '—',
       tone: 'success',
       value: `${successRate}%`,
     },
     {
       icon: delta === null ? CircleOff : delta >= 0 ? TrendingUp : TrendingDown,
       label: 'Progression',
-      meta: delta === null ? 'Premier cycle' : 'vs cycle précédent',
       tone: 'primary',
       value: delta === null ? '—' : `${delta > 0 ? '+' : ''}${delta}%`,
     },
     {
       icon: List,
       label: 'Problèmes',
-      meta: 'Total',
       tone: 'info',
       value: String(totalProblems),
     },
     {
       icon: CheckCircle2,
       label: 'Résolus',
-      meta: totalProblems > 0 ? `${Math.round((cycleStats.solved / totalProblems) * 100)} %` : '0 %',
       tone: 'success',
       value: String(cycleStats.solved),
     },
     {
       icon: XCircle,
       label: 'Ratés',
-      meta: totalProblems > 0 ? `${Math.round((cycleStats.failed / totalProblems) * 100)} %` : '0 %',
       tone: 'danger',
       value: String(cycleStats.failed),
     },
     {
       icon: Clock3,
       label: 'Restants',
-      meta: totalProblems > 0 ? `${Math.round((cycleStats.pending / totalProblems) * 100)} %` : '0 %',
       tone: 'neutral',
       value: String(cycleStats.pending),
     },
     {
       icon: RefreshCw,
       label: 'Tentatives moyennes',
-      meta: hasStartedCycle ? 'moyenne' : '—',
       tone: 'violet',
       value: formatDecimal(averageAttempts),
     },
@@ -466,7 +470,7 @@ function buildCyclePeriod(cycle: Cycle | null) {
   }
 
   const start = formatCompactDate(cycle.startedAt);
-  const end = cycle.completedAt ? formatCompactDate(cycle.completedAt) : getCycleStatusLabel(cycle.status);
+  const end = cycle.completedAt ? formatCompactDate(cycle.completedAt) : 'Dates indisponibles';
   return `${start} - ${end}`;
 }
 
@@ -486,8 +490,10 @@ function getCycleSupportText(cycle: Cycle | null, cycleStatusLabel: string) {
 
 function DetailHeader({
   canOpenSolver,
-  canStartCycle,
+  canShowStartCycle,
+  deleteTrainingIsPending,
   hasCycleHistory,
+  onDeleteTraining,
   onEditTraining,
   onImport,
   onOpenSolver,
@@ -496,8 +502,10 @@ function DetailHeader({
   startCycleIsPending,
 }: {
   canOpenSolver: boolean;
-  canStartCycle: boolean;
+  canShowStartCycle: boolean;
+  deleteTrainingIsPending: boolean;
   hasCycleHistory: boolean;
+  onDeleteTraining: () => void;
   onEditTraining: () => void;
   onImport: () => void;
   onOpenSolver: () => void;
@@ -520,30 +528,35 @@ function DetailHeader({
       </div>
 
       <div className="wp-detail-header__actions">
-        <button className="wp-secondary wp-detail-button" type="button" onClick={onEditTraining}>
-          <Pencil aria-hidden="true" size={16} strokeWidth={2} />
-          <span>Modifier l'entraînement</span>
-        </button>
+        {!hasCycleHistory ? (
+          <button className="wp-secondary wp-detail-button" type="button" onClick={onImport}>
+            <FileUp aria-hidden="true" size={16} strokeWidth={2} />
+            <span>Importer des puzzles</span>
+          </button>
+        ) : null}
 
-        {canOpenSolver ? (
+        {canOpenSolver && !canShowStartCycle ? (
           <button className="wp-primary wp-detail-button" type="button" onClick={onOpenSolver}>
             <Play aria-hidden="true" size={16} strokeWidth={2} />
             <span>Ouvrir le solveur</span>
           </button>
-        ) : (
-          <>
-            {!hasCycleHistory ? (
-              <button className="wp-secondary wp-detail-button" type="button" onClick={onImport}>
-                <FileUp aria-hidden="true" size={16} strokeWidth={2} />
-                <span>Importer des puzzles</span>
-              </button>
-            ) : null}
-            <button className="wp-primary wp-detail-button" disabled={!canStartCycle || startCycleIsPending} type="button" onClick={onStartCycle}>
-              <Play aria-hidden="true" size={16} strokeWidth={2} />
-              <span>{startCycleIsPending ? 'Démarrage...' : hasCycleHistory ? 'Démarrer un nouveau cycle' : 'Démarrer le cycle'}</span>
-            </button>
-          </>
-        )}
+        ) : null}
+
+        {canShowStartCycle ? (
+          <button className="wp-primary wp-detail-button" disabled={startCycleIsPending} type="button" onClick={onStartCycle}>
+            <Play aria-hidden="true" size={16} strokeWidth={2} />
+            <span>{startCycleIsPending ? 'Démarrage...' : hasCycleHistory ? 'Lancer le cycle suivant' : 'Démarrer le cycle'}</span>
+          </button>
+        ) : null}
+
+        <div className="wp-detail-header__action-group" role="group" aria-label="Actions de l'entraînement">
+          <button aria-label="Modifier l'entraînement" className="wp-secondary wp-detail-button wp-detail-icon-button" title="Modifier l'entraînement" type="button" onClick={onEditTraining}>
+            <Pencil aria-hidden="true" size={16} strokeWidth={2} />
+          </button>
+          <button aria-label="Supprimer l'entraînement" className="wp-secondary wp-detail-button wp-detail-button--danger wp-detail-icon-button wp-detail-icon-button--danger" disabled={deleteTrainingIsPending} title="Supprimer l'entraînement" type="button" onClick={onDeleteTraining}>
+            <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
+          </button>
+        </div>
       </div>
     </header>
   );
@@ -648,20 +661,19 @@ function DetailCollection({
         <table className="wp-detail-collection__table">
           <thead>
             <tr>
-              <th>#</th>
+              <th className="is-center">#</th>
               <th>Aperçu</th>
-              <th>Statut</th>
-              <th>Difficulté</th>
-              <th>Réussite</th>
-              <th>Tentatives</th>
-              <th>Dernière tentative</th>
-              <th>Accès</th>
+              <th className="is-center">Statut</th>
+              <th className="is-center">Difficulté</th>
+              <th className="is-center">Tentatives</th>
+              <th className="is-center">Dernière tentative</th>
+              <th className="is-center">Accès</th>
             </tr>
           </thead>
           <tbody>
             {paginatedRows.map((row) => (
               <tr key={row.id}>
-                <td>{row.positionLabel}</td>
+                <td className="is-center">{row.positionLabel}</td>
                 <td>
                   <button
                     className="wp-detail-problem-preview"
@@ -672,14 +684,13 @@ function DetailCollection({
                     <PuzzlePreview fen={row.previewFen} />
                   </button>
                 </td>
-                <td>
+                <td className="is-center">
                   <span className={`wp-detail-badge is-${row.statusTone}`}>{row.statusLabel}</span>
                 </td>
-                <td>{row.ratingValueLabel}</td>
-                <td>{row.firstAttemptLabel}</td>
-                <td>{row.attemptsLabel}</td>
-                <td>{row.attemptedAtLabel}</td>
-                <td>
+                <td className="is-center">{row.ratingValueLabel}</td>
+                <td className="is-center">{row.attemptsLabel}</td>
+                <td className="is-center">{row.attemptedAtLabel}</td>
+                <td className="is-center">
                   <button
                     aria-label={`Accéder au problème ${row.positionLabel}`}
                     className="wp-detail-arrow-button"
@@ -819,7 +830,7 @@ function DetailCycleStatus({
           </span>
           <div>
             <strong>Collection verrouillée</strong>
-            <p>Terminez le cycle actuel pour débloquer de nouveaux problèmes.</p>
+            <p>Un cycle a déjà démarré, la collection des problèmes est définitivement verrouillée.</p>
           </div>
         </div>
       </div>
@@ -827,14 +838,14 @@ function DetailCycleStatus({
   );
 }
 
-function DetailCycleHistory({ cycleSummaries }: { cycleSummaries: TrainingCycleSummary[] }) {
+function DetailCycleHistory({ cycleSummaries, onViewAll }: { cycleSummaries: TrainingCycleSummary[]; onViewAll: () => void; }) {
   return (
     <section className="wp-panel wp-detail-section wp-detail-side-section">
       <div className="wp-detail-section__header">
         <div>
           <h2>Historique des cycles</h2>
         </div>
-        {cycleSummaries.length > 0 ? <span className="wp-detail-section__link">Voir tout</span> : null}
+        {cycleSummaries.length > 0 ? <button className="wp-detail-section__link" type="button" onClick={onViewAll}>Voir tout</button> : null}
       </div>
 
       {cycleSummaries.length === 0 ? (
@@ -856,7 +867,7 @@ function DetailCycleHistory({ cycleSummaries }: { cycleSummaries: TrainingCycleS
                   <small>Réussite</small>
                 </span>
                 <span className="wp-detail-side-row__metric">
-                  <strong className="tone-primary">{item.progressPercent}%</strong>
+                  <strong className="tone-primary">{item.progressDelta === null || item.progressDelta === undefined ? '—' : `${item.progressDelta > 0 ? '+' : ''}${item.progressDelta}%`}</strong>
                   <small>Progression</small>
                 </span>
               </div>
@@ -869,14 +880,14 @@ function DetailCycleHistory({ cycleSummaries }: { cycleSummaries: TrainingCycleS
   );
 }
 
-function DetailRecentAttempts({ attempts }: { attempts: AttemptCard[] }) {
+function DetailRecentAttempts({ attempts, onViewAll }: { attempts: AttemptCard[]; onViewAll: () => void; }) {
   return (
     <section className="wp-panel wp-detail-section wp-detail-side-section">
       <div className="wp-detail-section__header">
         <div>
           <h2>Dernières tentatives</h2>
         </div>
-        {attempts.length > 0 ? <span className="wp-detail-section__link">Voir tout</span> : null}
+        {attempts.length > 0 ? <button className="wp-detail-section__link" type="button" onClick={onViewAll}>Voir tout</button> : null}
       </div>
 
       {attempts.length === 0 ? (
@@ -905,6 +916,67 @@ function DetailRecentAttempts({ attempts }: { attempts: AttemptCard[] }) {
   );
 }
 
+function DetailCycleHistoryModal({ cycleSummaries, onClose, open }: { cycleSummaries: TrainingCycleSummary[]; onClose: () => void; open: boolean; }) {
+  return (
+    <Modal contentClassName="ui-modal__content--plain" open={open} onClose={onClose}>
+      <div className="wp-detail-modal-card">
+        <div className="wp-detail-modal-card__header">
+          <div>
+            <h2>Historique des cycles</h2>
+            <p>Consultez le détail de tous vos cycles d'entraînement.</p>
+          </div>
+          <button aria-label="Fermer" className="ui-modal-close wp-detail-modal-card__close" type="button" onClick={onClose}>
+            <X aria-hidden="true" size={18} strokeWidth={1.9} />
+          </button>
+        </div>
+        <div className="wp-detail-modal-card__divider" />
+        {cycleSummaries.length === 0 ? (
+          <p className="wp-empty">Aucun cycle enregistré pour le moment.</p>
+        ) : (
+          <div className="wp-detail-modal-table-wrap">
+            <table className="wp-detail-modal-table">
+              <thead>
+                <tr>
+                  <th>Cycle</th>
+                  <th>Période</th>
+                  <th>Réussite</th>
+                  <th>Progression</th>
+                  <th>Tentatives</th>
+                  <th>Temps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cycleSummaries.map((item, index) => {
+                  const rowKey = item.cycle['@id'] ?? String(item.cycle.number) + '-' + String(index);
+                  const cycleLabel = 'Cycle ' + String(item.cycle.number);
+                  const successLabel = item.successRate !== undefined ? String(Math.round(item.successRate)) + ' %' : '—';
+                  const progressLabel = item.progressDelta === null || item.progressDelta === undefined
+                    ? '—'
+                    : (item.progressDelta > 0 ? '+' : '') + String(item.progressDelta) + '%';
+
+                  return (
+                    <tr key={rowKey}>
+                      <td>
+                        {cycleLabel}
+                        {index === 0 && item.cycle.status === 'active' ? ' (en cours)' : ''}
+                      </td>
+                      <td>{buildCyclePeriod(item.cycle)}</td>
+                      <td>{successLabel}</td>
+                      <td>{progressLabel}</td>
+                      <td>{item.attemptCount}</td>
+                      <td>{formatStatsDuration(item.durationMilliseconds ?? 0)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function DetailInfoBanner({ children }: { children: ReactNode }) {
   return (
     <section className="wp-panel wp-detail-info-banner">
@@ -927,11 +999,14 @@ export function DetailView({
   cycleStatusLabel,
   hasResumableCycle,
   onBackToDashboard,
+  deleteTrainingIsPending,
+  onDeleteTraining,
   onEditTraining,
   onImport,
   onOpenSolver,
   onPuzzleSelect,
   onStartCycle,
+  onViewAllAttemptHistory,
   puzzleCount,
   selectedTraining,
   startCycleError,
@@ -946,6 +1021,9 @@ export function DetailView({
   trainingPuzzlesIsError,
   trainingPuzzlesIsLoading,
 }: DetailViewProps) {
+  const [isCycleHistoryModalOpen, setIsCycleHistoryModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   if (!selectedTraining) {
     return (
       <div className="wp-page">
@@ -972,14 +1050,17 @@ export function DetailView({
   const stats = buildStats(totalProblems, cycleStats, summary, analytics, hasCycleHistory);
   const puzzleRows = buildPuzzleRows(trainingPuzzles, cyclePuzzles, latestAttempts, canOpenSolver);
   const attemptCards = buildAttemptCards(latestAttempts);
-  const canStartCycle = trainingPuzzles.length > 0;
+  const isCycleProgressComplete = cycleStats.total > 0 && cycleStats.pending === 0;
+  const canShowStartCycle = trainingPuzzles.length > 0 && (!canOpenSolver || isCycleProgressComplete);
 
   return (
     <div className="wp-page wp-detail-page">
       <DetailHeader
-        canStartCycle={canStartCycle}
+        canShowStartCycle={canShowStartCycle}
         canOpenSolver={canOpenSolver}
+        deleteTrainingIsPending={deleteTrainingIsPending}
         hasCycleHistory={hasCycleHistory}
+        onDeleteTraining={() => setIsDeleteModalOpen(true)}
         onEditTraining={onEditTraining}
         onImport={onImport}
         onOpenSolver={onOpenSolver}
@@ -1012,8 +1093,8 @@ export function DetailView({
             ) : null}
           </div>
           <div className="wp-detail-layout__side">
-            <DetailCycleHistory cycleSummaries={cycleSummaries} />
-            <DetailRecentAttempts attempts={attemptCards} />
+            <DetailCycleHistory cycleSummaries={cycleSummaries} onViewAll={() => setIsCycleHistoryModalOpen(true)} />
+            <DetailRecentAttempts attempts={attemptCards} onViewAll={onViewAllAttemptHistory} />
           </div>
         </div>
       ) : (
@@ -1025,6 +1106,22 @@ export function DetailView({
           </DetailInfoBanner>
         </div>
       )}
+
+      <DetailCycleHistoryModal cycleSummaries={cycleSummaries} onClose={() => setIsCycleHistoryModalOpen(false)} open={isCycleHistoryModalOpen} />
+
+      <ConfirmationModal
+        confirmLabel="Supprimer"
+        description="Cette action est irréversible."
+        isDanger
+        isPending={deleteTrainingIsPending}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          setIsDeleteModalOpen(false);
+          onDeleteTraining();
+        }}
+        open={isDeleteModalOpen}
+        title="Supprimer l'entraînement ?"
+      />
     </div>
   );
 }

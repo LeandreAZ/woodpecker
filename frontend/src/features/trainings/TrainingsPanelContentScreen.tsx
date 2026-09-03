@@ -119,6 +119,12 @@ export default function TrainingsPanelContentScreen({
           cyclePuzzles={state.cyclePuzzlesQuery.data ?? emptyCyclePuzzles}
           cycleStats={state.cycleStats}
           cycleStatusLabel={state.currentCycleStatusLabel}
+          deleteTrainingIsPending={state.deleteTrainingMutation.isPending}
+          onDeleteTraining={() => {
+            if (state.selectedTraining?.['@id']) {
+              state.deleteTrainingMutation.mutate(state.selectedTraining['@id']);
+            }
+          }}
           deletePuzzleError={state.deleteTrainingPuzzleMutation.error?.message}
           deletePuzzleIsError={state.deleteTrainingPuzzleMutation.isError}
           deletePuzzleIsPending={state.deleteTrainingPuzzleMutation.isPending}
@@ -137,6 +143,13 @@ export default function TrainingsPanelContentScreen({
           onPuzzleMove={(trainingPuzzleIri, direction) => state.moveTrainingPuzzleMutation.mutate({ direction, trainingPuzzleIri })}
           onPuzzleSelect={navigateToPuzzleSolver}
           onRatingChange={state.setRating}
+          onViewAllAttemptHistory={() => {
+            state.setHistoryFilterPreset({
+              activity: 'attempt',
+              training: state.selectedTraining?.['@id'] ?? 'all',
+            });
+            navigateToView('history');
+          }}
           onSolutionTextChange={state.setSolutionText}
           onStartCycle={() => state.startCycleMutation.mutate()}
           onThemesTextChange={state.setThemesText}
@@ -162,24 +175,25 @@ export default function TrainingsPanelContentScreen({
       )}
       {state.activeView === 'import' && (
         <ImportView
-          csvErrors={state.csvErrors}
-          csvFileName={state.csvFileName}
-          csvRows={state.csvRows}
-          errorMessage={state.importCsvMutation.error?.message}
-          isError={state.importCsvMutation.isError}
-          isPending={state.importCsvMutation.isPending}
-          onBackToDashboard={() => navigateToView('dashboard')}
-          onFileParsed={(fileName, rows, errors) => {
-            state.setCsvFileName(fileName);
-            state.setCsvRows(rows);
-            state.setCsvErrors(errors);
+          csvErrorMessage={state.analyzeCsvMutation.error?.message ?? state.importCsvMutation.error?.message}
+          isImportingCsv={state.importCsvMutation.isPending}
+          isImportingLichess={state.importLichessMutation.isPending}
+          lichessErrorMessage={state.importLichessMutation.error?.message}
+          onAnalyzeCsv={async (file) => {
+            state.setCsvFile(file);
+            state.setCsvFileName(file.name);
+            return state.analyzeCsvMutation.mutateAsync(file);
           }}
-          onResetFile={() => {
-            state.setCsvFileName('');
+          onBackToTraining={() => navigateToView('detail')}
+          onImportCsv={(options) => state.importCsvMutation.mutateAsync(options)}
+          onEstimateLichessAvailability={state.estimateLichessAvailability}
+          onImportLichess={(criteria) => state.importLichessMutation.mutate(criteria)}
+          onSelectCsvFile={(file) => {
+            state.setCsvFile(file);
+            state.setCsvFileName(file?.name ?? '');
             state.setCsvRows([]);
             state.setCsvErrors([]);
           }}
-          onSubmit={() => state.importCsvMutation.mutate()}
           puzzleListIsLocked={state.puzzleListIsLocked}
           selectedTraining={state.selectedTraining}
         />
@@ -257,6 +271,7 @@ export default function TrainingsPanelContentScreen({
       )}
       {state.activeView === 'history' && (
         <HistoryOverviewView
+          initialFilterPreset={state.historyFilterPreset}
           attemptHistory={state.trainingAttemptHistoryQuery.data ?? null}
           cycleHistory={state.trainingCycleHistoryQuery.data ?? null}
           detailedErrorMessage={state.trainingAttemptHistoryQuery.error?.message ?? state.trainingCycleHistoryQuery.error?.message}
@@ -266,6 +281,7 @@ export default function TrainingsPanelContentScreen({
           isDetailedLoading={state.trainingAttemptHistoryQuery.isLoading || state.trainingCycleHistoryQuery.isLoading}
           isError={state.historyOverviewQuery.isError}
           isLoading={state.historyOverviewQuery.isLoading}
+          onInitialFilterPresetApplied={() => state.setHistoryFilterPreset(null)}
           onBackToDashboard={() => navigateToView('dashboard')}
           onOpenTraining={navigateToTraining}
           selectedTraining={state.selectedTraining}

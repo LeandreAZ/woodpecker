@@ -74,7 +74,8 @@ final class TrainingDashboardAction
             fn (CyclePuzzle $cyclePuzzle): bool => 'pending' === $cyclePuzzle->getStatus(),
         ));
         $total = count($latestCyclePuzzles);
-        $progressPercent = $total > 0 ? (int) round(($solved / $total) * 100) : 0;
+        $attempted = $solved + $failed;
+        $progressPercent = $total > 0 ? (int) round(($attempted / $total) * 100) : 0;
         $latestAttempt = count($attempts) > 0 ? $attempts[0] : null;
 
         return [

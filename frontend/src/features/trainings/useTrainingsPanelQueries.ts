@@ -96,8 +96,12 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
         : apiRequest<HistoryOverview>('/history/overview', { token: session.token }),
   });
 
+  const shouldFallbackToFirstTraining =
+    uiState.activeView === 'dashboard' || uiState.activeView === 'stats';
   const effectiveSelectedTrainingIri =
-    uiState.selectedTrainingIri ?? trainingsQuery.data?.[0]?.['@id'] ?? null;
+    uiState.selectedTrainingIri ??
+    (shouldFallbackToFirstTraining ? trainingsQuery.data?.[0]?.['@id'] : null) ??
+    null;
 
   const trainingAttemptHistoryQuery = useQuery({
     queryKey: ['training-attempt-history', session.email, effectiveSelectedTrainingIri],

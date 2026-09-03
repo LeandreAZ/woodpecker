@@ -7,4 +7,4 @@ export * from './LoadingState';
 export * from './Modal';
 export * from './Select';
 export * from './StatCard';
-export * from './Textarea';
+export * from './Textarea';export * from './ConfirmationModal';

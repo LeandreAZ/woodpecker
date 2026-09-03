@@ -18,10 +18,15 @@ final class UserPreferenceManager
         $preference = $user->getPreference();
 
         if ($preference instanceof UserPreference) {
+            if ('' === trim($user->getPseudonym())) {
+                $user->setPseudonym($preference->getDisplayName());
+            }
+
             return $preference;
         }
 
-        $fallbackDisplayName = strstr((string) $user->getEmail(), '@', true) ?: (string) $user->getEmail();
+        $user->ensureDefaultPseudonym();
+        $fallbackDisplayName = $user->getPseudonym();
 
         $preference = (new UserPreference())
             ->setUser($user)

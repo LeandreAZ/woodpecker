@@ -1,7 +1,32 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TrainingsStatsView } from './TrainingsStatsView';
 import type { StatsOverview, TrainingSummary } from './trainingsTypes';
+
+const extraTrainingBreakdown = Array.from({ length: 5 }, (_, index) => ({
+  training: {
+    '@id': '/api/trainings/' + String(index + 2),
+    createdAt: '2026-08-01T10:00:00+00:00',
+    description: 'Extra',
+    icon: 'queen',
+    id: index + 2,
+    name: 'Training ' + String(index + 2),
+    status: 'active',
+  },
+  attemptCount: 2 + index,
+  descriptionReady: true,
+  durationMilliseconds: 120000 - index * 10000,
+  failedCount: 1,
+  hasResumableCycle: false,
+  pendingCount: 0,
+  progressPercent: 40 + index,
+  puzzleCount: 4,
+  rescuedCount: 0,
+  resolvedPuzzleCount: 2,
+  solvedCount: 1,
+  successRate: 50,
+  unresolvedCount: 1,
+}));
 
 const statsOverview: StatsOverview = {
   activeCycleCount: 1,
@@ -45,8 +70,9 @@ const statsOverview: StatsOverview = {
       successRate: 60,
       unresolvedCount: 1,
     },
+    ...extraTrainingBreakdown,
   ],
-  trainingCount: 1,
+  trainingCount: 6,
   unresolvedCyclePuzzleCount: 1,
 };
 
@@ -85,6 +111,30 @@ const summary: TrainingSummary = {
       total: 4,
       unresolvedCount: 1,
     },
+    {
+      attemptCount: 3,
+      averageAttempts: 1.1,
+      completedPuzzleCount: 4,
+      cycle: {
+        '@id': '/api/cycles/1',
+        completedAt: '2026-08-18T10:00:00+00:00',
+        id: 1,
+        number: 1,
+        startedAt: '2026-08-17T10:00:00+00:00',
+        status: 'completed',
+        training: '/api/trainings/1',
+      },
+      durationMilliseconds: 60000,
+      failed: 1,
+      pending: 0,
+      progressPercent: 100,
+      puzzlesWithCompletedAttemptsCount: 4,
+      rescuedCount: 0,
+      solved: 3,
+      successRate: 75,
+      total: 4,
+      unresolvedCount: 1,
+    },
   ],
   latestAttempts: [],
   latestCycleSummary: null,
@@ -118,6 +168,7 @@ describe('TrainingsStatsView', () => {
     expect(screen.queryByText('Temps investi / progression obtenue')).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: '7 derniers jours' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '90 derniers jours' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Voir tout' })).toBeInTheDocument();
   });
 
   it('affiche les blocs détaillés attendus pour un training', () => {
@@ -140,8 +191,50 @@ describe('TrainingsStatsView', () => {
     expect(screen.getByText("Distribution du nombre d'essais")).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Taux de réussite' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Tentatives moyennes' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: "Temps d'entraînement" })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Progression' })).not.toBeInTheDocument();
     expect(screen.queryByText('Delta')).not.toBeInTheDocument();
+  });
+
+  it('affiche les cycles dans l ordre chronologique et ouvre la repartition complete', () => {
+    const { container } = render(
+      <TrainingsStatsView
+        isError={false}
+        isLoading={false}
+        onOpenTraining={vi.fn()}
+        onSelectTrainingIri={vi.fn()}
+        selectedTrainingIri="/api/trainings/1"
+        statsOverview={statsOverview}
+        summary={summary}
+        summaryIsError={false}
+        summaryIsLoading={false}
+      />,
+    );
+
+    const chart = container.querySelector('svg[aria-label="Taux de réussite"]');
+    expect(chart).not.toBeNull();
+    const chartText = chart?.textContent ?? '';
+    expect(chartText.indexOf('Cycle 1')).toBeLessThan(chartText.indexOf('Cycle 3'));
+  });
+
+  it('ouvre le voir tout de la repartition du temps par training', () => {
+    render(
+      <TrainingsStatsView
+        isError={false}
+        isLoading={false}
+        onOpenTraining={vi.fn()}
+        onSelectTrainingIri={vi.fn()}
+        selectedTrainingIri={null}
+        statsOverview={statsOverview}
+        summary={null}
+        summaryIsError={false}
+        summaryIsLoading={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voir tout' }));
+
+    expect(screen.getAllByRole('heading', { name: 'Répartition du temps par training' }).length).toBeGreaterThan(1);
   });
 });
 

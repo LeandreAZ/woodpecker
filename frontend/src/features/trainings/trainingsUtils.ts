@@ -23,8 +23,9 @@ export function buildCycleStats(
       !savedCyclePuzzleIris.has(cyclePuzzle['@id']) &&
       (cyclePuzzle.status === 'failed' || failedCyclePuzzleIris.has(cyclePuzzle['@id'])),
   ).length;
-  const pending = Math.max(total - solved - failed, 0);
-  const progressPercent = total > 0 ? Math.round((solved / total) * 100) : 0;
+  const attempted = Math.min(solved + failed, total);
+  const pending = Math.max(total - attempted, 0);
+  const progressPercent = total > 0 ? Math.round((attempted / total) * 100) : 0;
 
   return {
     failed,
@@ -68,6 +69,31 @@ export function formatDuration(durationMilliseconds: number): string {
   }
 
   return `${minutes}min ${String(seconds).padStart(2, '0')}s`;
+}
+
+export function formatStatsDuration(durationMilliseconds: number): string {
+  const totalSeconds = Math.max(Math.round(durationMilliseconds / 1000), 0);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return seconds > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${hours}h ${minutes}m`;
+  }
+
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+
+  return `${seconds}s`;
+}
+
+export function capitalizeFirstLetter(value: string): string {
+  if (!value) {
+    return value;
+  }
+
+  return value.charAt(0).toLocaleUpperCase('fr-FR') + value.slice(1);
 }
 
 export function formatDateTime(value: string): string {

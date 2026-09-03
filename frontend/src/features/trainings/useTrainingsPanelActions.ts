@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '../../shared/api/client';
+import { apiMultipartRequest, apiRequest } from '../../shared/api/client';
 import type { AuthSession } from '../auth/authStorage';
 import type { PuzzleCompletionResult } from './PuzzleSolver';
 import type { SupportedLanguage, SupportedTheme } from './chessboardPreferences';
@@ -26,6 +26,7 @@ import type {
   TrainingPuzzle,
   TrainingOverview,
   TrainingSession,
+  UserSettingsOverview,
   View,
 } from './trainingsTypes';
 import {
@@ -434,72 +435,88 @@ export function useTrainingsPanelActions(
     },
   });
 
-  const saveUserSettingsMutation = useMutation({
-    mutationFn: async (value: {
-      appearance: { language: SupportedLanguage; theme: SupportedTheme };
-      board: { darkSquareColor: string; lightSquareColor: string };
-      profile: { displayName: string };
-      solverPreferences: {
-        animateMoves: boolean;
-        showCoordinates: boolean;
-        showLegalMoves: boolean;
-        showRightClickTargets: boolean;
-      };
-    }) =>
-      apiRequest('/users/me/settings', {
+  const saveUserSettingsMutation = useMutation<UserSettingsOverview, Error, {
+    appearance: { language: SupportedLanguage; theme: SupportedTheme };
+    board: { darkSquareColor: string; lightSquareColor: string };
+    profile: { pseudonym: string };
+    solverPreferences: {
+      animateMoves: boolean;
+      showCoordinates: boolean;
+      showLegalMoves: boolean;
+      showRightClickTargets: boolean;
+    };
+  }>({
+    mutationFn: async (value) =>
+      apiRequest<UserSettingsOverview>('/users/me/settings', {
         method: 'PUT',
         token: session.token,
         body: value,
       }),
-    onSuccess: async () => {
+    onSuccess: async (payload) => {
+      queryClient.setQueryData(['user-settings-overview', session.email], payload);
       await queryClient.invalidateQueries({ queryKey: ['user-settings-overview', session.email] });
     },
   });
-  const importCsvMutation = useMutation({
-    mutationFn: async () => {
+  const analyzeCsvMutation = useMutation({
+    mutationFn: async (file: File) => {
       if (!queries.effectiveSelectedTrainingIri) {
-        throw new Error('Selectionne un entrainement avant d importer des puzzles.');
+        throw new Error('Selectionne un entrainement avant l analyse.');
       }
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiMultipartRequest<{ analysisId: string; totalRows: number; validCount: number; errorCount: number; duplicateCount: number; importableCount: number; errors: { line: number; message: string }[]; rows: Array<{ line: number; status: 'valid' | 'error' | 'duplicate'; duplicateReason?: 'file' | 'training'; message?: string; rating?: number; themes?: string[]; sourceId?: string }>; preview?: Array<{ rating: number; themes: string[] }> }>(
+        apiPathFromIri(queries.effectiveSelectedTrainingIri) + '/imports/csv/analyze',
+        formData,
+        { token: session.token },
+      );
+    },
+  });
 
-      if (uiState.csvRows.length === 0) {
-        throw new Error('Choisis un fichier CSV valide avant de lancer l import.');
+  const importCsvMutation = useMutation({
+    mutationFn: async (options: { analysisId: string; skipDuplicates: boolean; skipErroredPuzzles: boolean }) => {
+      if (!queries.effectiveSelectedTrainingIri) {
+        throw new Error('Selectionne un entrainement avant l import.');
       }
-
-      let nextPosition = getNextTrainingPuzzlePosition(queries.trainingPuzzlesQuery.data ?? []);
-
-      for (const row of uiState.csvRows) {
-        const puzzle = await apiRequest<Puzzle>('/puzzles', {
-          method: 'POST',
-          token: session.token,
-          body: {
-            fen: row.fen,
-            solution: row.solution,
-            themes: row.themes,
-            rating: row.rating,
-          },
-        });
-
-        await apiRequest<TrainingPuzzle>('/training_puzzles', {
-          method: 'POST',
-          token: session.token,
-          body: {
-            training: queries.effectiveSelectedTrainingIri,
-            puzzle: puzzle['@id'],
-            position: nextPosition,
-            personalNote: row.personalNote,
-          },
-        });
-
-        nextPosition += 1;
-      }
-
-      return uiState.csvRows.length;
+      const formData = new FormData();
+      formData.append('analysisId', options.analysisId);
+      formData.append('skipDuplicates', String(options.skipDuplicates));
+      formData.append('skipErroredPuzzles', String(options.skipErroredPuzzles));
+      return apiMultipartRequest<{ importedCount: number }>(
+        apiPathFromIri(queries.effectiveSelectedTrainingIri) + '/imports/csv',
+        formData,
+        { token: session.token },
+      );
     },
     onSuccess: async () => {
-      uiState.setCsvRows([]);
-      uiState.setCsvErrors([]);
-      uiState.setCsvFileName('');
-      uiState.setActiveView('solver');
+      await invalidateTrainingData();
+    },
+  });
+
+  async function estimateLichessAvailability(criteria: { count: number; minRating: number; maxRating: number; themes: string[]; minMoves?: number; maxMoves?: number }) {
+    if (!queries.effectiveSelectedTrainingIri) {
+      throw new Error('Selectionne un entrainement avant de consulter la disponibilité.');
+    }
+
+    const payload = await apiRequest<{ availableCount: number | null }>(
+      apiPathFromIri(queries.effectiveSelectedTrainingIri) + '/imports/lichess/availability',
+      { method: 'POST', token: session.token, body: criteria },
+    );
+
+    return payload.availableCount;
+  }
+
+  const importLichessMutation = useMutation({
+    mutationFn: async (criteria: { count: number; minRating: number; maxRating: number; themes: string[]; distribution?: 'random' | 'custom'; themeDistribution?: Record<string, number>; minMoves?: number; maxMoves?: number }) => {
+      if (!queries.effectiveSelectedTrainingIri) {
+        throw new Error('Selectionne un entrainement avant l import.');
+      }
+      return apiRequest<{ importedCount: number }>(
+        apiPathFromIri(queries.effectiveSelectedTrainingIri) + '/imports/lichess',
+        { method: 'POST', token: session.token, body: criteria },
+      );
+    },
+    onSuccess: async () => {
+      uiState.setActiveView('detail');
       await invalidateTrainingData();
     },
   });
@@ -624,12 +641,14 @@ export function useTrainingsPanelActions(
         const existingTrainingPuzzleIris = new Set(
           activeCyclePuzzles.map((cyclePuzzle) => cyclePuzzle.trainingPuzzle),
         );
+        let addedPendingCyclePuzzle = false;
 
         for (const trainingPuzzle of trainingPuzzles) {
           if (existingTrainingPuzzleIris.has(trainingPuzzle['@id'])) {
             continue;
           }
 
+          addedPendingCyclePuzzle = true;
           await apiRequest<CyclePuzzle>('/cycle_puzzles', {
             method: 'POST',
             token: session.token,
@@ -642,25 +661,40 @@ export function useTrainingsPanelActions(
           });
         }
 
-        const existingTrainingSession = (queries.trainingSessionsQuery.data ?? [])
-          .filter((trainingSession) => trainingSession.cycle === existingActiveCycle['@id'])
-          .at(-1);
+        const hasPendingCyclePuzzle = activeCyclePuzzles.some((cyclePuzzle) => cyclePuzzle.status === 'pending');
+        const cycleCanBeCompleted = !addedPendingCyclePuzzle && !hasPendingCyclePuzzle;
 
-        if (existingTrainingSession) {
-          return { cycle: existingActiveCycle, trainingSession: existingTrainingSession };
+        if (!cycleCanBeCompleted) {
+          const existingTrainingSession = (queries.trainingSessionsQuery.data ?? [])
+            .filter((trainingSession) => trainingSession.cycle === existingActiveCycle['@id'])
+            .at(-1);
+
+          if (existingTrainingSession) {
+            return { cycle: existingActiveCycle, trainingSession: existingTrainingSession };
+          }
+
+          const trainingSession = await apiRequest<TrainingSession>('/training_sessions', {
+            method: 'POST',
+            token: session.token,
+            body: {
+              training: queries.effectiveSelectedTrainingIri,
+              cycle: existingActiveCycle['@id'],
+              note: 'Session du cycle ' + String(existingActiveCycle.number),
+            },
+          });
+
+          return { cycle: existingActiveCycle, trainingSession };
         }
 
-        const trainingSession = await apiRequest<TrainingSession>('/training_sessions', {
-          method: 'POST',
+        await apiRequest<Cycle>(apiPathFromIri(existingActiveCycle['@id']), {
+          method: 'PATCH',
           token: session.token,
+          contentType: 'application/merge-patch+json',
           body: {
-            training: queries.effectiveSelectedTrainingIri,
-            cycle: existingActiveCycle['@id'],
-            note: `Session du cycle ${existingActiveCycle.number}`,
+            status: 'completed',
+            completedAt: new Date().toISOString(),
           },
         });
-
-        return { cycle: existingActiveCycle, trainingSession };
       }
 
       const nextCycleNumber =
@@ -920,7 +954,10 @@ export function useTrainingsPanelActions(
     deleteTrainingMutation,
     ensureActiveTrainingSessionMutation,
     deleteTrainingPuzzleMutation,
+    analyzeCsvMutation,
     importCsvMutation,
+    importLichessMutation,
+    estimateLichessAvailability,
     moveTrainingPuzzleMutation,
     openTraining,
     markCyclePuzzleFailedMutation,
@@ -933,21 +970,3 @@ export function useTrainingsPanelActions(
     startCycleMutation,
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

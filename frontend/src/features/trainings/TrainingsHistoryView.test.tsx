@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import TrainingsHistoryView from './TrainingsHistoryView';
+import TrainingsHistoryView from './TrainingsHistoryViewV2';
 import type { HistoryOverview } from './trainingsTypes';
 
 const training = {
@@ -90,7 +90,7 @@ const historyOverview: HistoryOverview = {
 };
 
 function buildPagedHistoryOverview(): HistoryOverview {
-  const items = [
+  const items: HistoryOverview['items'] = [
     {
       '@id': '/api/authentication_events/200',
       id: 200,
@@ -146,21 +146,19 @@ function buildPagedHistoryOverview(): HistoryOverview {
 }
 
 describe('TrainingsHistoryView', () => {
-  it('shows attempts only by default and keeps auth events hidden from the initial counter', () => {
+  it('shows attempts only by default and keeps auth events hidden on first load', () => {
     render(<TrainingsHistoryView historyOverview={historyOverview} isError={false} isLoading={false} />);
 
     const headings = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
     expect(headings).toEqual(['Entraînement', 'Cycle', 'Activité', 'Date', 'Heure', 'Statut', 'Durée']);
     expect(screen.queryByText('Connexion')).not.toBeInTheDocument();
-    expect(screen.getByText('2 activités')).toBeInTheDocument();
     expect(screen.getByLabelText('Activité')).toHaveValue('attempt');
   });
 
-  it('keeps pagination and the activity counter scoped to attempts on the default filter', () => {
+  it('keeps pagination scoped to attempts on the default filter', () => {
     const pagedHistoryOverview = buildPagedHistoryOverview();
     const { container } = render(<TrainingsHistoryView historyOverview={pagedHistoryOverview} isError={false} isLoading={false} />);
 
-    expect(screen.getByText('27 activités')).toBeInTheDocument();
     expect(container.querySelectorAll('tbody tr')).toHaveLength(25);
     expect(screen.queryByText('Connexion')).not.toBeInTheDocument();
 
@@ -178,7 +176,6 @@ describe('TrainingsHistoryView', () => {
     expect(headings).toEqual(['Activité', 'Date', 'Heure', 'Détail']);
     expect(screen.getAllByText('Connexion').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Windows · Chrome · Desktop').length).toBeGreaterThan(0);
-    expect(screen.getByText('1 activité')).toBeInTheDocument();
   });
 
   it('resets filters back to the attempt-only default state', () => {
@@ -191,7 +188,6 @@ describe('TrainingsHistoryView', () => {
     expect(screen.getByLabelText('Activité')).toHaveValue('attempt');
     expect(screen.getByLabelText('Statut')).toHaveValue('all');
     expect(screen.queryByText('Connexion')).not.toBeInTheDocument();
-    expect(screen.getByText('2 activités')).toBeInTheDocument();
   });
 
   it('shows active filter chips and removes them individually back to their defaults', () => {
@@ -205,14 +201,15 @@ describe('TrainingsHistoryView', () => {
     expect(screen.queryByText('Connexion')).not.toBeInTheDocument();
   });
 
-  it('keeps the page-size control in the bottom pagination area and exposes the compact mobile card structure', () => {
+  it('keeps the page-size control in the filter row and exposes the tighter mobile card structure', () => {
     const { container } = render(<TrainingsHistoryView historyOverview={historyOverview} isError={false} isLoading={false} />);
 
     expect(screen.getByLabelText('Éléments par page')).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: '25' })).toBeInTheDocument();
-    expect(container.querySelector('.wp-training-history-card__meta-line')).toBeTruthy();
-    expect(container.querySelector('.wp-training-history-card__badge-line')).toBeTruthy();
-    expect(container.querySelector('.wp-training-history-card__footer-line')).toBeTruthy();
-    expect(container.querySelector('.wp-training-history-reset')).toBeTruthy();
+    expect(container.querySelector('.wp-training-history-filters--v2 .wp-training-history-page-size--inline')).toBeTruthy();
+    expect(container.querySelector('.wp-training-history-card__heading--v2')).toBeTruthy();
+    expect(container.querySelector('.wp-training-history-card__meta-line--v2')).toBeTruthy();
+    expect(container.querySelector('.wp-training-history-card__footer-line--v2')).toBeTruthy();
+    expect(container.querySelector('.wp-training-history-card__badge-line')).toBeFalsy();
   });
 });
+

@@ -59,6 +59,8 @@ final class UserSettingsOverviewActionTest extends TestCase
     {
         $user = (new User())
             ->setEmail('owner@example.com')
+            ->setPseudonym('Leandre Ribeiro')
+            ->setAvatarUrl('https://example.com/avatar.png')
             ->setRoles(['ROLE_ADMIN']);
         $this->setEntityId($user, 7);
         $this->setDateProperty($user, 'createdAt', new \DateTimeImmutable('2026-08-01T09:00:00+00:00'));
@@ -133,7 +135,8 @@ final class UserSettingsOverviewActionTest extends TestCase
 
         self::assertSame('owner@example.com', $payload['user']['email']);
         self::assertSame(['ROLE_ADMIN', 'ROLE_USER'], array_values(array_unique($payload['user']['roles'])));
-        self::assertSame('Leandre Ribeiro', $payload['profile']['displayName']);
+        self::assertSame('Leandre Ribeiro', $payload['profile']['pseudonym']);
+        self::assertSame('https://example.com/avatar.png', $payload['profile']['avatarUrl']);
         self::assertSame('en', $payload['appearance']['language']);
         self::assertSame('light', $payload['appearance']['theme']);
         self::assertSame('#F0D9B5', $payload['board']['lightSquareColor']);
@@ -157,6 +160,7 @@ final class UserSettingsOverviewActionTest extends TestCase
     {
         $user = (new User())
             ->setEmail('empty@example.com')
+            ->setPseudonym('empty')
             ->setRoles(['ROLE_USER']);
         $this->setEntityId($user, 8);
         $this->setDateProperty($user, 'createdAt', new \DateTimeImmutable('2026-08-02T09:00:00+00:00'));
@@ -187,7 +191,8 @@ final class UserSettingsOverviewActionTest extends TestCase
         $payload = json_decode($response->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
 
         self::assertSame('empty@example.com', $payload['user']['email']);
-        self::assertSame('empty', $payload['profile']['displayName']);
+        self::assertSame('empty', $payload['profile']['pseudonym']);
+        self::assertNull($payload['profile']['avatarUrl']);
         self::assertSame('fr', $payload['appearance']['language']);
         self::assertSame('dark', $payload['appearance']['theme']);
         self::assertSame('Vert classique', $payload['board']['themeLabel']);
@@ -212,6 +217,3 @@ final class UserSettingsOverviewActionTest extends TestCase
         $reflection->setValue($entity, $value);
     }
 }
-
-
-

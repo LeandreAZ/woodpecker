@@ -145,7 +145,7 @@ final class TrainingDashboardActionTest extends TestCase
         self::assertSame('active', $payload[0]['latestCycleStatus']);
         self::assertFalse($payload[0]['hasResumableCycle']);
         self::assertTrue($payload[0]['descriptionReady']);
-        self::assertSame('2026-08-06T18:10:00+00:00', $payload[0]['latestAttemptedAt']);
+        self::assertSame($attempt->getAttemptedAt()?->format(DATE_ATOM), $payload[0]['latestAttemptedAt']);
     }
 
 

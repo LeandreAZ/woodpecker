@@ -1,0 +1,3 @@
+PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags
+woodpecker-demo-001,rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1,e2e4 e7e5 g1f3,1500,80,95,1200,opening fork,https://lichess.org/abc123,Italian_Game
+woodpecker-demo-002,r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3,g8f6 d2d3,1750,65,88,840,development pin,https://lichess.org/def456,Italian_Game

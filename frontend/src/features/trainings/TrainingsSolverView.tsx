@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChessPawn, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as AppIcons from '../../shared/AppIcons';
 import { PuzzleSolver, type PuzzleCompletionResult, type PuzzleSolverSnapshot } from './PuzzleSolver';
 import {
@@ -389,6 +389,15 @@ export function SolverView({
   const sideSummary = buildSideSummary(selectedPuzzle?.fen);
   const boardSettings = userSettingsOverview?.board;
   const solverPreferences = userSettingsOverview?.solverPreferences;
+  const solverPreferenceKey = [
+    selectedTrainingPuzzle?.['@id'] ?? 'no-puzzle',
+    solverPreferences?.animateMoves ?? true,
+    solverPreferences?.showCoordinates ?? true,
+    solverPreferences?.showLegalMoves ?? true,
+    solverPreferences?.showRightClickTargets ?? true,
+    boardSettings?.lightSquareColor ?? '',
+    boardSettings?.darkSquareColor ?? '',
+  ].join(':');
   const hasRunnableAttempt = Boolean(currentCyclePuzzle && !currentCyclePuzzleIsFrozen && activeTrainingSessionIri && hasActiveCycle);
 
   function setCurrentAttemptSession(value: AttemptSession | null) {
@@ -419,11 +428,12 @@ export function SolverView({
     const currentAttemptSession = attemptSessionRef.current?.cyclePuzzleIri === currentCyclePuzzle?.['@id']
       ? attemptSessionRef.current
       : currentDraftAttemptSession;
+    const puzzleSelectionChanged = previousPuzzleSelectionKeyRef.current !== puzzleSelectionKey;
+    const reusableAttemptSession = puzzleSelectionChanged ? null : currentAttemptSession;
     const nextAttemptSession = hasRunnableAttempt
-      ? buildAttemptSession(currentCyclePuzzle!, activeTrainingSessionIri!, pendingAttemptSnapshot, currentAttemptSession)
+      ? buildAttemptSession(currentCyclePuzzle!, activeTrainingSessionIri!, pendingAttemptSnapshot, reusableAttemptSession)
       : null;
     const attemptSessionChanged = !attemptSessionsMatch(attemptSessionRef.current, nextAttemptSession);
-    const puzzleSelectionChanged = previousPuzzleSelectionKeyRef.current !== puzzleSelectionKey;
 
     previousPuzzleSelectionKeyRef.current = puzzleSelectionKey;
 
@@ -633,10 +643,10 @@ export function SolverView({
         </aside>
         <section className="wp-panel wp-solver-board-panel-v2">
           <div className="wp-solver-board-panel-v2__mobile-head"><strong>{selectedPosition ? `Puzzle ${selectedPosition} / ${trainingPuzzles.length}` : 'Puzzle'}</strong><button className="wp-solver-list-v2__toggle" type="button" onClick={() => setIsPuzzleListOpen((current) => !current)}><AppIcons.BarsIcon /></button></div>
-          <div className="wp-solver-board-panel-v2__alerts">{attemptIsPending ? <p className="alert info-alert">Sauvegarde en cours...</p> : null}{attemptIsError ? <p className="alert error-alert">{attemptError}</p> : null}</div>
+          <div className="wp-solver-board-panel-v2__alerts">{attemptIsError ? <p className="alert error-alert">{attemptError}</p> : null}</div>
           <div className="wp-solver-stage-v2">
             <div className="wp-solver-board-panel-v2__body">
-              {selectedTrainingPuzzle && selectedPuzzle ? <PuzzleSolver key={selectedTrainingPuzzle['@id']} fen={selectedPuzzle.fen} initialEvaluationFailed={currentCyclePuzzleIsFailed} onCompleted={async (result) => {
+              {selectedTrainingPuzzle && selectedPuzzle ? <PuzzleSolver key={solverPreferenceKey} animateMoves={solverPreferences?.animateMoves ?? true} darkSquareColor={boardSettings?.darkSquareColor} fen={selectedPuzzle.fen} initialEvaluationFailed={currentCyclePuzzleIsFailed} lightSquareColor={boardSettings?.lightSquareColor} onCompleted={async (result) => {
                 const activeSession = attemptSessionRef.current;
                 if (!currentCyclePuzzle || !activeSession) return;
                 const payload = { attemptNumber: activeSession.attemptNumber, clientRequestId: activeSession.clientRequestId, cyclePuzzle: currentCyclePuzzle, cyclePuzzleDurationMilliseconds: elapsedMilliseconds, durationMilliseconds: currentAttemptDurationMilliseconds, mistakesCount: result.mistakesCount, playedMoves: result.playedMoves, trainingSession: activeSession.trainingSession };
@@ -652,12 +662,12 @@ export function SolverView({
                 delete draftAttemptSessionsRef.current[activeSession.trainingSession + '|' + activeSession.cyclePuzzleIri];
                 setCurrentAttemptSession(null);
                 lastSavedSignatureRef.current = '';
-              }} onFirstMistake={(result) => { setSolverSnapshotSafely((current) => ({ ...current, evaluationFailed: true, feedback: { kind: 'error', message: 'Puzzle raté. Continuez à chercher mais les tentatives seront encore enregistrées.' } })); onPuzzleFirstMistake?.(result); }} onStateChange={setSolverSnapshotSafely} solution={selectedPuzzle.solution} /> : <p className="wp-empty">Chargement du puzzle sélectionné...</p>}
+              }} onFirstMistake={(result) => { setSolverSnapshotSafely((current) => ({ ...current, evaluationFailed: true, feedback: { kind: 'error', message: 'Puzzle raté. Continuez à chercher mais les tentatives seront encore enregistrées.' } })); onPuzzleFirstMistake?.(result); }} onStateChange={setSolverSnapshotSafely} showCoordinates={solverPreferences?.showCoordinates ?? true} showLegalMoves={solverPreferences?.showLegalMoves ?? true} showRightClickTargets={solverPreferences?.showRightClickTargets ?? true} solution={selectedPuzzle.solution} /> : <p className="wp-empty">Chargement du puzzle sélectionné...</p>}
             </div>
             <div className="wp-solver-summary-v2">
               <div className={`wp-solver-summary-v2__item is-${statusSummary.accent}`}><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon">{statusSummary.accent === 'success' ? <AppIcons.CheckCircleIcon /> : statusSummary.accent === 'danger' ? <AppIcons.AlertIcon /> : <AppIcons.TargetIcon />}</span><span className="wp-solver-summary-v2__label">Résultat</span></div><div className="wp-solver-summary-v2__content"><strong>{statusSummary.label}</strong><p>{statusSummary.description}</p></div></div>
               <div className="wp-solver-summary-v2__item is-accent-blue"><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon"><AppIcons.HistoryIcon /></span><span className="wp-solver-summary-v2__label">Tentatives</span></div><div className="wp-solver-summary-v2__content"><p className="wp-solver-summary-v2__attempt-text">{getAttemptSummaryLabel(persistedAttemptCount)}</p></div></div>
-              <div className="wp-solver-summary-v2__item is-accent-blue"><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon"><AppIcons.PawnIcon /></span><span className="wp-solver-summary-v2__label">Trait</span></div><div className="wp-solver-summary-v2__content"><strong>{sideSummary.label}</strong><p>{sideSummary.description}</p></div></div>
+              <div className="wp-solver-summary-v2__item is-accent-blue"><div className="wp-solver-summary-v2__head"><span className="wp-solver-summary-v2__icon"><ChessPawn size={20} strokeWidth={1.9} /></span><span className="wp-solver-summary-v2__label">Trait</span></div><div className="wp-solver-summary-v2__content"><strong>{sideSummary.label}</strong><p>{sideSummary.description}</p></div></div>
             </div>
           </div>
           <div className="wp-solver-board-nav-v2"><button className="wp-secondary wp-solver-nav-button" disabled={!previousPuzzle} type="button" onClick={() => { if (previousPuzzle) switchPuzzle(previousPuzzle['@id']); }}><ChevronLeft aria-hidden="true" size={18} strokeWidth={2} /><span>Précédent</span></button><button className="wp-primary wp-solver-nav-button" disabled={!nextPuzzle} type="button" onClick={() => { if (nextPuzzle) switchPuzzle(nextPuzzle['@id']); }}><span>Suivant</span><ChevronRight aria-hidden="true" size={18} strokeWidth={2} /></button></div>
@@ -668,6 +678,7 @@ export function SolverView({
 }
 
 export default SolverView;
+
 
 
 

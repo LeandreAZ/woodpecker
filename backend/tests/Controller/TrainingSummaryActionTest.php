@@ -172,7 +172,7 @@ final class TrainingSummaryActionTest extends TestCase
         self::assertSame(2, $payload['latestCycleSummary']['cycle']['number']);
         self::assertSame(1, $payload['latestCycleSummary']['solved']);
         self::assertSame(1, $payload['latestCycleSummary']['failed']);
-        self::assertSame(50, $payload['latestCycleSummary']['progressPercent']);
+        self::assertSame(100, $payload['latestCycleSummary']['progressPercent']);
         self::assertSame(2, $payload['latestCycleSummary']['attemptCount']);
         self::assertCount(2, $payload['latestAttempts']);
         self::assertSame(2, $payload['latestAttempts'][0]['cycleNumber']);
@@ -279,7 +279,7 @@ final class TrainingSummaryActionTest extends TestCase
         self::assertSame(1, $payload['latestCycleSummary']['failed']);
         self::assertSame(1, $payload['latestCycleSummary']['pending']);
         self::assertSame(0, $payload['latestCycleSummary']['attemptCount']);
-        self::assertSame(0, $payload['latestCycleSummary']['progressPercent']);
+        self::assertSame(50, $payload['latestCycleSummary']['progressPercent']);
         self::assertCount(2, $payload['cycleSummaries']);
         self::assertSame(3, $payload['cycleSummaries'][0]['cycle']['number']);
         self::assertSame(1, $payload['cycleSummaries'][1]['cycle']['number']);

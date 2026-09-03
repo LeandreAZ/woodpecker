@@ -72,7 +72,7 @@
 .wp-page.wp-training-stats-page .wp-training-stats-select span {
   display: inline-grid;
   place-items: center;
-  color: #8b5cf6;
+  color: #f8fafc;
 }
 
 .wp-page.wp-training-stats-page .wp-training-stats-select__icon :where(svg) {
@@ -87,7 +87,7 @@
 .wp-page.wp-training-stats-page .wp-training-stats-select select {
   width: 100%;
   min-width: 0;
-  padding: 0;
+  padding: 0 1.25rem 0 0;
   border: 0;
   background: transparent;
   color: #f8fafc;
@@ -204,10 +204,57 @@
 }
 
 .wp-page.wp-training-stats-page .wp-training-stats-panel__action {
+  padding: 0;
+  border: 0;
   color: #60a5fa;
   font-size: 0.95rem;
   font-weight: 500;
   white-space: nowrap;
+  background: transparent;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-modal {
+  width: min(100%, 960px);
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid #1e2f4d;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(16, 28, 48, 0.98) 0%, rgba(10, 21, 39, 0.98) 100%);
+  box-shadow: 0 28px 70px rgba(2, 6, 16, 0.45);
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-modal__header h2,
+.wp-page.wp-training-stats-page .wp-training-stats-modal__header p {
+  margin: 0;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-modal__header h2 {
+  color: #f8fafc;
+  font-size: clamp(2rem, 3vw, 2.5rem);
+  line-height: 1.06;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-modal__header p {
+  margin-top: 0.5rem;
+  color: #bac6d9;
+  line-height: 1.55;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-modal__close {
+  flex: 0 0 auto;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-modal__divider {
+  height: 1px;
+  background: rgba(115, 139, 177, 0.2);
 }
 
 .wp-page.wp-training-stats-page .wp-training-stats-table-wrap {

@@ -187,7 +187,7 @@ final class TrainingAnalyticsActionTest extends TestCase
         self::assertSame(1, $payload['progressionSnapshot']['completedCycleCount']);
         self::assertTrue($payload['progressionSnapshot']['resumableCycle']);
         self::assertSame(50, $payload['progressionSnapshot']['latestCycleProgressPercent']);
-        self::assertSame(50, $payload['progressionSnapshot']['bestCycleProgressPercent']);
+        self::assertSame(100, $payload['progressionSnapshot']['bestCycleProgressPercent']);
         self::assertCount(2, $payload['cycleTimeline']);
         self::assertSame(2, $payload['cycleTimeline'][0]['cycle']['number']);
         self::assertSame(1, $payload['cycleTimeline'][0]['pending']);
@@ -257,8 +257,8 @@ final class TrainingAnalyticsActionTest extends TestCase
         self::assertSame(0, $payload['progressionSnapshot']['activeCycleCount']);
         self::assertSame(1, $payload['progressionSnapshot']['completedCycleCount']);
         self::assertFalse($payload['progressionSnapshot']['resumableCycle']);
-        self::assertSame(0, $payload['progressionSnapshot']['latestCycleProgressPercent']);
-        self::assertSame(0, $payload['progressionSnapshot']['bestCycleProgressPercent']);
+        self::assertSame(100, $payload['progressionSnapshot']['latestCycleProgressPercent']);
+        self::assertSame(100, $payload['progressionSnapshot']['bestCycleProgressPercent']);
         self::assertCount(1, $payload['cycleTimeline']);
         self::assertSame(1, $payload['cycleTimeline'][0]['cycle']['number']);
         self::assertSame(0, $payload['cycleTimeline'][0]['attemptCount']);

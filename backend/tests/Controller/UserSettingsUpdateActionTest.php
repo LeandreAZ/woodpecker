@@ -63,7 +63,10 @@ final class UserSettingsUpdateActionTest extends TestCase
         $user->setPreference($preference);
 
         $request = Request::create('/api/users/me/settings', 'PUT', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode([
-            'profile' => ['displayName' => 'Leandre Ribeiro'],
+            'profile' => [
+                'pseudonym' => 'Leandre Ribeiro',
+                'avatarUrl' => 'https://example.com/avatar.png',
+            ],
             'appearance' => ['language' => 'en', 'theme' => 'light'],
             'board' => ['lightSquareColor' => '#F0D9B5', 'darkSquareColor' => '#B58863'],
             'solverPreferences' => [
@@ -75,7 +78,7 @@ final class UserSettingsUpdateActionTest extends TestCase
         ], JSON_THROW_ON_ERROR));
 
         $this->security->method('getUser')->willReturn($user);
-        $this->entityManager->expects(self::once())->method('persist')->with($preference);
+        $this->entityManager->expects(self::exactly(2))->method('persist')->withAnyParameters();
         $this->entityManager->expects(self::once())->method('flush');
 
         $response = $this->action->__invoke($request);
@@ -83,6 +86,8 @@ final class UserSettingsUpdateActionTest extends TestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('Leandre Ribeiro', $preference->getDisplayName());
+        self::assertSame('Leandre Ribeiro', $user->getPseudonym());
+        self::assertSame('https://example.com/avatar.png', $user->getAvatarUrl());
         self::assertSame('en', $preference->getLanguage());
         self::assertSame('light', $preference->getTheme());
         self::assertSame('#F0D9B5', $preference->getBoardLightSquare());
@@ -91,7 +96,8 @@ final class UserSettingsUpdateActionTest extends TestCase
         self::assertTrue($preference->shouldShowCoordinates());
         self::assertFalse($preference->shouldAnimateMoves());
         self::assertFalse($preference->shouldShowRightClickTargets());
-        self::assertSame('Leandre Ribeiro', $payload['profile']['displayName']);
+        self::assertSame('Leandre Ribeiro', $payload['profile']['pseudonym']);
+        self::assertSame('https://example.com/avatar.png', $payload['profile']['avatarUrl']);
     }
 
     public function testRejectsInvalidTheme(): void

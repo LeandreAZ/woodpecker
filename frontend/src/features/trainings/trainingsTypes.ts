@@ -161,6 +161,7 @@ export type TrainingCycleSummary = {
   failed: number;
   pending: number;
   progressPercent: number;
+  progressDelta?: number | null;
   puzzlesWithCompletedAttemptsCount?: number;
   rescuedCount?: number;
   solved: number;
@@ -240,7 +241,7 @@ export type TrainingDashboardSummary = {
   durationMilliseconds?: number;
   handledPuzzleCount?: number;
   progressPercent: number;
-  progressDelta?: number;
+  progressDelta?: number | null;
   solvedCount: number;
   successfulAttemptCount?: number;
   successRate?: number;
@@ -304,6 +305,15 @@ export type HistoryTimelineItem = {
   occurredAt: string;
 };
 
+export type HistoryFilterPreset = Partial<{
+  activity: 'all' | HistoryActivityType;
+  pageSize: number;
+  periodDays: number | 'all';
+  search: string;
+  status: 'all' | HistoryItemStatus;
+  training: string;
+}>;
+
 export type HistoryOverview = {
   availableTrainings: TrainingReference[];
   items: HistoryTimelineItem[];
@@ -335,6 +345,8 @@ export type DetailedCycleHistoryItem = {
   pending: number;
   total: number;
   progressPercent: number;
+  progressDelta?: number | null;
+  successRate?: number;
   attemptCount: number;
   averageAttempts?: number;
   durationMilliseconds?: number;
@@ -354,7 +366,8 @@ export type UserSettingsOverview = {
     createdAt: string | null;
   };
   profile: {
-    displayName: string;
+    pseudonym: string;
+    displayName?: string;
     avatarUrl: string | null;
   };
   appearance: {
@@ -398,6 +411,9 @@ export type ParsedCsvPayload = {
   fileName: string;
   rows: PuzzleCsvRow[];
 };
+
+
+
 
 
 

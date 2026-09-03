@@ -266,7 +266,7 @@ function TrainingsHistoryView({ errorMessage, historyOverview, isError, isLoadin
   const pageNumbers = buildPageNumbers(currentPage, totalPages);
   const selectedTraining = availableTrainings.find((training) => training['@id'] === filters.training) ?? null;
   const activeChips = [
-    filters.activity !== DEFAULT_FILTERS.activity
+    filters.activity !== DEFAULT_FILTERS.activity && filters.activity !== 'all'
       ? { key: 'activity', label: ACTIVITY_LABELS[filters.activity], onRemove: () => setFilters((current) => ({ ...current, activity: DEFAULT_FILTERS.activity })) }
       : null,
     selectedTraining ? { key: 'training', label: selectedTraining.name, onRemove: () => setFilters((current) => ({ ...current, training: 'all' })) } : null,
@@ -504,6 +504,8 @@ function TrainingsHistoryView({ errorMessage, historyOverview, isError, isLoadin
 
 export { TrainingsHistoryView };
 export default TrainingsHistoryView;
+
+
 
 
 

@@ -25,6 +25,7 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-dev}"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-woodpecker}:${POSTGRES_PASSWORD:-woodpecker}@database:5432/${POSTGRES_DB:-woodpecker}?serverVersion=17&charset=utf8"
+      LICHESS_PUZZLE_DATASET_PATH: "${LICHESS_PUZZLE_DATASET_PATH:-}"
     depends_on:
       database:
         condition: service_healthy

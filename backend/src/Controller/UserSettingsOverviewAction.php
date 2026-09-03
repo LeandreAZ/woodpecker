@@ -62,8 +62,8 @@ final class UserSettingsOverviewAction
                 'createdAt' => $user->getCreatedAt()?->format(DATE_ATOM),
             ],
             'profile' => [
-                'displayName' => $preference->getDisplayName(),
-                'avatarUrl' => null,
+                'pseudonym' => $user->getPseudonym(),
+                'avatarUrl' => $user->getAvatarUrl(),
             ],
             'appearance' => [
                 'language' => $preference->getLanguage(),

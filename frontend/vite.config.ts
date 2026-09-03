@@ -16,6 +16,10 @@ export default defineConfig({
         target: 'http://nginx',
         changeOrigin: true,
       },
+      '/uploads': {
+        target: 'http://nginx',
+        changeOrigin: true,
+      },
     },
   },
 });

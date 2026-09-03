@@ -90,14 +90,14 @@ final class TrainingSummaryAction
         }
         ksort($dailyActivity);
 
-        $cycleSummaries = array_map(
+        $cycleSummaries = $this->withProgressDeltas(array_map(
             fn (Cycle $cycle): array => $this->buildCycleSummary(
                 $cycle,
                 $cyclePuzzlesByCycle[$cycle->getId() ?? 0] ?? [],
                 $attemptsByCyclePuzzle,
             ),
             array_reverse($cycles),
-        );
+        ));
 
         $completedAttempts = array_values(array_filter(
             $attempts,
@@ -207,7 +207,8 @@ final class TrainingSummaryAction
             'failed' => $failed,
             'pending' => $pending,
             'total' => $total,
-            'progressPercent' => $total > 0 ? (int) round(($completedPuzzleCount / $total) * 100) : 0,
+            'progressPercent' => $total > 0 ? (int) round((($solved + $failed) / $total) * 100) : 0,
+            'progressDelta' => null,
             'completedPuzzleCount' => $completedPuzzleCount,
             'attemptCount' => $completedAttemptCount,
             'averageAttempts' => $puzzlesWithCompletedAttemptsCount > 0 ? round($completedAttemptCount / $puzzlesWithCompletedAttemptsCount, 1) : 0,
@@ -251,6 +252,23 @@ final class TrainingSummaryAction
             'startedAt' => $this->formatDateTime($cycle->getStartedAt()),
             'completedAt' => $this->formatDateTime($cycle->getCompletedAt()),
         ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $cycleSummaries
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function withProgressDeltas(array $cycleSummaries): array
+    {
+        foreach ($cycleSummaries as $index => $cycleSummary) {
+            $previousCycle = $cycleSummaries[$index + 1] ?? null;
+            $cycleSummaries[$index]['progressDelta'] = is_array($previousCycle)
+                ? (int) (($cycleSummary['successRate'] ?? 0) - ($previousCycle['successRate'] ?? 0))
+                : null;
+        }
+
+        return $cycleSummaries;
     }
 
     private function iri(string $resource, ?int $id): ?string

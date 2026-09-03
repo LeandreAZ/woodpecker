@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo, type CSSProperties } from 'react';
+import { capitalizeFirstLetter } from '../trainingsUtils';
 import { TrainingLogoBadge } from '../TrainingBranding';
 import type { StatsOverview, Training, TrainingDashboardSummary, View } from '../trainingsTypes';
 import './dashboard.css';
@@ -48,7 +49,7 @@ type FeaturedStat = {
 function truncate(value?: string | null, maxLength = 96) {
   const normalized = value?.trim() ?? '';
   if (!normalized) {
-    return 'Description à compléter.';
+    return '';
   }
 
   if (normalized.length <= maxLength) {
@@ -74,17 +75,17 @@ function formatRelativeActivity(value?: string | null) {
   const formatter = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
 
   if (Math.abs(diffMinutes) < 60) {
-    return formatter.format(diffMinutes, 'minute');
+    return capitalizeFirstLetter(formatter.format(diffMinutes, 'minute'));
   }
 
   const diffHours = Math.round(diffMinutes / 60);
   if (Math.abs(diffHours) < 24) {
-    return formatter.format(diffHours, 'hour');
+    return capitalizeFirstLetter(formatter.format(diffHours, 'hour'));
   }
 
   const diffDays = Math.round(diffHours / 24);
   if (Math.abs(diffDays) < 7) {
-    return formatter.format(diffDays, 'day');
+    return capitalizeFirstLetter(formatter.format(diffDays, 'day'));
   }
 
   return new Intl.DateTimeFormat('fr-FR', {
@@ -251,7 +252,7 @@ export function DashboardOverviewView({
               </div>
               <div className="dashboard-page__featured-copy">
                 <strong>{selectedSummary.training.name}</strong>
-                <span>{truncate(selectedSummary.training.description, 112)}</span>
+                {selectedSummary.training.description?.trim() ? <span>{truncate(selectedSummary.training.description, 112)}</span> : null}
               </div>
             </div>
 

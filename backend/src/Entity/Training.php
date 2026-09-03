@@ -416,7 +416,7 @@ class Training
     {
         $this->icon = $this->normalizeIcon($this->icon);
         $this->iconBackgroundColor = $this->normalizeColor($this->iconBackgroundColor);
-        $this->iconColor = $this->normalizeColor($this->iconColor);
+        $this->iconColor = $this->normalizeColor($this->iconColor) ?? '#ffffff';
         $this->logo ??= $this->buildDefaultLogo();
     }
 

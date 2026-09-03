@@ -1,9 +1,9 @@
 import {
   ChartNoAxesCombined,
+  ChessPawn,
   History,
   House,
   LogOut,
-  Puzzle,
   Settings,
   Target,
   type LucideIcon,
@@ -30,7 +30,7 @@ type NavigationItem = {
 const navigationItems: NavigationItem[] = [
   { icon: House, label: 'Mes entraînements', view: 'dashboard' },
   { icon: Target, label: 'Entraînement sélectionné', view: 'detail', requiresTraining: true },
-  { icon: Puzzle, label: 'Solveur', view: 'solver', requiresTraining: true },
+  { icon: ChessPawn, label: 'Solveur', view: 'solver', requiresTraining: true },
   { icon: ChartNoAxesCombined, label: 'Statistiques', view: 'stats' },
   { icon: History, label: 'Historique', view: 'history' },
   { icon: Settings, label: 'Paramètres', view: 'settings' },
@@ -187,3 +187,6 @@ function getActiveNavigationView(route: AppRoute): View {
 export type { AppNavigationProps };
 export { AppNavigation };
 export default AppNavigation;
+
+
+

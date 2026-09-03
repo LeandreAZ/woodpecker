@@ -91,3 +91,33 @@ function getHttpStatusMessage(status: number): string {
   return messages[status] ?? `Erreur API HTTP ${status}.`;
 }
 
+
+export async function apiMultipartRequest<T>(path: string, formData: FormData, options: Pick<ApiRequestOptions, 'method' | 'token'> = {}): Promise<T> {
+  const headers = new Headers({
+    Accept: 'application/ld+json',
+  });
+
+  if (options.token) {
+    headers.set('Authorization', `Bearer ${options.token}`);
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: options.method ?? 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 && options.token) {
+      window.dispatchEvent(new Event(unauthorizedEventName));
+    }
+
+    throw new ApiError(await getErrorMessage(response), response.status);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}

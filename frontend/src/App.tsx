@@ -24,6 +24,14 @@ function applyTheme(theme: SupportedTheme) {
   document.body.dataset.theme = theme;
 }
 
+function applyDocumentLanguage(language: string) {
+  document.documentElement.lang = language;
+  document.documentElement.setAttribute('translate', 'no');
+  document.documentElement.classList.add('notranslate');
+  document.body.setAttribute('translate', 'no');
+  document.body.classList.add('notranslate');
+}
+
 function loadStoredTheme(): SupportedTheme {
   const storedTheme = window.localStorage.getItem(LOCAL_THEME_STORAGE_KEY);
   return storedTheme === 'light' ? 'light' : 'dark';
@@ -37,6 +45,7 @@ function App() {
 
   useEffect(() => {
     applyTheme(loadStoredTheme());
+    applyDocumentLanguage('fr');
   }, []);
 
   useEffect(() => {

@@ -200,6 +200,10 @@
 .dashboard-page__list-copy small {
   color: #c7d4e6;
   line-height: 1.45;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard-page__progress-header {

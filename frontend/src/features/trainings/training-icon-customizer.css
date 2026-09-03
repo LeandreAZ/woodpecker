@@ -55,14 +55,7 @@
 }
 
 .wp-training-icon-modal__close {
-  width: 40px;
-  height: 40px;
-  display: inline-grid;
-  place-items: center;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: #f8fafc;
+  flex: 0 0 auto;
 }
 
 .wp-training-icon-modal__section {

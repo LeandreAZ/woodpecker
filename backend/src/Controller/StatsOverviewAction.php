@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Attempt;
+use App\Entity\CyclePuzzle;
 use App\Entity\Training;
 use App\Entity\User;
 use App\Repository\AttemptRepository;
@@ -38,6 +39,10 @@ final class StatsOverviewAction
         $trainingBreakdown = array_map(fn (Training $training): array => $this->buildTrainingCard($training), $trainings);
 
         $trainingCount = count($trainingBreakdown);
+        $progressDeltas = array_values(array_filter(
+            array_map(fn (array $summary): ?int => $summary['progressDelta'] ?? null, $trainingBreakdown),
+            static fn (?int $value): bool => null !== $value,
+        ));
         $puzzleCount = array_sum(array_column($trainingBreakdown, 'puzzleCount'));
         $attemptCount = array_sum(array_column($trainingBreakdown, 'attemptCount'));
         $successfulAttemptCount = array_sum(array_column($trainingBreakdown, 'successfulAttemptCount'));
@@ -88,7 +93,7 @@ final class StatsOverviewAction
             'attemptCount' => $attemptCount,
             'completedAttemptCount' => $completedAttemptCount,
             'averageAttempts' => $puzzlesWithCompletedAttemptsCount > 0 ? round($completedAttemptCount / $puzzlesWithCompletedAttemptsCount, 1) : 0,
-            'progressPercent' => $puzzleCount > 0 ? (int) round(($completedCyclePuzzleCount / $puzzleCount) * 100) : 0,
+            'progressPercent' => count($progressDeltas) > 0 ? (int) round(array_sum($progressDeltas) / count($progressDeltas)) : 0,
             'totalDurationMilliseconds' => $totalDurationMilliseconds,
             'successfulAttemptCount' => $successfulAttemptCount,
             'successRate' => $evaluatedCyclePuzzleCount > 0 ? (int) round(($solvedCyclePuzzleCount / $evaluatedCyclePuzzleCount) * 100) : 0,
@@ -164,8 +169,14 @@ final class StatsOverviewAction
         $completedAttemptCount = 0;
         $successfulAttemptCount = 0;
         $durationMilliseconds = 0;
+        $successRatesByCycle = [];
 
+        $cyclePuzzlesByCycle = [];
         foreach ($cyclePuzzles as $cyclePuzzle) {
+            $cycleId = $cyclePuzzle->getCycle()?->getId();
+            if (null !== $cycleId) {
+                $cyclePuzzlesByCycle[$cycleId][] = $cyclePuzzle;
+            }
             $cyclePuzzleId = $cyclePuzzle->getId() ?? 0;
             $cyclePuzzleAttempts = $attemptsByCyclePuzzle[$cyclePuzzleId] ?? [];
             $completedAttemptsForPuzzle = array_values(array_filter(
@@ -206,6 +217,16 @@ final class StatsOverviewAction
             $durationMilliseconds += $cyclePuzzle->getDurationMilliseconds();
         }
 
+        foreach (array_reverse($cycles) as $cycle) {
+            $cycleId = $cycle->getId() ?? 0;
+            $cycleCyclePuzzles = $cyclePuzzlesByCycle[$cycleId] ?? [];
+            $cycleSolved = count(array_filter($cycleCyclePuzzles, fn (CyclePuzzle $cyclePuzzle): bool => 'solved' === $cyclePuzzle->getStatus()));
+            $cycleFailed = count(array_filter($cycleCyclePuzzles, fn (CyclePuzzle $cyclePuzzle): bool => 'failed' === $cyclePuzzle->getStatus()));
+            $successRatesByCycle[] = ($cycleSolved + $cycleFailed) > 0 ? (int) round(($cycleSolved / ($cycleSolved + $cycleFailed)) * 100) : 0;
+        }
+
+        $progressDelta = count($successRatesByCycle) > 1 ? $successRatesByCycle[0] - $successRatesByCycle[1] : null;
+
         ksort($dailyActivity);
 
         return [
@@ -225,7 +246,8 @@ final class StatsOverviewAction
                 array_values($dailyActivity),
             ),
             'durationMilliseconds' => $durationMilliseconds,
-            'progressPercent' => count($trainingPuzzles) > 0 ? (int) round(($completedPuzzleCount / count($trainingPuzzles)) * 100) : 0,
+            'progressPercent' => count($trainingPuzzles) > 0 ? (int) round((($solved + $failed) / count($trainingPuzzles)) * 100) : 0,
+            'progressDelta' => $progressDelta,
             'completedPuzzleCount' => $completedPuzzleCount,
             'solvedCount' => $solved,
             'successfulAttemptCount' => $successfulAttemptCount,

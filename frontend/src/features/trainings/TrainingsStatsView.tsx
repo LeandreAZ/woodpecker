@@ -1,7 +1,9 @@
 import { useMemo, useState, type CSSProperties, type ReactElement } from 'react';
+import { X } from 'lucide-react';
+import { Modal } from '../../components/ui';
 import * as AppIcons from '../../shared/AppIcons';
 import { TrainingLogoBadge, resolveTrainingBranding } from './TrainingBranding';
-import { formatDuration } from './trainingsUtils';
+import { formatStatsDuration } from './trainingsUtils';
 import type {
   StatsOverview,
   TrainingCycleSummary,
@@ -25,7 +27,7 @@ type TrainingsStatsViewProps = {
   summaryIsLoading: boolean;
 };
 
-type StatsMetricKey = 'averageAttempts' | 'successRate';
+type StatsMetricKey = 'averageAttempts' | 'successRate' | 'trainingTime';
 
 type CardDefinition = {
   accent: 'info' | 'positive' | 'violet';
@@ -64,6 +66,7 @@ const PERCENT_GRID = [0, 25, 50, 75, 100] as const;
 const METRIC_OPTIONS: Array<{ key: StatsMetricKey; label: string }> = [
   { key: 'successRate', label: 'Taux de réussite' },
   { key: 'averageAttempts', label: 'Tentatives moyennes' },
+  { key: 'trainingTime', label: "Temps d'entraînement" },
 ];
 const NEUTRAL_TRAINING_COLOR = '#41597f';
 const RESULT_COLORS = {
@@ -116,6 +119,14 @@ function formatAverageAttempts(value?: number | null) {
   });
 }
 
+function formatProgressDelta(value?: number | null) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  return `${value > 0 ? '+' : ''}${value}%`;
+}
+
 function formatAveragePuzzleTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '0s';
   if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -145,6 +156,19 @@ function getAdaptiveTimeMax(values: number[]) {
   return Math.ceil(padded / 60) * 60;
 }
 
+function getAdaptiveDurationMax(values: number[]) {
+  const maxValue = Math.max(...values.filter((value) => value > 0), 0);
+  if (maxValue <= 0) return 60000;
+  const padded = maxValue * 1.15;
+  if (padded <= 60000) return 60000;
+  if (padded <= 3600000) return Math.ceil(padded / 60000) * 60000;
+  return Math.ceil(padded / 1800000) * 1800000;
+}
+
+function sortCycleRowsChronologically(cycleRows: TrainingCycleSummary[]) {
+  return [...cycleRows].sort((left, right) => left.cycle.number - right.cycle.number);
+}
+
 function buildCard(label: string, value: string, icon: ReactElement, accent: CardDefinition['accent']): CardDefinition {
   return { accent, icon, label, value };
 }
@@ -170,7 +194,7 @@ function resolveCycleDate(cycle: TrainingCycleSummary) {
 }
 
 function filterCycleRows(summary: TrainingSummary | null, days: number) {
-  const source = [...(summary?.cycleSummaries ?? [])].sort((left, right) => left.cycle.number - right.cycle.number);
+  const source = [...(summary?.cycleSummaries ?? [])].sort((left, right) => right.cycle.number - left.cycle.number);
   if (source.length === 0) {
     return [];
   }
@@ -194,16 +218,20 @@ function buildSelectedCards(cycleRows: TrainingCycleSummary[], selectedSummary: 
 
   return [
     buildCard('Taux de réussite', `${(solved + failed) > 0 ? clampPercent((solved / (solved + failed)) * 100) : 0}%`, <AppIcons.TargetIcon width={20} height={20} />, 'info'),
-    buildCard('Progression', `${selectedSummary?.progressPercent ?? 0}%`, <AppIcons.TrendUpIcon width={20} height={20} />, 'positive'),
-    buildCard("Temps d'entraînement", formatDuration(durationMilliseconds), <AppIcons.HistoryIcon width={20} height={20} />, 'info'),
+    buildCard('Progression', formatProgressDelta(selectedSummary?.progressDelta), <AppIcons.TrendUpIcon width={20} height={20} />, 'positive'),
+    buildCard("Temps d'entraînement", formatStatsDuration(durationMilliseconds), <AppIcons.HistoryIcon width={20} height={20} />, 'info'),
     buildCard('Tentatives moyennes', formatAverageAttempts(puzzlesWithCompletedAttemptsCount > 0 ? completedAttemptCount / puzzlesWithCompletedAttemptsCount : 0), <AppIcons.RepeatIcon width={20} height={20} />, 'violet'),
   ];
 }
 
 function buildCycleMetricPoints(cycleRows: TrainingCycleSummary[], metric: StatsMetricKey): CyclePoint[] {
   return cycleRows.map((cycle) => ({
-    label: `Cycle ${cycle.cycle.number}`,
-    value: metric === 'averageAttempts' ? cycle.averageAttempts ?? 0 : cycle.successRate ?? 0,
+    label: 'Cycle ' + String(cycle.cycle.number),
+    value: metric === 'averageAttempts'
+      ? cycle.averageAttempts ?? 0
+      : metric === 'trainingTime'
+        ? cycle.durationMilliseconds ?? 0
+        : cycle.successRate ?? 0,
   }));
 }
 
@@ -211,7 +239,7 @@ function buildCycleTimePoints(cycleRows: TrainingCycleSummary[]): CyclePoint[] {
   return cycleRows
     .filter((cycle) => (cycle.completedPuzzleCount ?? 0) > 0)
     .map((cycle) => ({
-      label: `Cycle ${cycle.cycle.number}`,
+      label: 'Cycle ' + String(cycle.cycle.number),
       value: ((cycle.durationMilliseconds ?? 0) / Math.max(cycle.completedPuzzleCount ?? 1, 1)) / 1000,
     }));
 }
@@ -391,6 +419,10 @@ function MetricIcon({ metric }: { metric: StatsMetricKey }) {
     return <AppIcons.RepeatIcon width={18} height={18} />;
   }
 
+  if (metric === 'trainingTime') {
+    return <AppIcons.HistoryIcon width={18} height={18} />;
+  }
+
   return <AppIcons.TargetIcon width={18} height={18} />;
 }
 
@@ -445,36 +477,71 @@ function ResultDistribution({ breakdown, totalLabel, totalValue }: { breakdown: 
   );
 }
 
-function TrainingTimeDistribution({ rows }: { rows: TrainingDashboardSummary[] }) {
+function buildTrainingTimeDistribution(rows: TrainingDashboardSummary[], maxVisibleRows: number | null = 5) {
   const activeRows = [...rows]
     .filter((row) => (row.durationMilliseconds ?? 0) > 0)
     .sort((left, right) => (right.durationMilliseconds ?? 0) - (left.durationMilliseconds ?? 0));
 
   if (activeRows.length === 0) {
-    return <ChartEmpty message="Aucune répartition à afficher." />;
+    return null;
   }
 
   const fallbackRows = rows.filter((row) => !activeRows.some((activeRow) => activeRow.training['@id'] === row.training['@id']));
-  const visibleRows = [...activeRows, ...fallbackRows].slice(0, 5);
+  const orderedRows = [...activeRows, ...fallbackRows];
+  const visibleRows = maxVisibleRows === null ? orderedRows : orderedRows.slice(0, maxVisibleRows);
   const totalDuration = activeRows.reduce((sum, row) => sum + (row.durationMilliseconds ?? 0), 0);
-  const hiddenDuration = activeRows
-    .filter((row) => !visibleRows.some((visibleRow) => visibleRow.training['@id'] === row.training['@id']))
-    .reduce((sum, row) => sum + (row.durationMilliseconds ?? 0), 0);
+  const hiddenDuration = maxVisibleRows === null
+    ? 0
+    : activeRows
+      .filter((row) => !visibleRows.some((visibleRow) => visibleRow.training['@id'] === row.training['@id']))
+      .reduce((sum, row) => sum + (row.durationMilliseconds ?? 0), 0);
   const segments = visibleRows.map((row) => ({
     color: resolveTrainingBranding(row.training).iconBackgroundColor ?? NEUTRAL_TRAINING_COLOR,
     label: row.training.name,
     value: row.durationMilliseconds ?? 0,
-    valueLabel: formatDuration(row.durationMilliseconds ?? 0),
+    valueLabel: formatStatsDuration(row.durationMilliseconds ?? 0),
   }));
-  const finalSegments = hiddenDuration > 0
-    ? [...segments, { color: NEUTRAL_TRAINING_COLOR, label: 'Autres', value: hiddenDuration, valueLabel: formatDuration(hiddenDuration) }]
-    : segments;
+
+  return {
+    segments: hiddenDuration > 0
+      ? [...segments, { color: NEUTRAL_TRAINING_COLOR, label: 'Autres', value: hiddenDuration, valueLabel: formatStatsDuration(hiddenDuration) }]
+      : segments,
+    totalDuration,
+  };
+}
+
+function TrainingTimeDistribution({ maxVisibleRows = 5, rows }: { maxVisibleRows?: number | null; rows: TrainingDashboardSummary[] }) {
+  const distribution = buildTrainingTimeDistribution(rows, maxVisibleRows);
+
+  if (!distribution) {
+    return <ChartEmpty message="Aucune répartition à afficher." />;
+  }
 
   return (
     <div className="wp-training-stats-result-distribution">
-      <DistributionDonut centerLabel="Total" centerValue={formatDuration(totalDuration)} segments={finalSegments} />
-      <DistributionLegend segments={finalSegments} total={totalDuration} />
+      <DistributionDonut centerLabel="Total" centerValue={formatStatsDuration(distribution.totalDuration)} segments={distribution.segments} />
+      <DistributionLegend segments={distribution.segments} total={distribution.totalDuration} />
     </div>
+  );
+}
+
+function TrainingTimeDistributionModal({ onClose, open, rows }: { onClose: () => void; open: boolean; rows: TrainingDashboardSummary[] }) {
+  return (
+    <Modal contentClassName="ui-modal__content--plain" open={open} onClose={onClose}>
+      <div className="wp-training-stats-modal">
+        <div className="wp-training-stats-modal__header">
+          <div>
+            <h2>Répartition du temps par training</h2>
+            <p>Consultez la répartition complète avec les durées réelles enregistrées.</p>
+          </div>
+          <button aria-label="Fermer" className="ui-modal-close wp-training-stats-modal__close" type="button" onClick={onClose}>
+            <X aria-hidden="true" size={18} strokeWidth={1.9} />
+          </button>
+        </div>
+        <div className="wp-training-stats-modal__divider" />
+        <TrainingTimeDistribution maxVisibleRows={null} rows={rows} />
+      </div>
+    </Modal>
   );
 }
 
@@ -558,6 +625,7 @@ export function TrainingsStatsView({
   const [selectedDays, setSelectedDays] = useState<(typeof PERIOD_OPTIONS)[number]['value']>(30);
   const [selectedMetric, setSelectedMetric] = useState<StatsMetricKey>('successRate');
   const [selectedAttemptScope, setSelectedAttemptScope] = useState<'all' | string>('all');
+  const [isTrainingDistributionModalOpen, setIsTrainingDistributionModalOpen] = useState(false);
   const trainingBreakdown = statsOverview?.trainingBreakdown ?? [];
   const selectedSummary = selectedTrainingIri
     ? trainingBreakdown.find((item) => item.training['@id'] === selectedTrainingIri) ?? null
@@ -570,16 +638,17 @@ export function TrainingsStatsView({
 
     return [
       buildCard('Taux de réussite', `${statsOverview.successRate}%`, <AppIcons.TargetIcon width={20} height={20} />, 'info'),
-      buildCard('Progression globale', `${statsOverview.progressPercent ?? 0}%`, <AppIcons.TrendUpIcon width={20} height={20} />, 'positive'),
-      buildCard("Temps d'entraînement", formatDuration(statsOverview.totalDurationMilliseconds ?? 0), <AppIcons.HistoryIcon width={20} height={20} />, 'info'),
+      buildCard('Progression globale', formatProgressDelta(statsOverview.progressPercent), <AppIcons.TrendUpIcon width={20} height={20} />, 'positive'),
+      buildCard("Temps d'entraînement", formatStatsDuration(statsOverview.totalDurationMilliseconds ?? 0), <AppIcons.HistoryIcon width={20} height={20} />, 'info'),
       buildCard('Tentatives moyennes', formatAverageAttempts(statsOverview.averageAttempts ?? 0), <AppIcons.RepeatIcon width={20} height={20} />, 'violet'),
     ];
   }, [statsOverview]);
 
   const cycleRows = useMemo(() => filterCycleRows(summary, selectedDays), [summary, selectedDays]);
+  const chronologicalCycleRows = useMemo(() => sortCycleRowsChronologically(cycleRows), [cycleRows]);
   const selectedModeCards = useMemo(() => buildSelectedCards(cycleRows, selectedSummary), [cycleRows, selectedSummary]);
-  const cycleMetricPoints = useMemo(() => buildCycleMetricPoints(cycleRows, selectedMetric), [cycleRows, selectedMetric]);
-  const cycleTimePoints = useMemo(() => buildCycleTimePoints(cycleRows), [cycleRows]);
+  const cycleMetricPoints = useMemo(() => buildCycleMetricPoints(chronologicalCycleRows, selectedMetric), [chronologicalCycleRows, selectedMetric]);
+  const cycleTimePoints = useMemo(() => buildCycleTimePoints(chronologicalCycleRows), [chronologicalCycleRows]);
   const attemptScopeOptions = useMemo(
     () => [{ label: 'Tous les cycles', value: 'all' }, ...cycleRows.map((cycle) => ({ label: `Cycle ${cycle.cycle.number}`, value: cycle.cycle['@id'] }))],
     [cycleRows],
@@ -608,10 +677,16 @@ export function TrainingsStatsView({
   );
   const activeMetricLabel = METRIC_OPTIONS.find((option) => option.key === selectedMetric)?.label ?? 'Taux de réussite';
   const metricValues = cycleMetricPoints.map((point) => point.value);
-  const metricMax = selectedMetric === 'averageAttempts' ? getAdaptiveNumericMax(metricValues, 1) : 100;
+  const metricMax = selectedMetric === 'averageAttempts'
+    ? getAdaptiveNumericMax(metricValues, 1)
+    : selectedMetric === 'trainingTime'
+      ? getAdaptiveDurationMax(metricValues)
+      : 100;
   const metricGrid = selectedMetric === 'averageAttempts'
     ? [0, metricMax * 0.33, metricMax * 0.66, metricMax].map((value) => Math.round(value * 10) / 10)
-    : [...PERCENT_GRID];
+    : selectedMetric === 'trainingTime'
+      ? [0, metricMax * 0.25, metricMax * 0.5, metricMax * 0.75, metricMax]
+      : [...PERCENT_GRID];
   const timeValues = cycleTimePoints.map((point) => point.value);
   const timeMax = getAdaptiveTimeMax(timeValues);
   const timeGrid = [0, timeMax * 0.25, timeMax * 0.5, timeMax * 0.75, timeMax];
@@ -680,9 +755,19 @@ export function TrainingsStatsView({
                 </label>
               </div>
               <GenericLineChart
-                accentClassName={selectedMetric === 'averageAttempts' ? 'is-violet' : 'is-blue'}
+                accentClassName={selectedMetric === 'averageAttempts' ? 'is-violet' : selectedMetric === 'trainingTime' ? 'is-info' : 'is-blue'}
                 emptyMessage="Aucun cycle disponible sur cette période."
-                formatTooltipValue={(value) => selectedMetric === 'averageAttempts' ? formatAverageAttempts(value) : `${Math.round(value)}%`}
+                formatTooltipValue={(value) => {
+                  if (selectedMetric === 'averageAttempts') {
+                    return formatAverageAttempts(value);
+                  }
+
+                  if (selectedMetric === 'trainingTime') {
+                    return formatStatsDuration(value);
+                  }
+
+                  return String(Math.round(value)) + '%';
+                }}
                 gridValues={metricGrid}
                 metricLabel={activeMetricLabel}
                 points={cycleMetricPoints}
@@ -741,9 +826,9 @@ export function TrainingsStatsView({
                             </div>
                           </td>
                           <td>{`${Math.round(cycle.successRate ?? 0)}%`}</td>
-                          <td>{`${Math.round(cycle.progressPercent ?? 0)}%`}</td>
+                          <td>{formatProgressDelta(cycle.progressDelta)}</td>
                           <td>{formatAverageAttempts(cycle.averageAttempts ?? 0)}</td>
-                          <td>{formatDuration(cycle.durationMilliseconds ?? 0)}</td>
+                          <td>{formatStatsDuration(cycle.durationMilliseconds ?? 0)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -806,7 +891,7 @@ export function TrainingsStatsView({
                     {mostActiveRows.map((row) => (
                       <tr key={row.training['@id']} onClick={() => onOpenTraining(row.training['@id'], 'stats')}>
                         <td><TrainingCell training={row.training} /></td>
-                        <td>{formatDuration(row.durationMilliseconds ?? 0)}</td>
+                        <td>{formatStatsDuration(row.durationMilliseconds ?? 0)}</td>
                         <td>—</td>
                         <td>{`${row.successRate ?? 0}%`}</td>
                         <td>{`${row.progressPercent ?? 0}%`}</td>
@@ -824,7 +909,7 @@ export function TrainingsStatsView({
                 <h2>Répartition du temps par training</h2>
                 <p>Fromage avec durée totale au centre, puis pourcentage et durée réelle par training.</p>
               </div>
-              {trainingBreakdown.length > 5 ? <span className="wp-training-stats-panel__action">Voir tout</span> : null}
+              {trainingBreakdown.length > 5 ? <button className="wp-training-stats-panel__action" type="button" onClick={() => setIsTrainingDistributionModalOpen(true)}>Voir tout</button> : null}
             </div>
             <TrainingTimeDistribution rows={trainingBreakdown} />
           </article>
@@ -844,6 +929,8 @@ export function TrainingsStatsView({
           </article>
         </section>
       )}
+
+      <TrainingTimeDistributionModal onClose={() => setIsTrainingDistributionModalOpen(false)} open={isTrainingDistributionModalOpen} rows={trainingBreakdown} />
     </div>
   );
 }

@@ -550,7 +550,7 @@ const userSettingsOverview: UserSettingsOverview = {
     createdAt: '2026-08-01T09:00:00+02:00',
   },
   profile: {
-    displayName: 'Leandre Ribeiro',
+    pseudonym: 'Leandre Ribeiro',
     avatarUrl: null,
   },
   appearance: {
@@ -629,6 +629,7 @@ export function getPreviewTrainingAnalytics(trainingIri: string): TrainingAnalyt
 export function getPreviewPuzzle(puzzleIri: string): Puzzle | null {
   return puzzles.find((puzzle) => puzzle['@id'] === puzzleIri) ?? null;
 }
+
 
 
 

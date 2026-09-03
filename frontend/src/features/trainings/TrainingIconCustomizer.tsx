@@ -150,7 +150,7 @@ function TrainingIconCustomizerDialog({ onApply, onClose, value }: DialogProps) 
             <h2 id="training-icon-modal-title">Personnaliser l'icône</h2>
             <p>Choisissez une pièce et une couleur pour votre entraînement.</p>
           </div>
-          <button className="wp-training-icon-modal__close" type="button" aria-label="Fermer" onClick={onClose}>
+          <button className="ui-modal-close wp-training-icon-modal__close" type="button" aria-label="Fermer" onClick={onClose}>
             <X aria-hidden="true" size={24} strokeWidth={2} />
           </button>
         </div>

@@ -46,22 +46,18 @@ function useTrainingsPanelRouting({
     const routeDidChange = previousRouteKeyRef.current !== routeKey;
     previousRouteKeyRef.current = routeKey;
 
-    if (!routeDidChange) {
-      return;
-    }
-
-    const routeTrainingId = getRouteTrainingId(route);
-
-    if (activeView !== targetView) {
+    if (routeDidChange && activeView !== targetView) {
       setActiveView(targetView);
     }
+  }, [activeView, routeKey, setActiveView, targetView]);
 
+  useEffect(() => {
+    const routeTrainingId = getRouteTrainingId(route);
     if (!routeTrainingId) {
       return;
     }
 
     const matchingTraining = trainings.find((training) => training.id === routeTrainingId);
-
     if (!matchingTraining || matchingTraining['@id'] === effectiveSelectedTrainingIri) {
       return;
     }
@@ -73,18 +69,14 @@ function useTrainingsPanelRouting({
     setSavedCyclePuzzleIris(new Set());
     setFailedCyclePuzzleIris(new Set());
   }, [
-    activeView,
     effectiveSelectedTrainingIri,
     route,
-    routeKey,
     setActiveCycleIri,
     setActiveTrainingSessionIri,
-    setActiveView,
     setFailedCyclePuzzleIris,
     setSavedCyclePuzzleIris,
     setSelectedTrainingIri,
     setSelectedTrainingPuzzleIri,
-    targetView,
     trainings,
   ]);
 

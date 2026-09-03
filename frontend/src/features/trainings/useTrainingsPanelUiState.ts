@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { PuzzleCsvRow } from './csvImport';
 import { DEFAULT_TRAINING_BRANDING } from './TrainingBranding';
-import type { View } from './trainingsTypes';
+import type { HistoryFilterPreset, View } from './trainingsTypes';
 
 export function useTrainingsPanelUiState(initialView: View) {
   const [activeView, setActiveView] = useState<View>(initialView);
@@ -19,9 +19,11 @@ export function useTrainingsPanelUiState(initialView: View) {
   const [csvRows, setCsvRows] = useState<PuzzleCsvRow[]>([]);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvFileName, setCsvFileName] = useState('');
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [selectedTrainingPuzzleIri, setSelectedTrainingPuzzleIri] = useState<string | null>(null);
   const [activeCycleIri, setActiveCycleIri] = useState<string | null>(null);
   const [activeTrainingSessionIri, setActiveTrainingSessionIri] = useState<string | null>(null);
+  const [historyFilterPreset, setHistoryFilterPreset] = useState<HistoryFilterPreset | null>(null);
   const [savedCyclePuzzleIris, setSavedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
   const [failedCyclePuzzleIris, setFailedCyclePuzzleIris] = useState<Set<string>>(() => new Set());
 
@@ -30,11 +32,13 @@ export function useTrainingsPanelUiState(initialView: View) {
     activeTrainingSessionIri,
     activeView,
     csvErrors,
+    csvFile,
     csvFileName,
     csvRows,
     description,
     failedCyclePuzzleIris,
     fen,
+    historyFilterPreset,
     icon,
     iconBackgroundColor,
     iconColor,
@@ -48,11 +52,13 @@ export function useTrainingsPanelUiState(initialView: View) {
     setActiveTrainingSessionIri,
     setActiveView,
     setCsvErrors,
+    setCsvFile,
     setCsvFileName,
     setCsvRows,
     setDescription,
     setFailedCyclePuzzleIris,
     setFen,
+    setHistoryFilterPreset,
     setIcon,
     setIconBackgroundColor,
     setIconColor,

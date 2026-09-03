@@ -38,6 +38,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    private const DEFAULT_PSEUDONYM_PREFIXES = ['Woodpecker', 'Knight', 'Bishop', 'Rook', 'Puzzle', 'Trainer'];
+
+    private const DEFAULT_PSEUDONYM_SUFFIXES = ['Focus', 'Tempo', 'Spark', 'Falcon', 'Comet', 'Blaze'];
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -129,8 +132,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             return $this;
         }
 
-        $fallback = strstr((string) $this->email, '@', true) ?: (string) $this->email;
-        $this->pseudonym = trim($fallback);
+        $this->pseudonym = $this->generateDefaultPseudonym();
 
         return $this;
     }
@@ -138,6 +140,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getAvatarUrl(): ?string
     {
         return $this->avatarUrl;
+    }
+
+    private function generateDefaultPseudonym(): string
+    {
+        $prefix = self::DEFAULT_PSEUDONYM_PREFIXES[array_rand(self::DEFAULT_PSEUDONYM_PREFIXES)];
+        $suffix = self::DEFAULT_PSEUDONYM_SUFFIXES[array_rand(self::DEFAULT_PSEUDONYM_SUFFIXES)];
+
+        return sprintf('%s%s%04d', $prefix, $suffix, random_int(0, 9999));
     }
 
     public function setAvatarUrl(?string $avatarUrl): self
@@ -263,4 +273,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->ensureDefaultPseudonym();
     }
 }
+
+
+
 

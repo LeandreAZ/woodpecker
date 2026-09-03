@@ -68,14 +68,14 @@ final class TrainingAnalyticsAction
             $attemptsByCyclePuzzle[$cyclePuzzleId][] = $attempt;
         }
 
-        $cycleTimeline = array_map(
+        $cycleTimeline = $this->withProgressDeltas(array_map(
             fn (Cycle $cycle): array => $this->buildCycleAnalytics(
                 $cycle,
                 $cyclePuzzlesByCycle[$cycle->getId() ?? 0] ?? [],
                 $attemptsByCyclePuzzle,
             ),
             array_reverse($cycles),
-        );
+        ));
 
         $solvedAttemptCount = count(array_filter(
             $attempts,
@@ -154,6 +154,7 @@ final class TrainingAnalyticsAction
         $failed = count(array_filter($cyclePuzzles, fn (CyclePuzzle $cyclePuzzle): bool => 'failed' === $cyclePuzzle->getStatus()));
         $pending = count(array_filter($cyclePuzzles, fn (CyclePuzzle $cyclePuzzle): bool => 'pending' === $cyclePuzzle->getStatus()));
         $attemptCount = 0;
+        $successRate = ($solved + $failed) > 0 ? (int) round(($solved / ($solved + $failed)) * 100) : 0;
 
         foreach ($cyclePuzzles as $cyclePuzzle) {
             $attemptCount += count($attemptsByCyclePuzzle[$cyclePuzzle->getId() ?? 0] ?? []);
@@ -167,7 +168,9 @@ final class TrainingAnalyticsAction
             'failed' => $failed,
             'pending' => $pending,
             'total' => $total,
-            'progressPercent' => $total > 0 ? (int) round(($solved / $total) * 100) : 0,
+            'progressPercent' => $total > 0 ? (int) round((($solved + $failed) / $total) * 100) : 0,
+            'successRate' => $successRate,
+            'progressDelta' => null,
             'attemptCount' => $attemptCount,
         ];
     }
@@ -206,6 +209,23 @@ final class TrainingAnalyticsAction
             'startedAt' => $cycle->getStartedAt()?->format(DATE_ATOM),
             'completedAt' => $cycle->getCompletedAt()?->format(DATE_ATOM),
         ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $cycles
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function withProgressDeltas(array $cycles): array
+    {
+        foreach ($cycles as $index => $cycle) {
+            $previousCycle = $cycles[$index + 1] ?? null;
+            $cycles[$index]['progressDelta'] = is_array($previousCycle)
+                ? (int) (($cycle['successRate'] ?? 0) - ($previousCycle['successRate'] ?? 0))
+                : null;
+        }
+
+        return $cycles;
     }
 
     private function iri(string $resource, ?int $id): ?string

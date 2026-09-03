@@ -195,6 +195,8 @@ function renderDetailView(overrides: Partial<ComponentProps<typeof DetailView>> 
     movePuzzleIsError: false,
     movePuzzleIsPending: false,
     onBackToDashboard: vi.fn(),
+    onDeleteTraining: vi.fn(),
+    deleteTrainingIsPending: false,
     onEditTraining: vi.fn(),
     onFenChange: vi.fn(),
     onImport: vi.fn(),
@@ -207,6 +209,7 @@ function renderDetailView(overrides: Partial<ComponentProps<typeof DetailView>> 
     onSolutionTextChange: vi.fn(),
     onStartCycle: vi.fn(),
     onThemesTextChange: vi.fn(),
+    onViewAllAttemptHistory: vi.fn(),
     personalNote: '',
     puzzleCount: 1,
     puzzleListIsLocked: false,
@@ -327,13 +330,73 @@ describe('DetailView', () => {
     });
 
     expect(screen.queryByRole('button', { name: 'Ouvrir le solveur' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Démarrer un nouveau cycle' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lancer le cycle suivant' })).toBeInTheDocument();
     expect(screen.getByText("Aucun cycle actif n'est disponible.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Accéder au problème 1'));
 
     expect(onOpenSolver).not.toHaveBeenCalled();
     expect(onPuzzleSelect).not.toHaveBeenCalled();
+  });
+
+  it('affiche le bouton du cycle suivant quand un cycle actif est complete a 100 pourcent', () => {
+    const onStartCycle = vi.fn();
+
+    renderDetailView({
+      analytics,
+      currentCycle,
+      cyclePuzzles: startedCyclePuzzles,
+      cycleStats: {
+        failed: 5,
+        pending: 0,
+        progressPercent: 100,
+        solved: 25,
+        total: 30,
+      },
+      hasResumableCycle: false,
+      onStartCycle,
+      puzzleCount: 30,
+      summary: {
+        ...summaryStarted,
+        latestCycleSummary: {
+          ...summaryStarted.latestCycleSummary!,
+          failed: 5,
+          pending: 0,
+          progressPercent: 100,
+          solved: 25,
+          successRate: 83,
+        },
+      },
+    });
+
+    expect(screen.getByRole('button', { name: 'Lancer le cycle suivant' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ouvrir le solveur' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lancer le cycle suivant' }));
+
+    expect(onStartCycle).toHaveBeenCalledTimes(1);
+  });
+
+  it('ouvre l historique complet des cycles et redirige les dernieres tentatives vers history filtre', () => {
+    const onViewAllAttemptHistory = vi.fn();
+
+    renderDetailView({
+      analytics,
+      currentCycle,
+      cyclePuzzles: startedCyclePuzzles,
+      cycleStats: cycleStatsStarted,
+      hasResumableCycle: true,
+      onViewAllAttemptHistory,
+      puzzleCount: 30,
+      summary: summaryStarted,
+    });
+
+    const viewAllButtons = screen.getAllByRole('button', { name: 'Voir tout' });
+    fireEvent.click(viewAllButtons[0]);
+    expect(screen.getAllByRole('heading', { name: 'Historique des cycles' }).length).toBeGreaterThan(1);
+
+    fireEvent.click(viewAllButtons[1]);
+    expect(onViewAllAttemptHistory).toHaveBeenCalledTimes(1);
   });
 
   it('affiche l etat cycle demarre avec solveur, statut, historique et tentatives', () => {
