@@ -45,7 +45,7 @@ final class UserAvatarUploadAction
             throw new BadRequestHttpException('La photo de profil ne doit pas dépasser 2 Mo.');
         }
 
-        $mimeType = $avatar->getClientMimeType();
+        $mimeType = $avatar->getMimeType();
         if (!in_array($mimeType, self::ALLOWED_MIME_TYPES, true)) {
             throw new BadRequestHttpException('Le format de la photo doit être JPEG, PNG ou WebP.');
         }

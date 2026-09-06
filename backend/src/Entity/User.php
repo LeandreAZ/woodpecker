@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use App\Controller\UserSettingsOverviewAction;
@@ -23,8 +22,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\UniqueConstraint(name: 'uniq_user_email', columns: ['email'])]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
         new GetCollection(
             uriTemplate: '/users/me/overview',
             controller: UserSettingsOverviewAction::class,
