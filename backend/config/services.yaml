@@ -55,3 +55,8 @@ services:
             - { name: api_platform.doctrine.orm.query_extension.collection }
             - { name: api_platform.doctrine.orm.query_extension.item }
 
+    # Keep CSV analyses in the writable cache directory across HTTP requests.
+    app.csv_import.filesystem:
+        parent: cache.adapter.filesystem
+        arguments:
+            $directory: '%kernel.cache_dir%/csv-import'
