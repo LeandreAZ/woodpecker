@@ -75,12 +75,12 @@ final class UserAvatarUploadActionTest extends TestCase
     }
 
 
-    public function testStoresAvatarWithoutMimeComponentGuessing(): void
+    public function testStoresAvatarUsingDetectedMimeType(): void
     {
         $user = (new User())->setEmail('owner@example.com');
         $this->setEntityId($user, 7);
         $filePath = tempnam(sys_get_temp_dir(), 'avatar');
-        file_put_contents($filePath, 'fake-image-content');
+        file_put_contents($filePath, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aBZkAAAAASUVORK5CYII='));
         $uploadedFile = new UploadedFile($filePath, 'avatar.jpeg', 'image/jpeg', null, true);
 
         $request = new Request([], [], [], [], ['avatar' => $uploadedFile]);
@@ -97,19 +97,19 @@ final class UserAvatarUploadActionTest extends TestCase
             ($this->action)($request);
             self::assertNotNull($user->getAvatarUrl());
             self::assertStringStartsWith('/uploads/avatars/user-7-', $user->getAvatarUrl());
-            self::assertStringEndsWith('.jpg', $user->getAvatarUrl());
+            self::assertStringEndsWith('.png', $user->getAvatarUrl());
         } finally {
             @unlink($filePath);
         }
     }
 
-    public function testRejectsInvalidMimeType(): void
+    public function testRejectsTextDisguisedAsJpeg(): void
     {
         $user = (new User())->setEmail('owner@example.com');
         $this->setEntityId($user, 1);
         $filePath = tempnam(sys_get_temp_dir(), 'avatar');
         file_put_contents($filePath, 'not-an-image');
-        $uploadedFile = new UploadedFile($filePath, 'avatar.txt', 'text/plain', null, true);
+        $uploadedFile = new UploadedFile($filePath, 'avatar.jpg', 'image/jpeg', null, true);
 
         $request = new Request([], [], [], [], ['avatar' => $uploadedFile]);
         $this->security->method('getUser')->willReturn($user);

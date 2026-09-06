@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Controller\TrainingAnalyticsAction;
+use App\ReadModel\TrainingAnalyticsReader;
 use App\Entity\Attempt;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
@@ -43,16 +44,19 @@ final class TrainingAnalyticsActionTest extends TestCase
         $this->action = new TrainingAnalyticsAction(
             $this->security,
             $this->trainingRepository,
-            $this->trainingPuzzleRepository,
-            $this->cycleRepository,
-            $this->cyclePuzzleRepository,
-            $this->attemptRepository,
+            new TrainingAnalyticsReader(
+                $this->trainingPuzzleRepository,
+                $this->cycleRepository,
+                $this->cyclePuzzleRepository,
+                $this->attemptRepository,
+            ),
         );
     }
 
     public function testThrowsNotFoundWhenUserIsMissing(): void
     {
         $this->security->method('getUser')->willReturn(null);
+        $this->trainingRepository->expects(self::never())->method('findOneOwnedByUser');
 
         $this->expectException(NotFoundHttpException::class);
 
@@ -263,6 +267,20 @@ final class TrainingAnalyticsActionTest extends TestCase
         self::assertSame(1, $payload['cycleTimeline'][0]['cycle']['number']);
         self::assertSame(0, $payload['cycleTimeline'][0]['attemptCount']);
         self::assertSame(1, $payload['cycleTimeline'][0]['failed']);
+    }
+
+    public function testDoesNotReadDetailsForTrainingNotOwnedByUser(): void
+    {
+        $owner = (new User())->setEmail('owner@example.com');
+        $this->security->method('getUser')->willReturn($owner);
+        $this->trainingRepository->expects(self::once())->method('findOneOwnedByUser')->with(999, $owner)->willReturn(null);
+        $this->trainingPuzzleRepository->expects(self::never())->method('findByTrainingWithPuzzleOrdered');
+        $this->cycleRepository->expects(self::never())->method('findByTrainingOrdered');
+        $this->cyclePuzzleRepository->expects(self::never())->method('findByTrainingOrdered');
+        $this->attemptRepository->expects(self::never())->method('findByTrainingOrdered');
+
+        $this->expectException(NotFoundHttpException::class);
+        ($this->action)(999);
     }
 
     private function setEntityId(object $entity, int $id): void

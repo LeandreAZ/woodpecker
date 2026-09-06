@@ -2,9 +2,11 @@
 namespace App\Tests\Controller;
 
 use App\Controller\TrainingPuzzleImportAction;
+use App\Import\LichessImportCriteriaFactory;
 use App\Entity\Puzzle;
 use App\Entity\Training;
 use App\Entity\User;
+use App\Import\CsvAnalysisStore;
 use App\Import\CsvPuzzleParser;
 use App\Import\LichessDatasetProvider;
 use App\Import\TrainingCsvAnalysisService;
@@ -17,6 +19,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -29,9 +32,11 @@ final class TrainingPuzzleImportActionTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private EntityRepository&MockObject $puzzleRepository;
     private TrainingPuzzleImportAction $action;
+    private string $cacheNamespace;
 
     protected function setUp(): void
     {
+        $this->cacheNamespace = 'csv-regression-'.bin2hex(random_bytes(8));
         $this->security = $this->createMock(Security::class);
         $this->trainingRepository = $this->createMock(TrainingRepository::class);
         $this->connection = $this->createMock(Connection::class);
@@ -54,7 +59,15 @@ final class TrainingPuzzleImportActionTest extends TestCase
             new TrainingCsvAnalysisService(),
             new TrainingPuzzleImportService($this->entityManager),
             new ArrayAdapter(),
+            new CsvAnalysisStore(new FilesystemAdapter($this->cacheNamespace, 900, sys_get_temp_dir())),
+            new LichessImportCriteriaFactory(),
         );
+    }
+
+    protected function tearDown(): void
+    {
+        (new FilesystemAdapter($this->cacheNamespace, 900, sys_get_temp_dir()))->clear();
+        @rmdir(sys_get_temp_dir().'/'.$this->cacheNamespace);
     }
 
     public function testAvailabilityFiltersBySpecificOpening(): void
@@ -77,7 +90,7 @@ final class TrainingPuzzleImportActionTest extends TestCase
         self::assertSame(12, json_decode($response->getContent(), true)['availableCount']);
     }
 
-    public function testAnalyzeThenImportCsvReusesAnalysisIdCache(): void
+    public function testAnalyzeThenImportCsvAcrossSeparateActionRequests(): void
     {
         $owner = (new User())->setEmail('owner@example.com');
         $this->setEntityId($owner, 10);
@@ -96,7 +109,18 @@ final class TrainingPuzzleImportActionTest extends TestCase
         self::assertSame(1, $payload['importableCount']);
         self::assertCount(1, $payload['rows']);
 
-        $importResponse = $this->action->importCsv(7, new Request([], ['analysisId' => $payload['analysisId'], 'skipDuplicates' => 'true', 'skipErroredPuzzles' => 'true']));
+        $secondRequest = new TrainingPuzzleImportAction(
+            $this->security,
+            $this->trainingRepository,
+            new CsvPuzzleParser(),
+            new LichessDatasetProvider($this->connection),
+            new TrainingCsvAnalysisService(),
+            new TrainingPuzzleImportService($this->entityManager),
+            new ArrayAdapter(),
+            new CsvAnalysisStore(new FilesystemAdapter($this->cacheNamespace, 900, sys_get_temp_dir())),
+            new LichessImportCriteriaFactory(),
+        );
+        $importResponse = $secondRequest->importCsv(7, new Request([], ['analysisId' => $payload['analysisId'], 'skipDuplicates' => 'true', 'skipErroredPuzzles' => 'true']));
         $importPayload = json_decode($importResponse->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
 
         self::assertSame(201, $importResponse->getStatusCode());

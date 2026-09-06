@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Controller\HistoryOverviewAction;
+use App\ReadModel\HistoryOverviewReader;
 use App\Entity\Attempt;
 use App\Entity\AuthenticationEvent;
 use App\Entity\Cycle;
@@ -37,9 +38,7 @@ final class HistoryOverviewActionTest extends TestCase
 
         $this->action = new HistoryOverviewAction(
             $this->security,
-            $this->trainingRepository,
-            $this->attemptRepository,
-            $this->authenticationEventRepository,
+            new HistoryOverviewReader($this->trainingRepository, $this->attemptRepository, $this->authenticationEventRepository),
         );
     }
 

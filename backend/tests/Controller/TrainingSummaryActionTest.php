@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Controller\TrainingSummaryAction;
+use App\ReadModel\TrainingSummaryReader;
 use App\Entity\Attempt;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
@@ -43,16 +44,19 @@ final class TrainingSummaryActionTest extends TestCase
         $this->action = new TrainingSummaryAction(
             $this->security,
             $this->trainingRepository,
-            $this->trainingPuzzleRepository,
-            $this->cycleRepository,
-            $this->cyclePuzzleRepository,
-            $this->attemptRepository,
+            new TrainingSummaryReader(
+                $this->trainingPuzzleRepository,
+                $this->cycleRepository,
+                $this->cyclePuzzleRepository,
+                $this->attemptRepository,
+            ),
         );
     }
 
     public function testThrowsNotFoundWhenUserIsMissing(): void
     {
         $this->security->method('getUser')->willReturn(null);
+        $this->trainingRepository->expects(self::never())->method('findOneOwnedByUser');
 
         $this->expectException(NotFoundHttpException::class);
 
@@ -286,6 +290,46 @@ final class TrainingSummaryActionTest extends TestCase
         self::assertSame([], $payload['latestAttempts']);
         self::assertSame(0, $payload['notedPuzzleCount']);
         self::assertSame(1, $payload['themedPuzzleCount']);
+    }
+
+    public function testReportsRescuedPuzzlesAndRealAttemptDistribution(): void
+    {
+        $training = new Training();
+        $cycle = (new Cycle())->setNumber(1);
+        $this->setEntityId($cycle, 1);
+        $puzzles = [];
+        $attempts = [];
+        foreach ([1, 2, 3, 4, null] as $index => $solvedOn) {
+            $puzzle = (new CyclePuzzle())->setCycle($cycle)->setStatus(1 === $solvedOn ? 'solved' : 'failed');
+            $this->setEntityId($puzzle, $index + 1);
+            $puzzles[] = $puzzle;
+            for ($number = 1; $number <= ($solvedOn ?? 1); ++$number) {
+                $attempts[] = (new Attempt())->setCyclePuzzle($puzzle)->setAttemptNumber($number)->setStatus($number === $solvedOn ? 'solved' : 'failed');
+            }
+        }
+        $this->trainingPuzzleRepository->method('findByTrainingWithPuzzleOrdered')->willReturn([]);
+        $this->cycleRepository->method('findByTrainingOrdered')->willReturn([$cycle]);
+        $this->cyclePuzzleRepository->method('findByTrainingOrdered')->willReturn($puzzles);
+        $this->attemptRepository->method('findByTrainingOrdered')->willReturn($attempts);
+        $reader = new TrainingSummaryReader($this->trainingPuzzleRepository, $this->cycleRepository, $this->cyclePuzzleRepository, $this->attemptRepository);
+        $payload = $reader->build($training);
+        self::assertSame(3, $payload['latestCycleSummary']['rescuedCount']);
+        self::assertSame(1, $payload['latestCycleSummary']['unresolvedCount']);
+        self::assertSame(['oneAttemptCount' => 1, 'twoAttemptCount' => 1, 'threeAttemptCount' => 1, 'fourPlusAttemptCount' => 1, 'resolvedPuzzleCount' => 4], $payload['attemptCountDistribution']);
+    }
+
+    public function testDoesNotReadDetailsForTrainingNotOwnedByUser(): void
+    {
+        $owner = (new User())->setEmail('owner@example.com');
+        $this->security->method('getUser')->willReturn($owner);
+        $this->trainingRepository->expects(self::once())->method('findOneOwnedByUser')->with(999, $owner)->willReturn(null);
+        $this->trainingPuzzleRepository->expects(self::never())->method('findByTrainingWithPuzzleOrdered');
+        $this->cycleRepository->expects(self::never())->method('findByTrainingOrdered');
+        $this->cyclePuzzleRepository->expects(self::never())->method('findByTrainingOrdered');
+        $this->attemptRepository->expects(self::never())->method('findByTrainingOrdered');
+
+        $this->expectException(NotFoundHttpException::class);
+        ($this->action)(999);
     }
 
     private function setEntityId(object $entity, int $id): void

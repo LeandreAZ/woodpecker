@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Controller\TrainingAttemptHistoryAction;
+use App\ReadModel\TrainingAttemptHistoryReader;
 use App\Entity\Attempt;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
@@ -33,8 +34,8 @@ final class TrainingAttemptHistoryActionTest extends TestCase
 
         $this->action = new TrainingAttemptHistoryAction(
             $this->security,
+            new TrainingAttemptHistoryReader($this->attemptRepository),
             $this->trainingRepository,
-            $this->attemptRepository,
         );
     }
 
@@ -99,7 +100,7 @@ final class TrainingAttemptHistoryActionTest extends TestCase
             ->setSuccessful(true)
             ->setMistakesCount(1)
             ->setDurationMilliseconds(18000)
-            ->setAttemptedAt(new \DateTimeImmutable('2026-08-05T10:10:00+00:00'));
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-05T10:10:00+00:00'));
         $this->setEntityId($latestAttempt, 601);
 
         $olderAttempt = (new Attempt())
@@ -109,7 +110,7 @@ final class TrainingAttemptHistoryActionTest extends TestCase
             ->setSuccessful(false)
             ->setMistakesCount(3)
             ->setDurationMilliseconds(22000)
-            ->setAttemptedAt(new \DateTimeImmutable('2026-08-05T10:05:00+00:00'));
+            ->setCompletedAt(new \DateTimeImmutable('2026-08-05T10:05:00+00:00'));
         $this->setEntityId($olderAttempt, 602);
 
         $this->security->method('getUser')->willReturn($owner);

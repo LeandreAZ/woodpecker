@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Controller\TrainingCycleHistoryAction;
+use App\ReadModel\TrainingCycleHistoryReader;
 use App\Entity\Attempt;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
@@ -39,10 +40,8 @@ final class TrainingCycleHistoryActionTest extends TestCase
 
         $this->action = new TrainingCycleHistoryAction(
             $this->security,
+            new TrainingCycleHistoryReader($this->cycleRepository, $this->cyclePuzzleRepository, $this->attemptRepository),
             $this->trainingRepository,
-            $this->cycleRepository,
-            $this->cyclePuzzleRepository,
-            $this->attemptRepository,
         );
     }
 

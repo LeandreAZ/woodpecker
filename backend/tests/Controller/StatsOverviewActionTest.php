@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Controller\StatsOverviewAction;
+use App\ReadModel\StatsOverviewReader;
 use App\Entity\Attempt;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
@@ -42,17 +43,20 @@ final class StatsOverviewActionTest extends TestCase
 
         $this->action = new StatsOverviewAction(
             $this->security,
-            $this->trainingRepository,
-            $this->trainingPuzzleRepository,
-            $this->cycleRepository,
-            $this->cyclePuzzleRepository,
-            $this->attemptRepository,
+            new StatsOverviewReader(
+                $this->trainingRepository,
+                $this->trainingPuzzleRepository,
+                $this->cycleRepository,
+                $this->cyclePuzzleRepository,
+                $this->attemptRepository,
+            ),
         );
     }
 
     public function testThrowsNotFoundWhenUserIsMissing(): void
     {
         $this->security->method('getUser')->willReturn(null);
+        $this->trainingRepository->expects(self::never())->method('findOwnedByUserOrdered');
 
         $this->expectException(NotFoundHttpException::class);
 
@@ -186,6 +190,7 @@ final class StatsOverviewActionTest extends TestCase
                 [$trainingTwo, [$cyclePuzzleTwo]],
             ]);
         $this->attemptRepository
+            ->expects(self::exactly(2))
             ->method('findByTrainingOrdered')
             ->willReturnMap([
                 [$trainingOne, [$attemptThree, $attemptOne]],
@@ -294,6 +299,24 @@ final class StatsOverviewActionTest extends TestCase
         self::assertFalse($payload['trainingBreakdown'][0]['hasResumableCycle']);
         self::assertSame(0, $payload['trainingBreakdown'][0]['rescuedCount']);
         self::assertSame(1, $payload['trainingBreakdown'][0]['unresolvedCount']);
+    }
+
+    public function testReturnsEmptyOverviewForOwnerWithoutTrainings(): void
+    {
+        $owner = (new User())->setEmail('empty@example.com');
+        $this->security->method('getUser')->willReturn($owner);
+        $this->trainingRepository->expects(self::once())->method('findOwnedByUserOrdered')->with($owner)->willReturn([]);
+        $this->attemptRepository->expects(self::never())->method('findByTrainingOrdered');
+        $response = ($this->action)();
+        $payload = json_decode($response->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('application/ld+json; charset=utf-8', $response->headers->get('Content-Type'));
+        self::assertSame([], $payload['trainingBreakdown']);
+        self::assertNull($payload['latestAttemptedAt']);
+        foreach (['trainingCount', 'puzzleCount', 'attemptCount', 'completedAttemptCount', 'averageAttempts', 'progressPercent', 'successRate', 'averageMistakes'] as $key) {
+            self::assertSame(0, $payload[$key], $key);
+        }
     }
 
     private function setEntityId(object $entity, int $id): void

@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Controller\TrainingOverviewAction;
+use App\ReadModel\TrainingOverviewReader;
 use App\Entity\Cycle;
 use App\Entity\CyclePuzzle;
 use App\Entity\Puzzle;
@@ -41,11 +42,8 @@ final class TrainingOverviewActionTest extends TestCase
 
         $this->action = new TrainingOverviewAction(
             $this->security,
+            new TrainingOverviewReader($this->trainingPuzzleRepository, $this->cycleRepository, $this->cyclePuzzleRepository, $this->trainingSessionRepository),
             $this->trainingRepository,
-            $this->trainingPuzzleRepository,
-            $this->cycleRepository,
-            $this->cyclePuzzleRepository,
-            $this->trainingSessionRepository,
         );
     }
 
