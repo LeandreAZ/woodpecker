@@ -26,7 +26,7 @@ final class SolverAttemptLifecycleService
             ? $this->attemptRepository->findOneByClientRequestId($clientRequestId)
             : null;
 
-        if (!$existingAttempt instanceof Attempt && AttemptStatus::InProgress->value === $incomingAttempt->getStatus()) {
+        if ('' === $clientRequestId && !$existingAttempt instanceof Attempt && AttemptStatus::InProgress->value === $incomingAttempt->getStatus()) {
             $existingAttempt = $this->attemptRepository->findActiveAttemptForCyclePuzzle($incomingAttempt->getCyclePuzzle());
         }
 
