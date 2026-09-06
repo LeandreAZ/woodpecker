@@ -1,3 +1,5 @@
+import { LoadingButton } from '../../components/ui/LoadingButton';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
 import {
@@ -110,7 +112,7 @@ type PuzzleRow = {
   ratingLabel: string;
   ratingValueLabel: string;
   statusLabel: string;
-  statusTone: 'success' | 'danger' | 'neutral';
+  statusTone: 'success' | 'danger' | 'neutral' | 'primary';
   attemptsLabel: string;
 };
 
@@ -195,6 +197,13 @@ function formatDecimal(value: number | null) {
   }).format(value);
 }
 
+function hasCycleActivity(cycle: TrainingCycleSummary) {
+  return (cycle.attemptCount ?? 0) > 0
+    || (cycle.completedPuzzleCount ?? 0) > 0
+    || cycle.solved > 0
+    || cycle.failed > 0;
+}
+
 function getDifficultyLabel(rating?: number | null) {
   if (!rating) {
     return 'Libre';
@@ -251,20 +260,13 @@ function getProgressDelta(cycleSummaries: TrainingCycleSummary[]) {
   return current - previous;
 }
 
-function getSuccessRateValue(summary: TrainingSummary | null, analytics: TrainingAnalytics | null, cycleStats: CycleStats) {
-  if (analytics?.performance.successRate !== undefined) {
-    return Math.round(analytics.performance.successRate);
-  }
-
-  if (summary?.latestCycleSummary?.successRate !== undefined) {
-    return Math.round(summary.latestCycleSummary.successRate);
-  }
-
-  if (cycleStats.total <= 0) {
+function getSuccessRateValue(_summary: TrainingSummary | null, _analytics: TrainingAnalytics | null, cycleStats: CycleStats) {
+  const attemptedPuzzleCount = cycleStats.solved + cycleStats.failed;
+  if (attemptedPuzzleCount <= 0) {
     return 0;
   }
 
-  return Math.round((cycleStats.solved / cycleStats.total) * 100);
+  return Math.round((cycleStats.solved / attemptedPuzzleCount) * 100);
 }
 
 function getAverageAttemptsValue(summary: TrainingSummary | null, cycleStats: CycleStats) {
@@ -291,8 +293,12 @@ function getPuzzleAttemptSummary(
   cyclePuzzle: CyclePuzzle | null,
   latestAttempts: TrainingAttemptSummary[],
   hasStartedCycle: boolean,
+  currentCycleNumber?: number | null,
 ) {
-  const attempt = latestAttempts.find((item) => item.trainingPuzzlePosition === trainingPuzzle.position) ?? null;
+  const cycleScopedAttempts = currentCycleNumber != null && latestAttempts.some((item) => item.cycleNumber != null)
+    ? latestAttempts.filter((item) => item.cycleNumber === currentCycleNumber)
+    : latestAttempts;
+  const attempt = cycleScopedAttempts.find((item) => item.trainingPuzzlePosition === trainingPuzzle.position) ?? null;
 
   if (!cyclePuzzle) {
     return {
@@ -319,8 +325,8 @@ function getPuzzleAttemptSummary(
       attemptedAtLabel: formatCompactDateTime(cyclePuzzle.completedAt),
       attemptsLabel: String(cyclePuzzle.attemptCount ?? cyclePuzzle.completedAttemptCount ?? cyclePuzzle.attempts?.filter((item) => item.status !== 'in_progress').length ?? 1),
       firstAttemptLabel: '—',
-      statusLabel: cyclePuzzle.status === 'solved' ? 'Résolu' : 'Raté',
-      statusTone: cyclePuzzle.status === 'solved' ? ('success' as const) : ('danger' as const),
+      statusLabel: cyclePuzzle.status === 'solved' ? 'Résolu' : cyclePuzzle.status === 'in_progress' ? 'En cours' : 'Raté',
+      statusTone: cyclePuzzle.status === 'solved' ? ('success' as const) : cyclePuzzle.status === 'in_progress' ? ('primary' as const) : ('danger' as const),
     };
   }
 
@@ -334,8 +340,8 @@ function getPuzzleAttemptSummary(
     attemptedAtLabel: formatCompactDateTime(cyclePuzzle.completedAt ?? attempt.attemptedAt),
     attemptsLabel: String(cyclePuzzle.attemptCount ?? cyclePuzzle.completedAttemptCount ?? cyclePuzzle.attempts?.filter((item) => item.status !== 'in_progress').length ?? 1),
     firstAttemptLabel,
-    statusLabel: cyclePuzzle.status === 'solved' ? 'Résolu' : 'Raté',
-    statusTone: cyclePuzzle.status === 'solved' ? ('success' as const) : ('danger' as const),
+    statusLabel: cyclePuzzle.status === 'solved' ? 'Résolu' : cyclePuzzle.status === 'in_progress' ? 'En cours' : 'Raté',
+    statusTone: cyclePuzzle.status === 'solved' ? ('success' as const) : cyclePuzzle.status === 'in_progress' ? ('primary' as const) : ('danger' as const),
   };
 }
 
@@ -344,11 +350,12 @@ function buildPuzzleRows(
   cyclePuzzles: CyclePuzzle[],
   latestAttempts: TrainingAttemptSummary[],
   hasStartedCycle: boolean,
+  currentCycleNumber?: number | null,
 ): PuzzleRow[] {
   return trainingPuzzles.map((trainingPuzzle) => {
     const puzzle = typeof trainingPuzzle.puzzle === 'string' ? null : trainingPuzzle.puzzle;
     const cyclePuzzle = cyclePuzzles.find((item) => item.trainingPuzzle === trainingPuzzle['@id']) ?? null;
-    const attemptSummary = getPuzzleAttemptSummary(trainingPuzzle, cyclePuzzle, latestAttempts, hasStartedCycle);
+    const attemptSummary = getPuzzleAttemptSummary(trainingPuzzle, cyclePuzzle, latestAttempts, hasStartedCycle, currentCycleNumber);
 
     return {
       accessDisabled: !hasStartedCycle,
@@ -374,6 +381,7 @@ function buildStats(
   analytics: TrainingAnalytics | null,
   hasStartedCycle: boolean,
 ): DetailStat[] {
+  const hasPlayedPuzzle = cycleStats.solved + cycleStats.failed > 0;
   const successRate = getSuccessRateValue(summary, analytics, cycleStats);
   const delta = getProgressDelta(summary?.cycleSummaries ?? []);
   const averageAttempts = getAverageAttemptsValue(summary, cycleStats);
@@ -383,13 +391,13 @@ function buildStats(
       icon: CheckCircle2,
       label: 'Taux de réussite',
       tone: 'success',
-      value: `${successRate}%`,
+      value: hasPlayedPuzzle ? `${successRate}%` : '—',
     },
     {
-      icon: delta === null ? CircleOff : delta >= 0 ? TrendingUp : TrendingDown,
+      icon: !hasPlayedPuzzle || delta === null ? CircleOff : delta >= 0 ? TrendingUp : TrendingDown,
       label: 'Progression',
       tone: 'primary',
-      value: delta === null ? '—' : `${delta > 0 ? '+' : ''}${delta}%`,
+      value: !hasPlayedPuzzle || delta === null ? '—' : `${delta > 0 ? '+' : ''}${delta}%`,
     },
     {
       icon: List,
@@ -522,19 +530,12 @@ function DetailHeader({
           <TrainingLogoBadge size="lg" training={branding} />
         </div>
         <div className="wp-detail-header__copy">
-          <h1>{selectedTraining.name}</h1>
-          {selectedTraining.description?.trim() ? <p>{selectedTraining.description}</p> : null}
+          <h1 title={selectedTraining.name}>{selectedTraining.name}</h1>
+          {selectedTraining.description?.trim() ? <p title={selectedTraining.description}>{selectedTraining.description}</p> : null}
         </div>
       </div>
 
       <div className="wp-detail-header__actions">
-        {!hasCycleHistory ? (
-          <button className="wp-secondary wp-detail-button" type="button" onClick={onImport}>
-            <FileUp aria-hidden="true" size={16} strokeWidth={2} />
-            <span>Importer des puzzles</span>
-          </button>
-        ) : null}
-
         {canOpenSolver && !canShowStartCycle ? (
           <button className="wp-primary wp-detail-button" type="button" onClick={onOpenSolver}>
             <Play aria-hidden="true" size={16} strokeWidth={2} />
@@ -543,18 +544,25 @@ function DetailHeader({
         ) : null}
 
         {canShowStartCycle ? (
-          <button className="wp-primary wp-detail-button" disabled={startCycleIsPending} type="button" onClick={onStartCycle}>
+          <LoadingButton loading={startCycleIsPending} loadingLabel="Démarrage…" className="wp-primary wp-detail-button" disabled={startCycleIsPending} type="button" onClick={onStartCycle}>
             <Play aria-hidden="true" size={16} strokeWidth={2} />
             <span>{startCycleIsPending ? 'Démarrage...' : hasCycleHistory ? 'Lancer le cycle suivant' : 'Démarrer le cycle'}</span>
+          </LoadingButton>
+        ) : null}
+
+        {!hasCycleHistory ? (
+          <button className="wp-secondary wp-detail-button" type="button" onClick={onImport}>
+            <FileUp aria-hidden="true" size={16} strokeWidth={2} />
+            <span>Importer des puzzles</span>
           </button>
         ) : null}
 
         <div className="wp-detail-header__action-group" role="group" aria-label="Actions de l'entraînement">
-          <button aria-label="Modifier l'entraînement" className="wp-secondary wp-detail-button wp-detail-icon-button" title="Modifier l'entraînement" type="button" onClick={onEditTraining}>
-            <Pencil aria-hidden="true" size={16} strokeWidth={2} />
+          <button aria-label="Modifier l'entraînement" className="wp-secondary wp-detail-button" title="Modifier l'entraînement" type="button" onClick={onEditTraining}>
+            <Pencil aria-hidden="true" size={16} strokeWidth={2} /><span>Modifier</span>
           </button>
-          <button aria-label="Supprimer l'entraînement" className="wp-secondary wp-detail-button wp-detail-button--danger wp-detail-icon-button wp-detail-icon-button--danger" disabled={deleteTrainingIsPending} title="Supprimer l'entraînement" type="button" onClick={onDeleteTraining}>
-            <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
+          <button aria-label="Supprimer l'entraînement" className="wp-secondary wp-detail-button wp-detail-button--danger" disabled={deleteTrainingIsPending} title="Supprimer l'entraînement" type="button" onClick={onDeleteTraining}>
+            <Trash2 aria-hidden="true" size={16} strokeWidth={2} /><span>Supprimer</span>
           </button>
         </div>
       </div>
@@ -863,11 +871,11 @@ function DetailCycleHistory({ cycleSummaries, onViewAll }: { cycleSummaries: Tra
               </div>
               <div className="wp-detail-side-row__metrics">
                 <span className="wp-detail-side-row__metric">
-                  <strong className="tone-success">{item.successRate !== undefined ? `${Math.round(item.successRate)} %` : `${item.solved}`}</strong>
+                  <strong className="tone-success">{hasCycleActivity(item) ? (item.successRate !== undefined ? `${Math.round(item.successRate)} %` : `${item.solved}`) : '—'}</strong>
                   <small>Réussite</small>
                 </span>
                 <span className="wp-detail-side-row__metric">
-                  <strong className="tone-primary">{item.progressDelta === null || item.progressDelta === undefined ? '—' : `${item.progressDelta > 0 ? '+' : ''}${item.progressDelta}%`}</strong>
+                  <strong className="tone-primary">{!hasCycleActivity(item) || item.progressDelta === null || item.progressDelta === undefined ? '—' : `${item.progressDelta > 0 ? '+' : ''}${item.progressDelta}%`}</strong>
                   <small>Progression</small>
                 </span>
               </div>
@@ -949,8 +957,9 @@ function DetailCycleHistoryModal({ cycleSummaries, onClose, open }: { cycleSumma
                 {cycleSummaries.map((item, index) => {
                   const rowKey = item.cycle['@id'] ?? String(item.cycle.number) + '-' + String(index);
                   const cycleLabel = 'Cycle ' + String(item.cycle.number);
-                  const successLabel = item.successRate !== undefined ? String(Math.round(item.successRate)) + ' %' : '—';
-                  const progressLabel = item.progressDelta === null || item.progressDelta === undefined
+                  const active = hasCycleActivity(item);
+                  const successLabel = !active ? '—' : item.successRate !== undefined ? String(Math.round(item.successRate)) + ' %' : '—';
+                  const progressLabel = !active || item.progressDelta === null || item.progressDelta === undefined
                     ? '—'
                     : (item.progressDelta > 0 ? '+' : '') + String(item.progressDelta) + '%';
 
@@ -961,9 +970,9 @@ function DetailCycleHistoryModal({ cycleSummaries, onClose, open }: { cycleSumma
                         {index === 0 && item.cycle.status === 'active' ? ' (en cours)' : ''}
                       </td>
                       <td>{buildCyclePeriod(item.cycle)}</td>
-                      <td>{successLabel}</td>
-                      <td>{progressLabel}</td>
-                      <td>{item.attemptCount}</td>
+                      <td><span className="wp-detail-cycle-value tone-success">{successLabel}</span></td>
+                      <td><span className="wp-detail-cycle-value tone-primary">{progressLabel}</span></td>
+                      <td><span className="wp-detail-cycle-value tone-info">{active ? item.attemptCount : '—'}</span></td>
                       <td>{formatStatsDuration(item.durationMilliseconds ?? 0)}</td>
                     </tr>
                   );
@@ -1048,7 +1057,7 @@ export function DetailView({
   const canOpenSolver = currentCycle?.status === 'active';
   const totalProblems = summary?.puzzleCount ?? trainingPuzzles.length ?? puzzleCount;
   const stats = buildStats(totalProblems, cycleStats, summary, analytics, hasCycleHistory);
-  const puzzleRows = buildPuzzleRows(trainingPuzzles, cyclePuzzles, latestAttempts, canOpenSolver);
+  const puzzleRows = buildPuzzleRows(trainingPuzzles, cyclePuzzles, latestAttempts, canOpenSolver, currentCycle?.number ?? latestCycleSummary?.cycle.number);
   const attemptCards = buildAttemptCards(latestAttempts);
   const isCycleProgressComplete = cycleStats.total > 0 && cycleStats.pending === 0;
   const canShowStartCycle = trainingPuzzles.length > 0 && (!canOpenSolver || isCycleProgressComplete);
@@ -1080,7 +1089,7 @@ export function DetailView({
       {summaryIsLoading && hasCycleHistory ? <p className="wp-empty">Chargement du cycle...</p> : null}
       {analyticsIsLoading && hasCycleHistory ? <p className="wp-empty">Chargement des statistiques détaillées...</p> : null}
 
-      {hasCycleHistory ? (
+      {totalProblems === 0 && !trainingPuzzlesIsLoading ? <EmptyState title="Aucun puzzle" description="Importez des puzzles pour préparer votre premier cycle." action={<button type="button" className="wp-primary" onClick={onImport}>Importer des puzzles</button>} /> : hasCycleHistory ? (
         <div className="wp-detail-layout">
           <div className="wp-detail-layout__main">
             <DetailCycleStatus currentCycle={currentCycle ?? latestCycleSummary?.cycle ?? null} cycleStats={cycleStats} cycleStatusLabel={cycleStatusLabel} />

@@ -37,9 +37,9 @@
   align-items: center;
   gap: 10px;
   padding: 0 22px;
-  border: 1px solid rgba(72, 132, 255, 0.45);
+  border: 1px solid var(--color-primary);
   border-radius: 14px;
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--color-primary);
   color: #f8fbff;
   font-size: 1rem;
   font-weight: 600;
@@ -331,7 +331,7 @@
 
 .dashboard-page__action--primary {
   border-color: rgba(72, 132, 255, 0.48);
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--color-primary);
 }
 
 .dashboard-page__list {
@@ -406,12 +406,20 @@
   }
 
   .dashboard-page__list-row {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     gap: 14px;
   }
 
+  .dashboard-page__list-chevron {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
   .dashboard-page__list-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
     width: 100%;
   }
 }
@@ -455,3 +463,40 @@
   }
 }
 
+
+
+/* Keep the description and entry point together without inflating list cards. */
+.dashboard-page__list-copy {
+  min-width: 0;
+}
+
+.dashboard-page__list-description {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dashboard-page__list-description small {
+  font-size: 0.78rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-page__list-chevron {
+  flex: 0 0 auto;
+}
+/* The empty-dashboard CTA uses the shared blue action color. */
+.dashboard-page .ui-state-panel__actions .wp-primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+}
+
+.dashboard-page .ui-state-panel__actions .wp-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}

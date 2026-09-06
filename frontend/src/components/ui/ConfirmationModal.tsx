@@ -1,3 +1,4 @@
+import { LoadingButton } from './LoadingButton';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import Modal from './Modal';
 
@@ -23,7 +24,7 @@ export function ConfirmationModal({
   title,
 }: ConfirmationModalProps) {
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={isPending ? undefined : onClose}>
       <div className="ui-confirmation-modal">
         <div className="ui-confirmation-modal__icon"><AlertTriangle size={32} strokeWidth={1.9} /></div>
         <div className="ui-confirmation-modal__copy">
@@ -32,14 +33,14 @@ export function ConfirmationModal({
         </div>
         <div className="ui-confirmation-modal__divider" aria-hidden="true" />
         <div className="ui-confirmation-modal__actions">
-          <button className="wp-secondary ui-confirmation-modal__cancel" type="button" onClick={onClose}>
+          <button disabled={isPending} className="wp-secondary ui-confirmation-modal__cancel" type="button" onClick={onClose}>
             <X size={20} strokeWidth={1.9} />
             <span>Annuler</span>
           </button>
-          <button className={isDanger ? 'wp-secondary ui-confirmation-modal__confirm ui-confirmation-modal__confirm--danger' : 'wp-primary ui-confirmation-modal__confirm'} disabled={isPending} type="button" onClick={onConfirm}>
+          <LoadingButton loadingLabel="Suppression…" loading={isPending} className={isDanger ? 'wp-secondary ui-confirmation-modal__confirm ui-confirmation-modal__confirm--danger' : 'wp-primary ui-confirmation-modal__confirm'} disabled={isPending} type="button" onClick={onConfirm}>
             <Trash2 size={20} strokeWidth={1.9} />
             <span>{isPending ? 'Suppression...' : confirmLabel}</span>
-          </button>
+          </LoadingButton>
         </div>
       </div>
     </Modal>

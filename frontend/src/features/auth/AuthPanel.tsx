@@ -249,13 +249,13 @@ function AuthPanel({ sessionMessage, onAuthenticated }: AuthPanelProps) {
         <div className="auth-panel__meta">
           <span />
           {isLogin ? (
-            <button className="auth-panel__forgot" type="button">
+            <button className="auth-panel__forgot" disabled title="La réinitialisation du mot de passe n’est pas encore disponible." type="button">
               Mot de passe oublié ?
             </button>
           ) : null}
         </div>
 
-        <Button className="auth-panel__submit" disabled={isPending} fullWidth size="lg" type="submit" variant="primary">
+        <Button loading={isPending} loadingLabel={isLogin ? "Connexion…" : "Inscription…"} className="auth-panel__submit" disabled={isPending} fullWidth size="lg" type="submit" variant="primary">
           {isLogin ? <LogIn aria-hidden="true" size={20} strokeWidth={1.9} /> : <UserPlus aria-hidden="true" size={20} strokeWidth={1.9} />}
           <span>{submitLabel()}</span>
         </Button>

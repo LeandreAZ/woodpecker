@@ -39,7 +39,7 @@ export function PageHeader({
     <header className="wp-page-header">
       <div>
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-        <h2>{title}</h2>
+        <h1>{title}</h1>
         <p>{description}</p>
       </div>
       {action}

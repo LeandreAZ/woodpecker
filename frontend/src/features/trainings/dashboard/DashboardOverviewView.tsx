@@ -1,3 +1,5 @@
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { PageSkeleton } from '../../../components/ui/PageSkeleton';
 import {
   ChevronRight,
   CircleCheckBig,
@@ -150,7 +152,7 @@ function getOverviewMetrics(summaries: TrainingDashboardSummary[], statsOverview
     }, null);
 
   return [
-    { icon: Target, label: 'Entraînements actifs', tone: 'primary', value: String(trainingCount) },
+    { icon: Target, label: 'Entraînements', tone: 'primary', value: String(trainingCount) },
     { icon: RefreshCw, label: 'Cycles actifs', tone: 'cyan', value: String(activeCycleCount) },
     { icon: Puzzle, label: 'Puzzles totaux', tone: 'violet', value: String(puzzleCount) },
     { icon: Clock3, label: 'Dernière activité', tone: 'success', value: formatRelativeActivity(latestActivity) },
@@ -196,13 +198,11 @@ export function DashboardOverviewView({
   const showEmpty = !showLoading && visibleSummaries.length === 0;
   const showError = isError && Boolean(errorMessage);
 
-  if (showLoading) {
-    return (
-      <section className="dashboard-page dashboard-page--loading">
-        <p className="wp-empty">Chargement des entraînements...</p>
-      </section>
-    );
-  }
+  if (showLoading) return <PageSkeleton layout="dashboard" />;
+  if (showEmpty && !showError) return <section className="dashboard-page">
+    <header className="dashboard-page__hero"><div><h1>Mes entraînements</h1><p>Gérez vos entraînements et suivez leur progression.</p></div></header>
+    <EmptyState compact={false} title="Aucun entraînement" description="Vous n’avez pas encore créé d’entraînement. Commencez dès maintenant !" action={<button className="wp-primary" type="button" onClick={onCreate}>Créer un entraînement</button>} />
+  </section>;
 
   return (
     <section className="dashboard-page">
@@ -329,7 +329,7 @@ export function DashboardOverviewView({
                   </span>
                   <span className="dashboard-page__list-copy">
                     <strong>{summary.training.name}</strong>
-                    <small>{truncate(summary.training.description, 90)}</small>
+                    <span className="dashboard-page__list-description"><small>{summary.training.description}</small></span>
                   </span>
                 </span>
 

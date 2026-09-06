@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/ui/EmptyState';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
@@ -384,7 +385,7 @@ function TrainingsHistoryViewV2({ errorMessage, historyOverview, initialFilterPr
       {isLoading ? <div className="wp-training-history-state">Chargement de l'historique...</div> : null}
       {isError ? <div className="wp-training-history-state is-error">{errorMessage ?? "Impossible de charger l'historique."}</div> : null}
       {!isLoading && !isError && pageItems.length === 0 ? (
-        <div className="wp-training-history-state">{buildEmptyMessage(filters, supportsConnectionHistory)}</div>
+        <EmptyState title="Historique vide" description={buildEmptyMessage(filters, supportsConnectionHistory)} />
       ) : null}
 
       {!isLoading && !isError && pageItems.length > 0 ? (

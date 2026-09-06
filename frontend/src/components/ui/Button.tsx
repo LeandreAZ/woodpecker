@@ -1,3 +1,4 @@
+import { LoadingButton } from './LoadingButton';
 import type { ButtonHTMLAttributes, PropsWithChildren } from 'react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -5,6 +6,8 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 type ButtonProps = PropsWithChildren<
   ButtonHTMLAttributes<HTMLButtonElement> & {
+    loading?: boolean;
+    loadingLabel?: string;
     fullWidth?: boolean;
     size?: ButtonSize;
     variant?: ButtonVariant;
@@ -25,7 +28,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   return (
-    <button
+    <LoadingButton
       {...props}
       className={joinClassNames(
         'ui-button',
@@ -37,7 +40,7 @@ export function Button({
       type={type}
     >
       {children}
-    </button>
+    </LoadingButton>
   );
 }
 

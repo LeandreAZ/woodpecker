@@ -1,0 +1,282 @@
+/* Shared states use the existing Woodpecker tokens. */
+.ui-state-panel { width: 100%; min-width: 0; display: grid; justify-items: center; align-content: center; gap: 16px; min-height: 420px; padding: clamp(24px, 5vw, 56px); border: 1px solid var(--color-border-default); border-radius: 12px; background: var(--color-surface-primary); text-align: center; }
+.ui-state-panel__icon { display: grid; place-items: center; width: 128px; height: 128px; border-radius: 50%; color: var(--color-primary); background: rgba(59,130,246,.10); }
+.ui-state-panel__code { font-size: 48px; line-height: 1; color: var(--text); }
+.ui-state-panel h2 { margin: 0; font-size: clamp(22px, 2.5vw, 28px); line-height: 1.25; }
+.ui-state-panel p { margin: 0; max-width: 560px; color: var(--color-text-secondary); line-height: 1.6; }
+.ui-state-panel__actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; max-width: 100%; }
+.ui-state-panel__actions:empty { display: none; }
+.ui-state-panel__actions > button { border: 1px solid var(--color-primary); border-radius: 10px; min-height: 46px; padding: 10px 20px; }
+.ui-state-panel--compact { min-height: 240px; padding: 24px; gap: 12px; }
+.ui-state-panel--compact .ui-state-panel__icon { width: 76px; height: 76px; }
+.ui-state-panel--compact .ui-state-panel__icon svg { width: 40px; height: 40px; }
+.ui-state-panel--compact h2 { font-size: 20px; }
+.ui-spinner { animation: ui-spin 900ms linear infinite; flex-shrink: 0; }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+.ui-page-skeleton { display: grid; gap: 24px; min-width: 0; }
+.ui-page-skeleton i { display: block; height: 16px; width: 65%; border-radius: 6px; background: rgba(148,163,184,.16); animation: ui-pulse 1.6s ease-in-out infinite; }
+.ui-page-skeleton__header { display: grid; gap: 12px; }
+.ui-page-skeleton__header i:first-child { height: 36px; width: 38%; }
+.ui-page-skeleton__grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+.ui-page-skeleton__card, .ui-page-skeleton__section { display: grid; align-content: start; gap: 20px; padding: 24px; background: var(--color-surface-primary); border: 1px solid var(--color-border-default); border-radius: 12px; min-width: 0; }
+.ui-page-skeleton__card i:first-child { height: 40px; width: 40px; }
+.ui-page-skeleton__row { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 20px; padding: 16px; border: 1px solid var(--color-border-default); border-radius: 12px; }
+.ui-page-skeleton__row i:first-child { width: 44px; height: 44px; }
+.ui-page-skeleton--history .ui-page-skeleton__grid, .ui-page-skeleton--form .ui-page-skeleton__grid { grid-template-columns: 1fr; }
+.ui-page-skeleton--history .ui-page-skeleton__card { grid-template-columns: 44px 1fr 20%; align-items: center; padding: 16px; }
+.ui-page-skeleton--settings .ui-page-skeleton__grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.ui-page-skeleton--settings .ui-page-skeleton__card { min-height: 260px; }
+.ui-page-skeleton--settings .ui-page-skeleton__card i:not(:first-child), .ui-page-skeleton--form .ui-page-skeleton__card i { height: 44px; width: 100%; }
+.ui-page-skeleton--solver .ui-page-skeleton__grid { grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); }
+.ui-page-skeleton--solver .ui-page-skeleton__card:first-child { aspect-ratio: 1; }
+.ui-page-skeleton--stats .ui-page-skeleton__section { min-height: 280px; }
+@keyframes ui-pulse { 50% { opacity: .45; } }
+.ui-notifications { position: fixed; right: 24px; bottom: 24px; z-index: 1200; display: grid; gap: 10px; width: min(420px,calc(100vw - 32px)); pointer-events: none; }
+.ui-notification { pointer-events: auto; display: grid; grid-template-columns: 20px minmax(0,1fr) 36px; align-items: center; gap: 12px; padding: 12px 16px; background: var(--color-surface-primary); border: 1px solid var(--color-primary); border-radius: 12px; box-shadow: var(--shadow); }
+.ui-notification--success { border-color: var(--color-success); }
+.ui-notification--success > svg { color: var(--color-success); }
+.ui-notification--error { border-color: var(--color-danger); }
+.ui-notification--error > svg { color: var(--color-danger); }
+.ui-notification button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px; color: inherit; background: transparent; }
+.ui-field-error { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0 0; color: #ff9b9b; font-size: 13px; line-height: 1.4; grid-column: 1 / -1; }
+.ui-field-error svg { flex-shrink: 0; margin-top: 1px; }
+input[aria-invalid='true'], textarea[aria-invalid='true'] { border-color: var(--color-danger); }
+.trainings-shell :is(.wp-primary,.wp-secondary), .ui-modal :is(.wp-primary,.wp-secondary), .auth-panel__submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.25; }
+.trainings-shell :is(.wp-primary,.wp-secondary) > svg, .ui-modal button > svg { flex-shrink: 0; vertical-align: middle; }
+:where(button,a):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.trainings-shell :is(.wp-page-header h1,.wp-page-header h2,.dashboard-page__hero h1,.wp-training-stats-page__header h1,.wp-training-history-header h1,.wp-training-form-page__header h1) { margin: 0; font-size: clamp(28px,3vw,32px); line-height: 1.2; font-weight: 700; }
+.trainings-shell :is(.wp-page-header,.dashboard-page__hero,.wp-training-stats-page__header,.wp-training-history-header,.wp-training-form-page__header) p { margin: 6px 0 0; font-size: 16px; line-height: 1.5; color: var(--color-text-secondary); }
+.trainings-shell :is(.wp-panel,.dashboard-page__panel,.wp-detail-stat-card,.wp-detail-section,.wp-training-stats-card,.wp-training-stats-panel,.wp-training-history-card,.wp-settings-v2-card,.dashboard-page__metric-card,.wp-training-identity-card):not(.wp-settings-v2-card--danger) { background: var(--color-surface-primary); border-color: var(--color-border-default); border-radius: 12px; }
+.ui-modal :is(.wp-settings-v2-modal-card,.wp-detail-modal-card,.wp-training-stats-modal) { background: var(--color-surface-primary); border-color: var(--color-border-default); }
+.ui-modal__content--plain { overflow: auto; overscroll-behavior: contain; }
+.ui-modal :is(.wp-settings-v2-modal-card__header,.wp-detail-modal-card__header,.wp-training-stats-modal__header) { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 16px; }
+.trainings-shell :is(.wp-detail-collection__table thead,.wp-import-rows-table__head) { background: var(--color-surface-primary); color: var(--color-text-secondary); font-size: 14px; }
+.trainings-shell :is(.wp-detail-collection__table td,.wp-import-rows-table__row) { font-size: 14px; border-color: var(--color-border-default); }
+.wp-app-navigation__profile { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px 8px; }
+.wp-app-navigation__profile > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-app-navigation__avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--color-surface-hover); display: grid; place-items: center; color: var(--color-primary); }
+.auth-panel__input-shell .ui-field-error { padding: 0 8px; }
+@media(max-width:760px) { .ui-page-skeleton__grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .ui-page-skeleton--settings .ui-page-skeleton__grid,.ui-page-skeleton--solver .ui-page-skeleton__grid { grid-template-columns: 1fr; } .ui-notifications { right: 16px; bottom: 16px; } }
+@media(max-width:480px) { .ui-state-panel { padding: 24px 16px; min-height: 320px; } .ui-state-panel__icon { width: 96px; height: 96px; } .ui-state-panel__icon svg { width: 48px; height: 48px; } .ui-state-panel__actions { width: 100%; } .ui-state-panel__actions > button { width: 100%; } }
+@media(prefers-reduced-motion:reduce) { .ui-spinner,.ui-page-skeleton i { animation: none; } }
+
+.ui-state-panel__actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.ui-state-panel__actions > button svg { flex-shrink: 0; }
+.trainings-shell :is(.wp-detail-collection__table,.wp-training-stats-table,.wp-training-history-table) { font-size: 14px; }
+.trainings-shell :is(.wp-detail-collection__table,.wp-training-stats-table,.wp-training-history-table) th { background: var(--color-surface-primary); color: var(--color-text-secondary); font-size: 14px; font-weight: 600; padding: 14px 16px; }
+.trainings-shell :is(.wp-detail-collection__table,.wp-training-stats-table,.wp-training-history-table) td { border-color: var(--color-border-default); padding: 14px 16px; }
+.trainings-shell :is(.wp-detail-collection__table,.wp-training-stats-table,.wp-training-history-table) tbody tr:hover { background: rgba(59,130,246,.06); }
+.trainings-shell :is(.wp-detail-collection__table-wrap,.wp-training-stats-table-wrap,.wp-training-history-table-wrap) { max-width: 100%; overflow-x: auto; }
+button:disabled { cursor: not-allowed; }
+.auth-panel__forgot:disabled { opacity: .5; }
+
+.ui-page-skeleton__filters,.ui-page-skeleton__charts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.ui-page-skeleton__filters i,.ui-page-skeleton i.ui-page-skeleton__field { width: 100%; height: 44px; }
+.ui-page-skeleton i.ui-page-skeleton__textarea { width: 100%; height: 112px; }
+.ui-page-skeleton i.ui-page-skeleton__progress { width: 100%; height: 8px; }
+.ui-page-skeleton i.ui-page-skeleton__chart { width: 100%; height: 220px; }
+@media(max-width:760px) { .ui-page-skeleton__charts { grid-template-columns: 1fr; } }
+
+@media(max-width:1300px) { .ui-page-skeleton--dashboard .ui-page-skeleton__grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:1180px) { .ui-page-skeleton--stats .ui-page-skeleton__grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:860px) { .ui-page-skeleton--stats .ui-page-skeleton__grid,.ui-page-skeleton--stats .ui-page-skeleton__charts { grid-template-columns: 1fr; } }
+@media(max-width:1279px) { .ui-page-skeleton--detail .ui-page-skeleton__grid { grid-template-columns: 1fr; } }
+
+
+/* Shared page heading rhythm: the dashboard and statistics headers define the product scale. */
+.trainings-shell :is(
+  .wp-training-history-header,
+  .wp-page-header,
+  .wp-training-form-page__header
+) {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.trainings-shell :is(
+  .dashboard-page__hero h1,
+  .wp-training-stats-page__header h1,
+  .wp-training-history-header h1,
+  .wp-page-header h1,
+  .wp-page-header h2,
+  .wp-training-form-page__header h1
+) {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-primary);
+  font-size: clamp(28px, 3vw, 32px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.trainings-shell :is(
+  .dashboard-page__hero p,
+  .wp-training-stats-page__header p,
+  .wp-training-history-header p,
+  .wp-page-header p,
+  .wp-training-form-page__header p
+) {
+  max-width: 760px;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.trainings-shell :is(.dashboard-page, .wp-training-stats-page, .wp-training-history-page, .wp-settings-v2-page, .wp-training-form-page, .wp-import-wizard) {
+  gap: 24px;
+}
+
+@media (max-width: 640px) {
+  .trainings-shell :is(
+    .wp-training-history-header,
+    .wp-page-header,
+    .wp-training-form-page__header
+  ) { gap: 6px; }
+  .trainings-shell :is(
+    .dashboard-page__hero h1,
+    .wp-training-stats-page__header h1,
+    .wp-training-history-header h1,
+    .wp-page-header h1,
+    .wp-page-header h2,
+    .wp-training-form-page__header h1
+  ) { font-size: 28px; }
+}
+
+.trainings-shell .dashboard-page__hero { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.trainings-shell .wp-training-stats-page__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+@media (max-width: 920px) { .trainings-shell .dashboard-page__hero { flex-direction: column; align-items: stretch; } }
+
+/* PageHeader may contain a right-side action; keep that action beside the text. */
+.trainings-shell .wp-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.trainings-shell .wp-page-header > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Stats and history use the same page heading scale as Settings. */
+.trainings-shell :is(
+  .wp-page.wp-training-stats-page .wp-training-stats-page__header h1,
+  .wp-page.wp-training-history-page .wp-training-history-header h1,
+  .wp-settings-v2-page > .wp-page-header h1
+) {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.trainings-shell :is(
+  .wp-page.wp-training-stats-page .wp-training-stats-page__header p,
+  .wp-page.wp-training-history-page .wp-training-history-header p,
+  .wp-settings-v2-page > .wp-page-header p
+) {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Keep the title-to-description rhythm identical on every page header. */
+.trainings-shell :is(
+  .dashboard-page__hero,
+  .wp-training-stats-page__header,
+  .wp-training-history-header,
+  .wp-page-header,
+  .wp-training-form-page__header
+) > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trainings-shell :is(
+  .dashboard-page__hero,
+  .wp-training-stats-page__header,
+  .wp-training-history-header,
+  .wp-page-header,
+  .wp-training-form-page__header
+) :is(h1, h2, p) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* Solver's no-cycle state follows the centered empty-state treatment. */
+.trainings-shell .solver-page .solver-empty-card {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+}
+
+.trainings-shell .solver-page .solver-empty-card > * {
+  justify-self: center;
+}
+
+.trainings-shell .solver-page .solver-empty-card button.wp-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-color: #2f7cff;
+  background: linear-gradient(135deg, #1e68ff 0%, #2f7cff 55%, #4e8dff 100%);
+  color: #f5f9ff;
+  box-shadow: 0 14px 28px rgba(25, 96, 255, 0.24);
+}
+
+.trainings-shell .solver-page .solver-empty-card button.wp-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #246fff 0%, #3b84ff 100%);
+}
+
+/* Match the solver empty state to the dashboard's full empty state scale. */
+.trainings-shell .solver-page .solver-empty-card {
+  min-height: 420px;
+  gap: 12px;
+  padding: 48px 24px;
+}
+
+.trainings-shell .solver-page .solver-empty-card__icon {
+  width: 128px;
+  height: 128px;
+  margin-bottom: 4px;
+}
+
+.trainings-shell .solver-page .solver-empty-card h3 {
+  font-size: clamp(22px, 2.5vw, 28px);
+  line-height: 1.25;
+}
+
+.trainings-shell .solver-page .solver-empty-card p {
+  max-width: 760px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.trainings-shell .solver-page .solver-empty-card button.wp-primary {
+  min-height: 46px;
+  margin-top: 8px;
+  padding: 10px 20px;
+}
+
+@media (max-width: 640px) {
+  .trainings-shell .solver-page .solver-empty-card {
+    min-height: 320px;
+    padding: 32px 16px;
+  }
+
+  .trainings-shell .solver-page .solver-empty-card__icon {
+    width: 96px;
+    height: 96px;
+  }
+}

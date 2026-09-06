@@ -127,7 +127,7 @@ export function useTrainingsPanelQueries(session: AuthSession, uiState: UiState)
 
   const userSettingsOverviewQuery = useQuery({
     queryKey: ['user-settings-overview', session.email],
-    enabled: uiState.activeView === 'settings' || uiState.activeView === 'solver',
+    staleTime: 60_000,
     queryFn: () =>
       previewMode
         ? Promise.resolve(getPreviewUserSettingsOverview())

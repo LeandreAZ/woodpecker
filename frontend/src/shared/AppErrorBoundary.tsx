@@ -1,8 +1,10 @@
 import { Component, type ReactNode } from 'react';
 import './AppErrorBoundary.css';
+import { StatePanel } from '../components/ui/StatePanel';
 
 type AppErrorBoundaryProps = {
   children: ReactNode;
+  onBack?: () => void;
 };
 
 type AppErrorBoundaryState = {
@@ -27,15 +29,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   render() {
     if (this.state.hasError) {
       return (
-        <main className="app-error-boundary">
-          <div className="app-error-boundary__card">
-            <h3>Cette page a rencontré une erreur.</h3>
-            <p>Recharge la page. Si le problème revient, on corrigera la vue ou la donnée qui la fait tomber.</p>
-            <button className="wp-primary" type="button" onClick={() => window.location.reload()}>
-              Recharger
-            </button>
-          </div>
-        </main>
+        <StatePanel kind="api" title="Cette page a rencontré une erreur" description="Le contenu n’a pas pu être affiché. Vous pouvez recharger la page ou revenir à vos entraînements." onRetry={() => window.location.reload()} onBack={this.props.onBack ?? (() => window.location.assign('/'))} />
       );
     }
 

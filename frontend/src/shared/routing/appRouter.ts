@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 export type AppRoute =
+  | { name: 'not-found'; path: string }
   | { name: 'auth' }
   | { name: 'dashboard' }
   | { name: 'create-training' }
@@ -73,6 +74,7 @@ export function buildPath(route: AppRoute): string {
   const normalizedRoute = normalizeRoute(route);
 
   switch (normalizedRoute.name) {
+    case 'not-found': return normalizedRoute.path;
     case 'auth':
       return '/auth';
     case 'dashboard':
@@ -102,6 +104,7 @@ export function routesEqual(left: AppRoute, right: AppRoute): boolean {
 
 export function getRouteLabel(route: AppRoute): string {
   switch (route.name) {
+    case 'not-found': return 'Page introuvable';
     case 'auth':
       return 'Connexion';
     case 'dashboard':
@@ -139,60 +142,19 @@ export function normalizeRoute(route: AppRoute): AppRoute {
 
 export function parseRoute(pathname: string): AppRoute {
   const path = normalizePath(pathname);
-  const segments = path.split('/').filter(Boolean);
-
-
-  if (segments.length === 0 || segments[0] === 'dashboard') {
-    return { name: 'dashboard' };
+  const simple: Record<string, AppRoute> = {
+    '/': { name: 'dashboard' }, '/dashboard': { name: 'dashboard' }, '/auth': { name: 'auth' },
+    '/stats': { name: 'stats-overview' }, '/history': { name: 'history-detail' }, '/settings': { name: 'user-settings' },
+    '/trainings': { name: 'training-detail' }, '/trainings/new': { name: 'create-training' },
+    '/import': { name: 'training-detail' }, '/solver': { name: 'training-detail' },
+  };
+  if (simple[path]) return simple[path];
+  const match = path.match(/^\/trainings\/([1-9]\d*)(?:\/(edit|import|solver))?$/);
+  if (match && Number.isSafeInteger(Number(match[1]))) {
+    const names = { edit: 'training-edit', import: 'training-import', solver: 'training-solver' } as const;
+    return { name: match[2] ? names[match[2] as keyof typeof names] : 'training-detail', trainingId: Number(match[1]) };
   }
-
-  if (segments[0] === 'auth') {
-    return { name: 'auth' };
-  }
-
-  if (segments[0] === 'stats') {
-    return { name: 'stats-overview' };
-  }
-
-  if (segments[0] === 'history') {
-    return { name: 'history-detail' };
-  }
-
-  if (segments[0] === 'settings') {
-    return { name: 'user-settings' };
-  }
-
-  if (segments[0] === 'import' || segments[0] === 'solver') {
-    return { name: 'training-detail' };
-  }
-
-  if (segments[0] !== 'trainings') {
-    return { name: 'dashboard' };
-  }
-
-  if (segments[1] === 'new') {
-    return { name: 'create-training' };
-  }
-
-  const trainingId = parseTrainingId(segments[1]);
-
-  if (!segments[1]) {
-    return { name: 'training-detail' };
-  }
-
-  if (segments[2] === 'edit') {
-    return normalizeRoute({ name: 'training-edit', trainingId });
-  }
-
-  if (segments[2] === 'import') {
-    return normalizeRoute({ name: 'training-import', trainingId });
-  }
-
-  if (segments[2] === 'solver') {
-    return normalizeRoute({ name: 'training-solver', trainingId });
-  }
-
-  return { name: 'training-detail', trainingId };
+  return { name: 'not-found', path };
 }
 
 function normalizePath(pathname: string): string {
@@ -202,21 +164,3 @@ function normalizePath(pathname: string): string {
 
   return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
 }
-
-function parseTrainingId(segment: string): number | undefined {
-  if (!segment) {
-    return undefined;
-  }
-
-  const parsed = Number(segment);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return parsed;
-}
-
-
-
-

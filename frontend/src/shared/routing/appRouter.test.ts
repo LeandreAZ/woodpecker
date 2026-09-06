@@ -30,9 +30,10 @@ describe('appRouter', () => {
     expect(parseRoute('/solver')).toEqual({ name: 'training-detail' });
   });
 
-  it('normalise aussi les ids invalides sur les urls training secondaires', () => {
-    expect(parseRoute('/trainings/abc/import')).toEqual({ name: 'training-detail' });
-    expect(parseRoute('/trainings/0/solver')).toEqual({ name: 'training-detail' });
+  it('renvoie une 404 pour les ids invalides et les chemins inconnus', () => {
+    expect(parseRoute('/trainings/abc/import')).toEqual({ name: 'not-found', path: '/trainings/abc/import' });
+    expect(parseRoute('/trainings/0/solver')).toEqual({ name: 'not-found', path: '/trainings/0/solver' });
+    expect(parseRoute('/absent')).toEqual({ name: 'not-found', path: '/absent' });
   });
 
   it('compare les routes sur leur chemin canonique', () => {

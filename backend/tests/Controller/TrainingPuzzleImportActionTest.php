@@ -57,6 +57,26 @@ final class TrainingPuzzleImportActionTest extends TestCase
         );
     }
 
+    public function testAvailabilityFiltersBySpecificOpening(): void
+    {
+        $owner = (new User())->setEmail('owner@example.com');
+        $training = (new Training())->setName('Opening')->setOwner($owner);
+        $this->security->method('getUser')->willReturn($owner);
+        $this->trainingRepository->method('findOneOwnedByUser')->with(7, $owner)->willReturn($training);
+        $this->connection->method('fetchOne')->willReturnCallback(static function (string $sql, array $params = []): int {
+            if (str_contains($sql, 'count(*)')) {
+                self::assertStringContainsString('opening_tags && :opening::text[]', $sql);
+                self::assertSame('{sicilian_defense}', $params['opening']);
+                return 12;
+            }
+            return 1;
+        });
+        $response = $this->action->lichessAvailability(7, new Request(content: json_encode([
+            'count' => 10, 'minRating' => 800, 'maxRating' => 2400, 'opening' => ' Sicilian_Defense ',
+        ], JSON_THROW_ON_ERROR)));
+        self::assertSame(12, json_decode($response->getContent(), true)['availableCount']);
+    }
+
     public function testAnalyzeThenImportCsvReusesAnalysisIdCache(): void
     {
         $owner = (new User())->setEmail('owner@example.com');

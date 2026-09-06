@@ -44,7 +44,7 @@
   margin: 0;
   color: var(--color-text-primary);
   font-family: var(--font-family-primary);
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   line-height: 1.1;
 }
@@ -52,7 +52,8 @@
 .wp-detail-header__copy p {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .wp-detail-header__actions {
@@ -64,7 +65,8 @@
 }
 
 .wp-detail-header__action-group {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: var(--space-2);
 }
@@ -420,6 +422,7 @@
 }
 
 .wp-detail-problem-preview__cell {
+  color: #111827;
   display: grid;
   place-items: center;
   font-size: 7px;
@@ -684,7 +687,8 @@
 
 .wp-detail-side-row__timestamp,
 .tone-success,
-.tone-primary {
+.tone-primary,
+.tone-info {
   white-space: nowrap;
 }
 
@@ -694,6 +698,10 @@
 
 .tone-primary {
   color: var(--color-primary);
+}
+
+.tone-info {
+  color: var(--color-info);
 }
 
 .wp-detail-side-row__arrow {
@@ -799,12 +807,51 @@
   }
 }
 
+@media (min-width: 960px) {
+  .wp-detail-header__identity {
+    flex: 1 1 0;
+    overflow: hidden;
+  }
+
+  .wp-detail-header__copy h1,
+  .wp-detail-header__copy p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wp-detail-header__actions {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+
+  .wp-detail-header__action-group {
+    grid-template-columns: repeat(2, 48px);
+  }
+
+  .wp-detail-header__action-group > .wp-detail-button {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    padding: 0;
+    gap: 0;
+  }
+
+  .wp-detail-header__action-group > .wp-detail-button > span {
+    display: none;
+  }
+}
+
 @media (max-width: 959px) {
   .wp-detail-header,
   .wp-detail-cycle-status__grid {
     grid-template-columns: 1fr;
     display: grid;
     align-items: start;
+  }
+
+  .wp-detail-header__action-group {
+    width: 100%;
   }
 
   .wp-detail-header__actions {
@@ -1429,4 +1476,18 @@
   .wp-detail-side-row--attempt .wp-detail-side-row__timestamp {
     font-size: 0.82rem;
   }
+}
+
+.wp-detail-cycle-value {
+  font-weight: 700;
+}
+
+.wp-detail-modal-table :is(th, td):nth-child(n + 3) {
+  text-align: center;
+}
+
+.wp-detail-badge.is-primary {
+  color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.28);
 }

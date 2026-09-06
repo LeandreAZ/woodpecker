@@ -22,7 +22,7 @@ describe('apiRequest auth handling', () => {
     window.addEventListener(unauthorizedEventName, onUnauthorized);
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
 
-    await expect(apiRequest('/history/overview', { token: 'jwt-token' })).rejects.toThrow('network down');
+    await expect(apiRequest('/history/overview', { token: 'jwt-token' })).rejects.toThrow('Impossible de communiquer avec le serveur');
     expect(onUnauthorized).not.toHaveBeenCalled();
 
     window.removeEventListener(unauthorizedEventName, onUnauthorized);

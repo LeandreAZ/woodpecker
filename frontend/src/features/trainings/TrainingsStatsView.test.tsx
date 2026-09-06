@@ -161,7 +161,7 @@ describe('TrainingsStatsView', () => {
       />,
     );
 
-    expect(screen.getByText('Trainings les plus actifs')).toBeInTheDocument();
+    expect(screen.getByText('Entraînements les plus actifs')).toBeInTheDocument();
     expect(screen.getByText('Difficulté moy.')).toBeInTheDocument();
     expect(screen.getByText('Répartition du temps par training')).toBeInTheDocument();
     expect(screen.getByText('Répartition des résultats')).toBeInTheDocument();

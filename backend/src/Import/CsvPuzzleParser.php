@@ -1,15 +1,17 @@
 <?php
 namespace App\Import;
+
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Ryanhs\Chess\Chess;
+
 final class CsvPuzzleParser
 {
     private const MAX_FILE_SIZE = 26214400;
     private const REQUIRED_HEADERS = ['fen', 'moves', 'rating'];
     private const OPTIONAL_HEADERS = ['puzzleid', 'ratingdeviation', 'popularity', 'nbplays', 'themes', 'gameurl', 'openingtags'];
 
-    /** @return array{puzzles: list<NormalizedPuzzle>, errors: list<array{line: int, message: string}>, duplicates: list<array{line: int, message: string}>, rows: list<array<string, mixed>>, total: int} */
+    /** @return array{puzzles: list<NormalizedPuzzle>, errors: list<array{line: int, message: string}>, duplicates: list<array{line: int, message: string}>, rows: list<array<string, mixed>>, total: int, usefulRowCount: int, detectedHeaderCount: int, expectedHeaderCount: int} */
     public function parseUpload(?UploadedFile $file): array
     {
         if (!$file instanceof UploadedFile || !$file->isValid()) { throw new BadRequestHttpException('Choisis un fichier CSV valide.'); }
@@ -17,11 +19,16 @@ final class CsvPuzzleParser
         if ('csv' !== strtolower((string) $file->getClientOriginalExtension())) { throw new BadRequestHttpException('Le fichier doit etre au format CSV.'); }
         $handle = fopen($file->getPathname(), 'rb');
         if (false === $handle) { throw new BadRequestHttpException('Le fichier CSV est illisible.'); }
+
         try {
             $header = fgetcsv($handle);
             if (false === $header) { throw new BadRequestHttpException('Le fichier CSV est vide.'); }
+
             $headers = array_map(static fn (string $value): string => strtolower(trim(ltrim($value, "\xEF\xBB\xBF"))), $header);
-            if ([] !== array_diff(self::REQUIRED_HEADERS, $headers) || [] !== array_diff($headers, [...self::REQUIRED_HEADERS, ...self::OPTIONAL_HEADERS]) || count($headers) !== count(array_unique($headers))) { throw new BadRequestHttpException('En-tete CSV invalide: FEN, Moves et Rating sont obligatoires.'); }
+            if ([] !== array_diff(self::REQUIRED_HEADERS, $headers) || [] !== array_diff($headers, [...self::REQUIRED_HEADERS, ...self::OPTIONAL_HEADERS]) || count($headers) !== count(array_unique($headers))) {
+                throw new BadRequestHttpException('En-tete CSV invalide: FEN, Moves et Rating sont obligatoires.');
+            }
+
             $puzzles = [];
             $errors = [];
             $duplicates = [];
@@ -29,39 +36,89 @@ final class CsvPuzzleParser
             $fingerprints = [];
             $sourceIds = [];
             $lineNumber = 1;
+            $usefulRowCount = 0;
+
             while (false !== ($row = fgetcsv($handle))) {
                 ++$lineNumber;
                 if ([null] === $row || [] === $row) { continue; }
+
+                ++$usefulRowCount;
+
                 if (count($row) !== count($headers)) {
                     $errors[] = ['line' => $lineNumber, 'message' => 'Nombre de colonnes invalide.'];
                     $rows[] = ['line' => $lineNumber, 'status' => 'error', 'message' => 'Nombre de colonnes invalide.'];
                     continue;
                 }
+
+                $record = array_combine($headers, $row);
+                $normalizedRecord = is_array($record) ? $record : [];
+
                 try {
-                    $record = array_combine($headers, $row);
-                    $puzzle = $this->normalizeRecord(is_array($record) ? $record : []);
+                    $puzzle = $this->normalizeRecord($normalizedRecord);
                     if (isset($fingerprints[$puzzle->fingerprint()]) || (null !== $puzzle->sourceId && isset($sourceIds[$puzzle->sourceId]))) {
                         $duplicates[] = ['line' => $lineNumber, 'message' => 'Doublon detecte dans le fichier.'];
-                        $rows[] = ['line' => $lineNumber, 'status' => 'duplicate', 'duplicateReason' => 'file', 'message' => 'Doublon detecte dans le fichier.', 'rating' => $puzzle->rating, 'themes' => $puzzle->themes, 'sourceId' => $puzzle->sourceId, 'fingerprint' => $puzzle->fingerprint()];
+                        $rows[] = [
+                            'line' => $lineNumber,
+                            'status' => 'duplicate',
+                            'duplicateReason' => 'file',
+                            'message' => 'Doublon detecte dans le fichier.',
+                            'fen' => $puzzle->fen,
+                            'rating' => $puzzle->rating,
+                            'themes' => $puzzle->themes,
+                            'sourceId' => $puzzle->sourceId,
+                            'fingerprint' => $puzzle->fingerprint(),
+                        ];
                         continue;
                     }
+
                     $fingerprints[$puzzle->fingerprint()] = true;
                     if (null !== $puzzle->sourceId) { $sourceIds[$puzzle->sourceId] = true; }
+
                     $puzzles[] = $puzzle;
-                    $rows[] = ['line' => $lineNumber, 'status' => 'valid', 'rating' => $puzzle->rating, 'themes' => $puzzle->themes, 'sourceId' => $puzzle->sourceId, 'fingerprint' => $puzzle->fingerprint()];
+                    $rows[] = [
+                        'line' => $lineNumber,
+                        'status' => 'valid',
+                        'fen' => $puzzle->fen,
+                        'rating' => $puzzle->rating,
+                        'themes' => $puzzle->themes,
+                        'sourceId' => $puzzle->sourceId,
+                        'fingerprint' => $puzzle->fingerprint(),
+                    ];
                 } catch (\InvalidArgumentException $exception) {
                     $errors[] = ['line' => $lineNumber, 'message' => $exception->getMessage()];
-                    $rows[] = ['line' => $lineNumber, 'status' => 'error', 'message' => $exception->getMessage()];
+                    $rows[] = [
+                        'line' => $lineNumber,
+                        'status' => 'error',
+                        'message' => $exception->getMessage(),
+                        'fen' => $this->normalizeNullableString($normalizedRecord['fen'] ?? null),
+                        'rating' => $this->normalizeNullableString($normalizedRecord['rating'] ?? null),
+                        'themes' => $this->normalizeList($normalizedRecord['themes'] ?? null),
+                        'sourceId' => $this->normalizeNullableString($normalizedRecord['puzzleid'] ?? null),
+                    ];
                 }
             }
-            return ['puzzles' => $puzzles, 'errors' => $errors, 'duplicates' => $duplicates, 'rows' => $rows, 'total' => $lineNumber - 1];
-        } finally { fclose($handle); }
+
+            return [
+                'puzzles' => $puzzles,
+                'errors' => $errors,
+                'duplicates' => $duplicates,
+                'rows' => $rows,
+                'total' => $lineNumber - 1,
+                'usefulRowCount' => $usefulRowCount,
+                'detectedHeaderCount' => count($headers),
+                'expectedHeaderCount' => count([...self::REQUIRED_HEADERS, ...self::OPTIONAL_HEADERS]),
+            ];
+        } finally {
+            fclose($handle);
+        }
     }
 
     /** @param array<string, string> $record */
     public function normalizeRecord(array $record): NormalizedPuzzle
     {
-        $fen = trim((string) ($record['fen'] ?? '')); $moves = preg_split('/\s+/', trim((string) ($record['moves'] ?? ''))) ?: []; $rating = trim((string) ($record['rating'] ?? ''));
+        $fen = trim((string) ($record['fen'] ?? ''));
+        $moves = preg_split('/\s+/', trim((string) ($record['moves'] ?? ''))) ?: [];
+        $rating = trim((string) ($record['rating'] ?? ''));
         if ('' === $fen) { throw new \InvalidArgumentException('FEN obligatoire absente.'); }
         $this->validateFenAndMoves($fen, $moves);
         if ([] === $moves || [''] === $moves) { throw new \InvalidArgumentException('Solution UCI obligatoire absente.'); }
@@ -73,6 +130,7 @@ final class CsvPuzzleParser
         $sourceId = trim((string) ($record['puzzleid'] ?? ''));
         $themes = array_values(array_unique(array_filter(array_map(static fn (string $theme): string => strtolower(trim($theme)), preg_split('/[;,\s]+/', (string) ($record['themes'] ?? '')) ?: []))));
         $openingTags = array_values(array_unique(array_filter(array_map(static fn (string $tag): string => strtolower(trim($tag)), preg_split('/[;,\s]+/', (string) ($record['openingtags'] ?? '')) ?: []))));
+
         return new NormalizedPuzzle('' === $sourceId ? null : $sourceId, $fen, array_map('strtolower', $moves), (int) $rating, $themes, $openingTags);
     }
 
@@ -94,4 +152,19 @@ final class CsvPuzzleParser
         }
     }
 
+    private function normalizeNullableString(mixed $value): ?string
+    {
+        $normalizedValue = trim((string) $value);
+
+        return '' === $normalizedValue ? null : $normalizedValue;
+    }
+
+    /** @return list<string> */
+    private function normalizeList(mixed $value): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (string $item): string => strtolower(trim($item)),
+            preg_split('/[;,\s]+/', (string) $value) ?: [],
+        )));
+    }
 }

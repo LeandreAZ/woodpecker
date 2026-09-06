@@ -202,8 +202,16 @@ final class TrainingCycleHistoryAction
     private function withProgressDeltas(array $cycles): array
     {
         foreach ($cycles as $index => $cycle) {
-            $previousCycle = $cycles[$index + 1] ?? null;
-            $cycles[$index]['progressDelta'] = is_array($previousCycle)
+            $hasActivity = (($cycle['solved'] ?? 0) + ($cycle['failed'] ?? 0)) > 0;
+            $previousCycle = null;
+            for ($previousIndex = $index + 1, $count = count($cycles); $previousIndex < $count; $previousIndex++) {
+                $candidate = $cycles[$previousIndex];
+                if ((($candidate['solved'] ?? 0) + ($candidate['failed'] ?? 0)) > 0) {
+                    $previousCycle = $candidate;
+                    break;
+                }
+            }
+            $cycles[$index]['progressDelta'] = $hasActivity && is_array($previousCycle)
                 ? (int) (($cycle['successRate'] ?? 0) - ($previousCycle['successRate'] ?? 0))
                 : null;
         }

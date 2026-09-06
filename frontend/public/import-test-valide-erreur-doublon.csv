@@ -1,0 +1,4 @@
+PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags
+woodpecker-test-valid,8/8/8/8/8/8/4K3/4k3 w - - 0 1,e2e3 e1e2,1650,70,82,640,endgame,https://lichess.org/ghi789,King_and_Pawn
+woodpecker-test-valid,8/8/8/8/8/8/4K3/4k3 w - - 0 1,e2e3 e1e2,1650,70,82,640,endgame,https://lichess.org/ghi789,King_and_Pawn
+woodpecker-test-invalid,not-a-valid-fen,e2e4,1200,100,40,10,mistake,https://lichess.org/invalid,Unknown

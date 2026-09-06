@@ -95,7 +95,24 @@ function RoutingHarness({
 }
 
 describe('useTrainingsPanelRouting', () => {
-  it('recanonise une route detail avec training introuvable vers le training effectivement selectionne', async () => {
+  it('attend la sélection du training avant de canoniser une URL import directe', () => {
+    const onNavigate = vi.fn();
+    render(<RoutingHarness activeView="import" onNavigate={onNavigate} route={{ name: 'training-import', trainingId: 1 }} selectedTraining={null} trainings={[trainingOne]} />);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('synchronise une navigation externe sans bloquer le retour après une action', () => {
+    const onNavigate = vi.fn();
+    const props = { onNavigate, selectedTraining: trainingOne, trainings: [trainingOne], route: { name: 'training-import', trainingId: 1 } as AppRoute };
+    const { rerender } = render(<RoutingHarness {...props} activeView="detail" />);
+    expect(onNavigate).not.toHaveBeenCalled();
+    rerender(<RoutingHarness {...props} activeView="import" />);
+    expect(onNavigate).not.toHaveBeenCalled();
+    rerender(<RoutingHarness {...props} activeView="detail" />);
+    expect(onNavigate).toHaveBeenCalledWith({ name: 'training-detail', trainingId: 1 }, { replace: true });
+  });
+
+  it('conserve une ressource introuvable pour afficher la 404', async () => {
     const onNavigate = vi.fn();
 
     render(
@@ -109,7 +126,7 @@ describe('useTrainingsPanelRouting', () => {
     );
 
     await waitFor(() => {
-      expect(onNavigate).toHaveBeenCalledWith({ name: 'training-detail', trainingId: 1 }, { replace: true });
+      expect(onNavigate).not.toHaveBeenCalled();
     });
   });
 
@@ -132,7 +149,7 @@ describe('useTrainingsPanelRouting', () => {
     });
   });
 
-  it('recanonise une navigation solveur orpheline vers le detail si aucun training n est disponible', async () => {
+  it('conserve la route du solveur introuvable pour afficher la 404', async () => {
     const onNavigate = vi.fn();
 
     render(
@@ -146,7 +163,7 @@ describe('useTrainingsPanelRouting', () => {
     );
 
     await waitFor(() => {
-      expect(onNavigate).toHaveBeenCalledWith({ name: 'training-detail' }, { replace: true });
+      expect(onNavigate).not.toHaveBeenCalled();
     });
   });
 

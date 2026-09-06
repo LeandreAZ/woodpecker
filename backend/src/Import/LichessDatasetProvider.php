@@ -15,6 +15,18 @@ final class LichessDatasetProvider
     {
     }
 
+    /** @return array{themes: list<string>, openings: list<string>} */
+    public function filterOptions(): array
+    {
+        if (!$this->isConfigured()) {
+            return ['themes' => [], 'openings' => []];
+        }
+        return [
+            'themes' => $this->connection->fetchFirstColumn('SELECT DISTINCT unnest(themes) AS tag FROM lichess_catalog_puzzle ORDER BY tag'),
+            'openings' => $this->connection->fetchFirstColumn('SELECT DISTINCT unnest(opening_tags) AS tag FROM lichess_catalog_puzzle ORDER BY tag'),
+        ];
+    }
+
     public function isConfigured(): bool
     {
         try {
@@ -156,12 +168,32 @@ final class LichessDatasetProvider
             $where[] = "move_count <= :maxMoves";
             $parameters["maxMoves"] = (int) $criteria["maxMoves"];
         }
+        // Opening tags identify the originating opening, independently of puzzle phase.
         if (null !== $requiredTheme) {
-            $where[] = "themes @> :requiredTheme::text[]";
-            $parameters["requiredTheme"] = $this->arrayLiteral([$requiredTheme]);
+            $isOpening = str_starts_with($requiredTheme, 'opening:');
+            $column = $isOpening ? 'opening_tags' : 'themes';
+            $where[] = $column . " @> :requiredTheme::text[]";
+            $parameters["requiredTheme"] = $this->arrayLiteral([$isOpening ? substr($requiredTheme, 8) : $requiredTheme]);
         } elseif ([] !== ($criteria["themes"] ?? [])) {
-            $where[] = "themes && :themes::text[]";
-            $parameters["themes"] = $this->arrayLiteral($criteria["themes"]);
+            $themes = [];
+            $openings = [];
+            foreach ($criteria["themes"] as $category) {
+                if (str_starts_with($category, 'opening:')) {
+                    $openings[] = substr($category, 8);
+                } else {
+                    $themes[] = $category;
+                }
+            }
+            $alternatives = [];
+            if ([] !== $themes) {
+                $alternatives[] = "themes && :themes::text[]";
+                $parameters["themes"] = $this->arrayLiteral($themes);
+            }
+            if ([] !== $openings) {
+                $alternatives[] = "opening_tags && :openings::text[]";
+                $parameters["openings"] = $this->arrayLiteral($openings);
+            }
+            $where[] = '(' . implode(' OR ', $alternatives) . ')';
         }
         if ([] !== ($criteria["excludedThemes"] ?? [])) {
             $where[] = "NOT (themes && :excludedThemes::text[])";

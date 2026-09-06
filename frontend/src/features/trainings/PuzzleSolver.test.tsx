@@ -9,10 +9,16 @@ vi.mock('react-chessboard', () => ({
   }: {
     options: {
       boardOrientation?: string;
+      showNotation?: boolean;
+      squareStyles?: Record<string, unknown>;
+      onSquareClick: (args: { square: string }) => void;
       onPieceDrop: (args: { sourceSquare: string; targetSquare: string }) => boolean;
     };
   }) => (
     <div>
+      <div data-testid="notation">{String(options.showNotation)}</div>
+      <div data-testid="legal-e3">{JSON.stringify(options.squareStyles?.e3 ?? null)}</div>
+      <button type="button" onClick={() => options.onSquareClick({ square: 'e2' })}>Sélectionner e2</button>
       <div data-testid="board-orientation">{options.boardOrientation}</div>
       <button type="button" onClick={() => options.onPieceDrop({ sourceSquare: 'a2', targetSquare: 'a3' })}>
         Jouer erreur A
@@ -28,6 +34,19 @@ vi.mock('react-chessboard', () => ({
 }));
 
 describe('PuzzleSolver', () => {
+  it('désactive les coordonnées et les repères légaux puis les réactive', () => {
+    const view = render(<PuzzleSolver solution={['e2e4']} showCoordinates showLegalMoves />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sélectionner e2' }));
+    expect(screen.getByTestId('notation')).toHaveTextContent('true');
+    expect(screen.getByTestId('legal-e3')).not.toHaveTextContent('null');
+    view.rerender(<PuzzleSolver solution={['e2e4']} showCoordinates={false} showLegalMoves={false} />);
+    expect(screen.getByTestId('notation')).toHaveTextContent('false');
+    expect(screen.getByTestId('legal-e3')).toHaveTextContent('null');
+    view.rerender(<PuzzleSolver solution={['e2e4']} showCoordinates showLegalMoves />);
+    expect(screen.getByTestId('notation')).toHaveTextContent('true');
+    expect(screen.getByTestId('legal-e3')).not.toHaveTextContent('null');
+  });
+
   it('declenche le premier echec une seule fois puis reinitialise l etat de la tentative', () => {
     const onFirstMistake = vi.fn();
     const onStateChange = vi.fn();

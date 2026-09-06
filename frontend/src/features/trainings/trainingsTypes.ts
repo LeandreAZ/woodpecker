@@ -234,6 +234,7 @@ export type TrainingDashboardSummary = {
   puzzleCount: number;
   attemptCount: number;
   averageAttempts?: number;
+  averageRating?: number | null;
   activeDays?: number;
   completedAttemptCount?: number;
   completedPuzzleCount?: number;
@@ -245,6 +246,9 @@ export type TrainingDashboardSummary = {
   solvedCount: number;
   successfulAttemptCount?: number;
   successRate?: number;
+  latestCycleHasCompletedPuzzles?: boolean;
+  cycleOneHasCompletedPuzzles?: boolean;
+  progressSinceCycleOne?: number | null;
   failedCount: number;
   pendingCount: number;
   rescuedCount?: number;

@@ -1,3 +1,4 @@
+import { notify } from '../../shared/notifications';
 import { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiMultipartRequest, apiRequest } from '../../shared/api/client';
@@ -317,6 +318,7 @@ export function useTrainingsPanelActions(
         },
       }),
     onSuccess: async (training) => {
+      notify('Entraînement créé.');
       resetTrainingDraft();
       uiState.setSelectedTrainingIri(training['@id']);
       uiState.setSelectedTrainingPuzzleIri(null);
@@ -347,6 +349,7 @@ export function useTrainingsPanelActions(
       });
     },
     onSuccess: async (training) => {
+      notify('Entraînement enregistré.');
       hydrateTrainingDraft(training);
       uiState.setSelectedTrainingIri(training['@id']);
       uiState.setActiveView('detail');
@@ -367,6 +370,7 @@ export function useTrainingsPanelActions(
       return trainingIri;
     },
     onSuccess: async (deletedTrainingIri) => {
+      notify('Entraînement supprimé.');
       if (queries.effectiveSelectedTrainingIri === deletedTrainingIri) {
         const remainingTraining = (queries.trainingsQuery.data ?? []).find(
           (training) => training['@id'] !== deletedTrainingIri,
@@ -464,7 +468,7 @@ export function useTrainingsPanelActions(
       }
       const formData = new FormData();
       formData.append('file', file);
-      return apiMultipartRequest<{ analysisId: string; totalRows: number; validCount: number; errorCount: number; duplicateCount: number; importableCount: number; errors: { line: number; message: string }[]; rows: Array<{ line: number; status: 'valid' | 'error' | 'duplicate'; duplicateReason?: 'file' | 'training'; message?: string; rating?: number; themes?: string[]; sourceId?: string }>; preview?: Array<{ rating: number; themes: string[] }> }>(
+      return apiMultipartRequest<{ analysisId: string; totalRows: number; usefulRowCount: number; validCount: number; errorCount: number; duplicateCount: number; importableCount: number; detectedHeaderCount: number; expectedHeaderCount: number; errors: { line: number; message: string }[]; rows: Array<{ line: number; status: 'valid' | 'error' | 'duplicate'; duplicateReason?: 'file' | 'training'; message?: string; fen?: string | null; rating?: number | string | null; themes?: string[]; sourceId?: string | null }>; preview?: Array<{ rating: number; themes: string[] }> }>(
         apiPathFromIri(queries.effectiveSelectedTrainingIri) + '/imports/csv/analyze',
         formData,
         { token: session.token },
@@ -515,7 +519,8 @@ export function useTrainingsPanelActions(
         { method: 'POST', token: session.token, body: criteria },
       );
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      notify(`${result.importedCount} puzzles importés.`);
       uiState.setActiveView('detail');
       await invalidateTrainingData();
     },

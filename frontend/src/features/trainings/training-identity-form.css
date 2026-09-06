@@ -132,6 +132,24 @@
   line-height: 1.5;
 }
 
+.wp-training-identity-form__field input,
+.wp-training-identity-form__field textarea {
+  width: 100%;
+  color: #edf2fa;
+  background: var(--color-surface-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-medium);
+  padding: 14px 16px;
+  font: inherit;
+}
+
+.wp-training-identity-form__field input:focus,
+.wp-training-identity-form__field textarea:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+}
+
 .wp-training-identity-form__field textarea {
   min-height: 94px;
 }

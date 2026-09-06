@@ -40,10 +40,13 @@ final class TrainingPuzzleImportAction
         $this->cache->save($cacheItem);
         return new JsonResponse(['analysisId' => $analysisId,
             'totalRows' => $analysis['total'],
+            'usefulRowCount' => $analysis['usefulRowCount'] ?? $analysis['total'],
             'validCount' => $analysis['validCount'],
             'errorCount' => count($analysis['errors']),
             'duplicateCount' => $analysis['duplicateCount'],
             'importableCount' => $analysis['importableCount'],
+            'detectedHeaderCount' => $analysis['detectedHeaderCount'] ?? 0,
+            'expectedHeaderCount' => $analysis['expectedHeaderCount'] ?? 0,
             'errors' => $analysis['errors'],
             'duplicates' => $analysis['duplicates'],
             'rows' => $analysis['rows'],
@@ -68,6 +71,18 @@ final class TrainingPuzzleImportAction
         $puzzles = $this->csvAnalysisService->puzzlesForImport($analysis, $skipDuplicates);
         $cacheItem->expiresAfter(1); $this->cache->save($cacheItem);
         return new JsonResponse($this->importService->import($user, $training, $puzzles, 'csv', false), 201);
+    }
+
+    #[Route('/api/trainings/{id}/imports/lichess/options', name: 'api_training_lichess_import_options', methods: ['GET'])]
+    public function lichessOptions(int $id): JsonResponse
+    {
+        $this->trainingForCurrentUser($id);
+        $item = $this->cache->getItem('lichess-filter-options-v1');
+        if (!$item->isHit()) {
+            $item->set($this->lichessDatasetProvider->filterOptions())->expiresAfter(3600);
+            $this->cache->save($item);
+        }
+        return new JsonResponse($item->get());
     }
 
     #[Route('/api/trainings/{id}/imports/lichess/availability', name: 'api_training_lichess_import_availability', methods: ['POST'])]
@@ -131,7 +146,7 @@ final class TrainingPuzzleImportAction
             'distribution' => $distribution,
             'themeDistribution' => $themeDistribution,
             'phase' => in_array($payload['phase'] ?? null, ['opening', 'middlegame', 'endgame'], true) ? $payload['phase'] : null,
-            'opening' => null,
+            'opening' => is_string($payload['opening'] ?? null) ? (strtolower(trim($payload['opening'])) ?: null) : null,
             'sideToMove' => null,
             'minMoves' => $minMoves,
             'maxMoves' => $maxMoves,

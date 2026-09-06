@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ChessPawn, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChessPawn, ChevronLeft, ChevronRight, CirclePlay } from 'lucide-react';
 import * as AppIcons from '../../shared/AppIcons';
 import { PuzzleSolver, type PuzzleCompletionResult, type PuzzleSolverSnapshot } from './PuzzleSolver';
 import {
@@ -612,7 +612,17 @@ export function SolverView({
   }
 
   if (selectedTrainingPuzzle && (!currentCyclePuzzle || !hasActiveCycle || !activeTrainingSessionIri)) {
-    return <div className="wp-page solver-page"><div className="wp-empty-card"><h3>Aucun cycle actif exploitable</h3><p>Ce puzzle est affiché sans session de solver réellement active. Revenez au détail de l’entraînement puis démarrez ou reprenez un cycle avant d’ouvrir ce puzzle.</p><button className="wp-primary" type="button" onClick={onBackToDetail}>Retour au détail du training</button></div></div>;
+    return (
+      <div className="wp-page solver-page solver-page--empty">
+        <div className="wp-empty-card solver-empty-card">
+          <span className="solver-empty-card__icon"><CirclePlay aria-hidden="true" size={48} strokeWidth={1.7} /></span>
+          <h3>Aucun cycle démarré</h3>
+          <p>Le solveur ne peut donc pas être ouvert.</p>
+          <p>Démarrez ou reprenez un cycle depuis le détail de l'entraînement pour accéder au solveur.</p>
+          <button className="wp-primary" type="button" onClick={onBackToDetail}><ArrowLeft aria-hidden="true" size={20} />Retour au détail du training</button>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -303,7 +303,7 @@ describe('SolverView', () => {
       onPuzzleProgress,
     });
 
-    expect(screen.getByText('Aucun cycle actif exploitable')).toBeInTheDocument();
+    expect(screen.getByText('Aucun cycle démarré')).toBeInTheDocument();
     expect(screen.queryByTestId('puzzle-solver')).not.toBeInTheDocument();
 
     await act(async () => {

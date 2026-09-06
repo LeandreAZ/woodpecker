@@ -6,11 +6,12 @@ import {
   LogOut,
   Settings,
   Target,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import type { AppRoute } from '../../shared/routing/appRouter';
 import { OFFICIAL_WOODPECKER_LOGO } from '../../shared/brand';
-import type { Training, View } from '../../features/trainings/trainingsTypes';
+import type { Training, View, UserSettingsOverview } from '../../features/trainings/trainingsTypes';
 import './app-navigation.css';
 
 type AppNavigationProps = {
@@ -18,6 +19,7 @@ type AppNavigationProps = {
   onSelectView: (view: View) => void;
   route: AppRoute;
   selectedTraining: Training | null;
+  profile?: UserSettingsOverview['profile'];
 };
 
 type NavigationItem = {
@@ -36,13 +38,14 @@ const navigationItems: NavigationItem[] = [
   { icon: Settings, label: 'Paramètres', view: 'settings' },
 ];
 
-function AppNavigation({ onLogout, onSelectView, route, selectedTraining }: AppNavigationProps) {
+function AppNavigation({ profile, onLogout, onSelectView, route, selectedTraining }: AppNavigationProps) {
   const activeView = getActiveNavigationView(route);
   const hasSelectedTraining = Boolean(selectedTraining);
 
   return (
     <>
       <DesktopNavigation
+        profile={profile}
         activeView={activeView}
         hasSelectedTraining={hasSelectedTraining}
         onLogout={onLogout}
@@ -59,13 +62,14 @@ function AppNavigation({ onLogout, onSelectView, route, selectedTraining }: AppN
 }
 
 type SharedNavigationProps = {
+  profile?: UserSettingsOverview['profile'];
   activeView: View;
   hasSelectedTraining: boolean;
   onLogout: () => void;
   onSelectView: (view: View) => void;
 };
 
-function DesktopNavigation({ activeView, hasSelectedTraining, onLogout, onSelectView }: SharedNavigationProps) {
+function DesktopNavigation({ profile, activeView, hasSelectedTraining, onLogout, onSelectView }: SharedNavigationProps) {
   return (
     <aside className="wp-app-navigation wp-app-navigation--desktop" aria-label="Navigation principale">
       <div className="wp-app-navigation__panel">
@@ -88,6 +92,10 @@ function DesktopNavigation({ activeView, hasSelectedTraining, onLogout, onSelect
         </nav>
 
         <div className="wp-app-navigation__footer">
+          {profile ? <div className="wp-app-navigation__profile">
+            {profile.avatarUrl ? <img className="wp-app-navigation__avatar" src={profile.avatarUrl} alt="" /> : <span className="wp-app-navigation__avatar"><UserRound size={20} aria-hidden="true" /></span>}
+            <span title={profile.pseudonym}>{profile.pseudonym}</span>
+          </div> : null}
           <button className="wp-app-navigation__logout" type="button" onClick={onLogout}>
             <LogOut aria-hidden="true" size={20} strokeWidth={1.9} />
             <span>Déconnexion</span>
@@ -152,7 +160,7 @@ function NavigationButton({ active, compact, disabled, icon: Icon, label, onClic
       aria-label={compact ? label : undefined}
       className={className}
       disabled={disabled}
-      title={label}
+      title={disabled ? "Sélectionnez un entraînement pour accéder à cette page." : label}
       type="button"
       onClick={onClick}
     >
@@ -179,6 +187,7 @@ function getActiveNavigationView(route: AppRoute): View {
       return 'history';
     case 'user-settings':
       return 'settings';
+    case 'not-found':
     case 'auth':
       return 'dashboard';
   }

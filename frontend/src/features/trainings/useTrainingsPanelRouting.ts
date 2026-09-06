@@ -42,6 +42,8 @@ function useTrainingsPanelRouting({
   const routeKey = buildPathKey(route);
   const previousRouteKeyRef = useRef<string | null>(null);
 
+  const routeIsChanging = previousRouteKeyRef.current !== routeKey;
+
   useLayoutEffect(() => {
     const routeDidChange = previousRouteKeyRef.current !== routeKey;
     previousRouteKeyRef.current = routeKey;
@@ -52,6 +54,7 @@ function useTrainingsPanelRouting({
   }, [activeView, routeKey, setActiveView, targetView]);
 
   useEffect(() => {
+    if (route.name === 'not-found') return;
     const routeTrainingId = getRouteTrainingId(route);
     if (!routeTrainingId) {
       return;
@@ -81,6 +84,7 @@ function useTrainingsPanelRouting({
   ]);
 
   useEffect(() => {
+    if (route.name === 'not-found') return;
     const routeTrainingId = getRouteTrainingId(route);
     const routeTrainingExists = routeTrainingId
       ? trainings.some((training) => training.id === routeTrainingId)
@@ -91,18 +95,19 @@ function useTrainingsPanelRouting({
     }
 
     if (!routeTrainingExists) {
-      onNavigate(desiredRoute, { replace: true });
       return;
     }
 
-    if (routeTrainingId && selectedTraining && selectedTraining.id !== routeTrainingId) {
+    if (routeTrainingId && selectedTraining?.id !== routeTrainingId) {
       return;
     }
+
+    if (routeIsChanging && activeView !== targetView) return;
 
     if (!routesEqual(route, desiredRoute)) {
       onNavigate(desiredRoute, { replace: true });
     }
-  }, [desiredRoute, onNavigate, route, selectedTraining, trainings, trainingsArePending]);
+  }, [routeIsChanging, activeView, targetView, desiredRoute, onNavigate, route, selectedTraining, trainings, trainingsArePending]);
 
   function navigateToView(nextView: View) {
     flushSolverNavigationSnapshot();

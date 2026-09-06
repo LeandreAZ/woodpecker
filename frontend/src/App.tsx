@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AuthPage } from './features/auth/AuthPage';
 import { loadStoredSession, saveStoredSession, type AuthSession } from './features/auth/authStorage';
 import TrainingsPanelView from './features/trainings/TrainingsPanelView';
+import { StatePanel } from './components/ui/StatePanel';
 import { previewSession } from './features/trainings/previewData';
 import type { SupportedTheme } from './features/trainings/chessboardPreferences';
 import { getRouteDocumentTitle, useAppRoute } from './shared/routing/appRouter';
@@ -102,7 +103,7 @@ function App() {
       return;
     }
 
-    if (route.name !== 'auth') {
+    if (route.name !== 'auth' && route.name !== 'not-found') {
       navigate({ name: 'auth' }, { replace: true });
     }
   }, [navigate, route.name, session]);
@@ -172,6 +173,8 @@ function App() {
   if (session) {
     return <TrainingsPanelView onLogout={handleLogout} onNavigate={navigate} route={route} session={session} />;
   }
+
+  if (route.name === 'not-found') return <main style={{ padding: 24 }}><StatePanel kind="404" onBack={() => navigate({ name: 'dashboard' })} /></main>;
 
   return <AuthPage onAuthenticated={handleAuthenticated} sessionMessage={sessionMessage} />;
 }

@@ -1,3 +1,5 @@
+import { Input } from '../../components/ui/Input';
+import { LoadingButton } from '../../components/ui/LoadingButton';
 import { useEffect, useId, useState } from 'react';
 import { FileText, Palette, Pencil } from 'lucide-react';
 import { TrainingLogoBadge, resolveTrainingBranding } from './TrainingBranding';
@@ -139,7 +141,7 @@ export function TrainingIdentityFormView({
           className="wp-training-identity-form"
           onSubmit={(event) => {
             event.preventDefault();
-            onSubmit();
+            if (!disabled && name.trim()) onSubmit();
           }}
         >
           <div className="wp-training-identity-card__section-head">
@@ -153,7 +155,7 @@ export function TrainingIdentityFormView({
 
           <label className="wp-training-identity-form__field" htmlFor={nameId}>
             <span>Nom de l'entraînement <strong>*</strong></span>
-            <input
+            <Input
               id={nameId}
               maxLength={120}
               placeholder="Ex : Maîtrise des finales de tours"
@@ -212,13 +214,13 @@ export function TrainingIdentityFormView({
             </div>
           </div>
 
-          <button
+          <LoadingButton loading={disabled} loadingLabel={submitPendingLabel}
             className={'wp-primary wp-training-identity-form__submit wp-training-identity-form__submit--' + mode}
             disabled={disabled || name.trim().length === 0}
             type="submit"
           >
-            {disabled ? submitPendingLabel : submitLabel}
-          </button>
+            {submitLabel}
+          </LoadingButton>
         </form>
       </section>
 

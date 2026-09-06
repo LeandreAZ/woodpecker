@@ -1,3 +1,4 @@
+import { TrainingsQueryState } from './TrainingsQueryState';
 import { useEffect, useRef } from 'react';
 import type { CyclePuzzle, TrainingPuzzle, View } from './trainingsTypes';
 import { DashboardOverviewView } from './dashboard/DashboardOverviewView';
@@ -54,15 +55,15 @@ export default function TrainingsPanelContentScreen({
     hydratedEditTrainingIriRef.current = selectedTraining['@id'];
   }, [activeView, hydrateTrainingDraft, selectedTraining]);
   return (
-    <>
+    <TrainingsQueryState state={state} onBack={() => navigateToView('dashboard')}>
       <section className="wp-main">
       {state.activeView === 'dashboard' && (
         <DashboardOverviewView
           dashboardSummaries={state.dashboardSummariesQuery.data ?? []}
           errorMessage={state.dashboardSummariesQuery.error?.message ?? state.trainingsQuery.error?.message ?? state.statsOverviewQuery.error?.message}
           isError={state.dashboardSummariesQuery.isError || state.trainingsQuery.isError || state.statsOverviewQuery.isError}
-          isSummariesLoading={state.dashboardSummariesQuery.isLoading || state.dashboardSummariesQuery.isFetching}
-          isTrainingsLoading={state.trainingsQuery.isLoading || state.trainingsQuery.isFetching}
+          isSummariesLoading={state.dashboardSummariesQuery.isLoading}
+          isTrainingsLoading={state.trainingsQuery.isLoading}
           onCreate={() => navigateToView('create')}
           onOpenTraining={navigateToTraining}
           selectedTrainingIri={state.selectedTrainingIri}
@@ -251,6 +252,7 @@ export default function TrainingsPanelContentScreen({
           selectedTraining={state.selectedTraining}
           selectedTrainingPuzzle={state.selectedTrainingPuzzle}
           summary={state.trainingSummaryQuery.data ?? null}
+          userSettingsOverview={state.userSettingsOverviewQuery.data ?? null}
           trainingPuzzles={state.trainingPuzzlesQuery.data ?? emptySolverTrainingPuzzles}
         />
       )}
@@ -300,7 +302,7 @@ export default function TrainingsPanelContentScreen({
         />
       )}
       </section>
-    </>
+    </TrainingsQueryState>
   );
 }
 export { TrainingsPanelContentScreen };

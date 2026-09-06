@@ -1,16 +1,17 @@
+import { QueryClientContext } from '@tanstack/react-query';
+import { LoadingButton } from '../../components/ui/LoadingButton';
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import {
   Camera,
+  LoaderCircle,
   Eye,
   Languages,
   Moon,
-  MousePointerClick,
   Palette,
   Pencil,
-  Sparkles,
   Save,
   Sun,
   Trash2,
@@ -222,7 +223,7 @@ function InteractiveBoardPreview({ palette, showCoordinates, showLegalMoves }: {
   );
 }
 
-function ModalShell({ children, onClose, subtitle, title }: { children: ReactNode; onClose: () => void; subtitle?: string; title: string; }) {
+function ModalShell({ children, feedback, onClose, subtitle, title }: { feedback?: ReactNode; children: ReactNode; onClose: () => void; subtitle?: string; title: string; }) {
   return (
     <div className="wp-settings-v2-modal-card">
       <div className="wp-settings-v2-modal-card__header">
@@ -235,7 +236,7 @@ function ModalShell({ children, onClose, subtitle, title }: { children: ReactNod
         </button>
       </div>
       <div className="wp-settings-v2-modal-card__divider" />
-      <div className="wp-settings-v2-modal-card__body">{children}</div>
+      <div className="wp-settings-v2-modal-card__body">{feedback}{children}</div>
     </div>
   );
 }
@@ -253,6 +254,7 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
   const [draft, setDraft] = useState<DraftSettings>(() => createDraft(settingsOverview));
   const [boardDraft, setBoardDraft] = useState<DraftSettings['board']>(() => createDraft(settingsOverview).board);
   const [modal, setModal] = useState<ModalState>(null);
+  const queryClient = useContext(QueryClientContext);
   const [feedback, setFeedback] = useState<{ tone: FeedbackTone; value: string } | null>(null);
   const [emailDraft, setEmailDraft] = useState({ currentPassword: '', email: '' });
   const [passwordDraft, setPasswordDraft] = useState({ confirmPassword: '', currentPassword: '', newPassword: '' });
@@ -277,6 +279,7 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
 
   async function persistDraft(nextDraft: DraftSettings, message: string) {
     setFeedback(null);
+    try {
     const payload = await onSave({
       appearance: nextDraft.appearance,
       board: nextDraft.board,
@@ -288,26 +291,32 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
     setDraft(syncedDraft);
     setBoardDraft(syncedDraft.board);
     setFeedback({ tone: 'success', value: message });
+    return true;
+    } catch (error) {
+      setFeedback({ tone: 'error', value: error instanceof Error ? error.message : 'Impossible d’enregistrer les préférences.' });
+      return false;
+    }
   }
 
   async function handleSettingsSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSaving) return;
     await persistDraft(draft, 'Préférences enregistrées.');
   }
 
   async function handleBoardSave() {
+    if (isSaving) return;
     const nextBoard = {
       darkSquareColor: normalizeHexColor(boardDraft.darkSquareColor, draft.board.darkSquareColor),
       lightSquareColor: normalizeHexColor(boardDraft.lightSquareColor, draft.board.lightSquareColor),
     };
     const nextDraft = { ...draft, board: nextBoard };
     setBoardDraft(nextBoard);
-    await persistDraft(nextDraft, 'Palette de l\'échiquier enregistrée.');
-    setModal(null);
+    if (await persistDraft(nextDraft, 'Palette de l\'échiquier enregistrée.')) setModal(null);
   }
 
   async function handleAvatarUpload(file: File | null) {
-    if (!file) {
+    if (!file || isUploadingAvatar) {
       return;
     }
 
@@ -329,6 +338,7 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
       const formData = new FormData();
       formData.append('avatar', file);
       const payload = await apiMultipartRequest<UserSettingsOverview>('/users/me/avatar', formData, { method: 'POST', token: session.token });
+      queryClient?.setQueryData(['user-settings-overview', session.email], payload);
       const nextDraft = createDraft(payload);
       setDraft(nextDraft);
       setBoardDraft(nextDraft.board);
@@ -342,6 +352,7 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
 
   async function handleEmailSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSavingCredential) return;
     setIsSavingCredential(true);
     setFeedback(null);
     try {
@@ -352,6 +363,7 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
         body: emailDraft,
       });
       saveStoredSession({ ...session, email: payload.user.email });
+      queryClient?.setQueryData(['user-settings-overview', session.email], payload);
       setDraft(createDraft(payload));
       setModal(null);
       setEmailDraft({ currentPassword: '', email: payload.user.email });
@@ -365,6 +377,11 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
 
   async function handlePasswordSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSavingCredential) return;
+    if (passwordDraft.newPassword.length < 8) {
+      setFeedback({ tone: 'error', value: 'Saisissez au moins 8 caractères.' });
+      return;
+    }
     setIsSavingCredential(true);
     setFeedback(null);
     try {
@@ -386,6 +403,7 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
 
   async function handleDelete(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSavingCredential) return;
     setIsSavingCredential(true);
     setFeedback(null);
     try {
@@ -409,7 +427,7 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
       {isLoading ? <p className="wp-empty">Chargement des paramètres...</p> : null}
       {isError && errorMessage ? <p className="alert error-alert">{errorMessage}</p> : null}
       {saveErrorMessage ? <p className="alert error-alert">{saveErrorMessage}</p> : null}
-      {feedback ? <p className={`alert ${feedback.tone === 'error' ? 'error-alert' : 'info-alert'}`}>{feedback.value}</p> : null}
+      {feedback && !modal ? <p role={feedback.tone === 'error' ? 'alert' : 'status'} className={`alert ${feedback.tone === 'error' ? 'error-alert' : 'info-alert'}`}>{feedback.value}</p> : null}
 
       {settingsOverview ? (
         <form className="wp-settings-v2-form" onSubmit={handleSettingsSubmit}>
@@ -418,9 +436,9 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
               <div className="wp-settings-v2-card__title"><UserRound size={18} strokeWidth={1.9} /><h3>Profil</h3></div>
               <div className="wp-settings-v2-profile-head">
                 <label className="wp-settings-v2-avatar-wrap">
-                  <input accept={AVATAR_ACCEPT} className="wp-settings-v2-avatar-input" type="file" onChange={(event) => void handleAvatarUpload(event.target.files?.[0] ?? null)} />
+                  <input aria-label="Modifier la photo de profil" disabled={isUploadingAvatar} accept={AVATAR_ACCEPT} className="wp-settings-v2-avatar-input" type="file" onChange={(event) => void handleAvatarUpload(event.target.files?.[0] ?? null)} />
                   <SettingsAvatar avatarUrl={draft.profile.avatarUrl} pseudonym={draft.profile.pseudonym} />
-                  <span className="wp-settings-v2-avatar-trigger" aria-hidden="true"><Camera size={16} strokeWidth={1.9} /></span>
+                  <span className="wp-settings-v2-avatar-trigger" aria-hidden="true"><>{isUploadingAvatar ? <LoaderCircle className="ui-spinner" size={16} /> : <Camera size={16} strokeWidth={1.9} />}</></span>
                 </label>
                 <div className="wp-settings-v2-profile-copy">
                   <strong>{draft.profile.pseudonym || 'Profil Woodpecker'}</strong>
@@ -451,8 +469,8 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
             <section className="wp-panel wp-settings-v2-card">
               <div className="wp-settings-v2-card__title"><Languages size={18} strokeWidth={1.9} /><h3>Apparence</h3></div>
               <div className="wp-settings-v2-theme-grid">
-                <button aria-disabled="true" className={`wp-settings-v2-theme-option${draft.appearance.theme === 'dark' ? ' is-selected' : ''}`} type="button"><Moon size={18} strokeWidth={1.9} /><span>Sombre</span></button>
-                <button aria-disabled="true" className={`wp-settings-v2-theme-option${draft.appearance.theme === 'light' ? ' is-selected' : ''}`} type="button"><Sun size={18} strokeWidth={1.9} /><span>Clair</span></button>
+                <button disabled title="Le choix du thème sera disponible prochainement." aria-disabled="true" className={`wp-settings-v2-theme-option${draft.appearance.theme === 'dark' ? ' is-selected' : ''}`} type="button"><Moon size={18} strokeWidth={1.9} /><span>Sombre</span></button>
+                <button disabled title="Le choix du thème sera disponible prochainement." aria-disabled="true" className={`wp-settings-v2-theme-option${draft.appearance.theme === 'light' ? ' is-selected' : ''}`} type="button"><Sun size={18} strokeWidth={1.9} /><span>Clair</span></button>
               </div>
               <label className="wp-settings-v2-field">
                 <span>Langue</span>
@@ -485,64 +503,62 @@ function TrainingsSettingsViewV2({ errorMessage, isError, isLoading, isSaving, o
               <div className="wp-settings-v2-toggle-list">
                 <ToggleRow checked={draft.solverPreferences.showCoordinates} description="Affiche les coordonnées sur l'échiquier du solver et l'aperçu." icon={<Languages size={18} strokeWidth={1.9} />} label="Afficher les coordonnées" onChange={(nextValue) => setDraft((current) => ({ ...current, solverPreferences: { ...current.solverPreferences, showCoordinates: nextValue } }))} />
                 <ToggleRow checked={draft.solverPreferences.showLegalMoves} description="Affiche les coups légaux dans le solver et l'aperçu quand une pièce est sélectionnée." icon={<Eye size={18} strokeWidth={1.9} />} label="Afficher les coups légaux" onChange={(nextValue) => setDraft((current) => ({ ...current, solverPreferences: { ...current.solverPreferences, showLegalMoves: nextValue } }))} />
-                <ToggleRow checked={draft.solverPreferences.animateMoves} description="Anime les coups joués dans le solver réel." icon={<Sparkles size={18} strokeWidth={1.9} />} label="Animer les coups" onChange={(nextValue) => setDraft((current) => ({ ...current, solverPreferences: { ...current.solverPreferences, animateMoves: nextValue } }))} />
-                <ToggleRow checked={draft.solverPreferences.showRightClickTargets} description="Affiche les repères au clic droit dans le solver réel." icon={<MousePointerClick size={18} strokeWidth={1.9} />} label="Repères au clic droit" onChange={(nextValue) => setDraft((current) => ({ ...current, solverPreferences: { ...current.solverPreferences, showRightClickTargets: nextValue } }))} />
               </div>
             </section>
           </div>
 
           <div className="wp-settings-v2-footer-actions">
-            <button className="wp-primary" disabled={!isDirty || isSaving} type="submit"><Save size={18} strokeWidth={1.9} /><span>{isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}</span></button>
+            <LoadingButton loadingLabel="Enregistrement…" loading={isSaving} className="wp-primary" disabled={!isDirty || isSaving} type="submit"><Save size={18} strokeWidth={1.9} /><span>{isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}</span></LoadingButton>
           </div>
 
           <section className="wp-panel wp-settings-v2-card wp-settings-v2-card--danger">
             <div className="wp-settings-v2-card__title"><Trash2 size={18} strokeWidth={1.9} /><h3>Suppression du compte</h3></div>
-            <p className="wp-settings-v2-danger-copy">Cette action supprime votre compte et les données associées à vos entraînements dans cette base de développement.</p>
+            <p className="wp-settings-v2-danger-copy">Cette action supprime votre compte et les données associées à vos entraînements de manière définitive.</p>
             <button className="wp-secondary wp-settings-v2-danger-button" type="button" onClick={() => setModal('delete')}><Trash2 size={16} strokeWidth={1.9} /><span>Supprimer mon compte</span></button>
           </section>
         </form>
       ) : null}
 
-      <Modal contentClassName="ui-modal__content--plain" open={modal === 'board'} onClose={() => setModal(null)}>
-        <ModalShell onClose={() => setModal(null)} subtitle="Prévisualisez vos modifications en temps réel." title="Personnaliser l'échiquier">
+      <Modal contentClassName="ui-modal__content--plain wp-settings-v2-board-dialog" open={modal === 'board'} onClose={() => setModal(null)}>
+        <ModalShell feedback={feedback?.tone === 'error' ? <p role="alert" className="alert error-alert">{feedback.value}</p> : saveErrorMessage ? <p role="alert" className="alert error-alert">{saveErrorMessage}</p> : null} onClose={() => setModal(null)} subtitle="Prévisualisez vos modifications en temps réel." title="Personnaliser l'échiquier">
           <div className="wp-settings-v2-board-modal">
             <InteractiveBoardPreview palette={boardDraft} showCoordinates={draft.solverPreferences.showCoordinates} showLegalMoves={draft.solverPreferences.showLegalMoves} />
             <div className="wp-settings-v2-board-modal__controls">
               <label className="wp-settings-v2-field"><span>Cases claires</span><div className="wp-settings-v2-color-field"><label className="wp-settings-v2-color-swatch"><input type="color" value={normalizeHexColor(boardDraft.lightSquareColor, draft.board.lightSquareColor)} onChange={(event) => setBoardDraft((current) => ({ ...current, lightSquareColor: event.target.value.toUpperCase() }))} /><span style={{ backgroundColor: normalizeHexColor(boardDraft.lightSquareColor, draft.board.lightSquareColor) }} /></label><Input maxLength={7} value={boardDraft.lightSquareColor} onChange={(event) => setBoardDraft((current) => ({ ...current, lightSquareColor: event.target.value.toUpperCase() }))} /></div></label>
               <label className="wp-settings-v2-field"><span>Cases foncées</span><div className="wp-settings-v2-color-field"><label className="wp-settings-v2-color-swatch"><input type="color" value={normalizeHexColor(boardDraft.darkSquareColor, draft.board.darkSquareColor)} onChange={(event) => setBoardDraft((current) => ({ ...current, darkSquareColor: event.target.value.toUpperCase() }))} /><span style={{ backgroundColor: normalizeHexColor(boardDraft.darkSquareColor, draft.board.darkSquareColor) }} /></label><Input maxLength={7} value={boardDraft.darkSquareColor} onChange={(event) => setBoardDraft((current) => ({ ...current, darkSquareColor: event.target.value.toUpperCase() }))} /></div></label>
-              <button className="wp-primary" disabled={isSaving} type="button" onClick={() => void handleBoardSave()}><Save size={16} strokeWidth={1.9} /><span>Enregistrer les modifications</span></button>
+              <LoadingButton loadingLabel="Enregistrement…" loading={isSaving} className="wp-primary" disabled={isSaving} type="button" onClick={() => void handleBoardSave()}><Save size={16} strokeWidth={1.9} /><span>Enregistrer les modifications</span></LoadingButton>
             </div>
           </div>
         </ModalShell>
       </Modal>
 
       <Modal contentClassName="ui-modal__content--plain" open={modal === 'email'} onClose={() => setModal(null)}>
-        <ModalShell onClose={() => setModal(null)} title="Modifier l'adresse e-mail">
+        <ModalShell feedback={feedback?.tone === 'error' ? <p role="alert" className="alert error-alert">{feedback.value}</p> : saveErrorMessage ? <p role="alert" className="alert error-alert">{saveErrorMessage}</p> : null} onClose={() => setModal(null)} title="Modifier l'adresse e-mail">
           <form className="wp-settings-v2-modal-form" onSubmit={(event) => void handleEmailSave(event)}>
-            <label className="wp-settings-v2-field"><span>Nouvelle adresse e-mail</span><Input autoComplete="email" value={emailDraft.email} onChange={(event) => setEmailDraft((current) => ({ ...current, email: event.target.value }))} /></label>
-            <label className="wp-settings-v2-field"><span>Mot de passe actuel</span><Input autoComplete="current-password" type="password" value={emailDraft.currentPassword} onChange={(event) => setEmailDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label>
-            <button className="wp-primary" disabled={isSavingCredential} type="submit"><Save size={16} strokeWidth={1.9} /><span>{isSavingCredential ? 'Enregistrement...' : 'Enregistrer'}</span></button>
+            <label className="wp-settings-v2-field"><span>Nouvelle adresse e-mail</span><Input required type="email" autoComplete="email" value={emailDraft.email} onChange={(event) => setEmailDraft((current) => ({ ...current, email: event.target.value }))} /></label>
+            <label className="wp-settings-v2-field"><span>Mot de passe actuel</span><Input required autoComplete="current-password" type="password" value={emailDraft.currentPassword} onChange={(event) => setEmailDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label>
+            <LoadingButton loadingLabel="Enregistrement…" loading={isSavingCredential} className="wp-primary" disabled={isSavingCredential} type="submit"><Save size={16} strokeWidth={1.9} /><span>{isSavingCredential ? 'Enregistrement...' : 'Enregistrer'}</span></LoadingButton>
           </form>
         </ModalShell>
       </Modal>
 
       <Modal contentClassName="ui-modal__content--plain" open={modal === 'password'} onClose={() => setModal(null)}>
-        <ModalShell onClose={() => setModal(null)} title="Modifier le mot de passe">
+        <ModalShell feedback={feedback?.tone === 'error' ? <p role="alert" className="alert error-alert">{feedback.value}</p> : saveErrorMessage ? <p role="alert" className="alert error-alert">{saveErrorMessage}</p> : null} onClose={() => setModal(null)} title="Modifier le mot de passe">
           <form className="wp-settings-v2-modal-form" onSubmit={(event) => void handlePasswordSave(event)}>
-            <label className="wp-settings-v2-field"><span>Mot de passe actuel</span><Input autoComplete="current-password" type="password" value={passwordDraft.currentPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label>
-            <label className="wp-settings-v2-field"><span>Nouveau mot de passe</span><Input autoComplete="new-password" type="password" value={passwordDraft.newPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }))} /></label>
-            <label className="wp-settings-v2-field"><span>Confirmation</span><Input autoComplete="new-password" type="password" value={passwordDraft.confirmPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, confirmPassword: event.target.value }))} /></label>
-            <button className="wp-primary" disabled={isSavingCredential} type="submit"><Save size={16} strokeWidth={1.9} /><span>{isSavingCredential ? 'Enregistrement...' : 'Enregistrer'}</span></button>
+            <label className="wp-settings-v2-field"><span>Mot de passe actuel</span><Input required autoComplete="current-password" type="password" value={passwordDraft.currentPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label>
+            <label className="wp-settings-v2-field"><span>Nouveau mot de passe</span><Input required minLength={8} autoComplete="new-password" type="password" value={passwordDraft.newPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }))} /></label>
+            <label className="wp-settings-v2-field"><span>Confirmation</span><Input required autoComplete="new-password" type="password" value={passwordDraft.confirmPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, confirmPassword: event.target.value }))} /></label>
+            <LoadingButton loadingLabel="Enregistrement…" loading={isSavingCredential} className="wp-primary" disabled={isSavingCredential} type="submit"><Save size={16} strokeWidth={1.9} /><span>{isSavingCredential ? 'Enregistrement...' : 'Enregistrer'}</span></LoadingButton>
           </form>
         </ModalShell>
       </Modal>
 
       <Modal contentClassName="ui-modal__content--plain" open={modal === 'delete'} onClose={() => setModal(null)}>
-        <ModalShell onClose={() => setModal(null)} subtitle="Cette action est irréversible." title="Supprimer le compte">
+        <ModalShell feedback={feedback?.tone === 'error' ? <p role="alert" className="alert error-alert">{feedback.value}</p> : saveErrorMessage ? <p role="alert" className="alert error-alert">{saveErrorMessage}</p> : null} onClose={() => setModal(null)} subtitle="Cette action est irréversible." title="Supprimer le compte">
           <form className="wp-settings-v2-modal-form" onSubmit={(event) => void handleDelete(event)}>
-            <label className="wp-settings-v2-field"><span>Confirmez votre adresse e-mail</span><Input autoComplete="email" value={deleteDraft.email} onChange={(event) => setDeleteDraft((current) => ({ ...current, email: event.target.value }))} /></label>
-            <label className="wp-settings-v2-field"><span>Mot de passe actuel</span><Input autoComplete="current-password" type="password" value={deleteDraft.currentPassword} onChange={(event) => setDeleteDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label>
-            <button className="wp-secondary wp-settings-v2-danger-button" disabled={isSavingCredential} type="submit"><Trash2 size={16} strokeWidth={1.9} /><span>{isSavingCredential ? 'Suppression...' : 'Supprimer définitivement'}</span></button>
+            <label className="wp-settings-v2-field"><span>Confirmez votre adresse e-mail</span><Input required type="email" autoComplete="email" value={deleteDraft.email} onChange={(event) => setDeleteDraft((current) => ({ ...current, email: event.target.value }))} /></label>
+            <label className="wp-settings-v2-field"><span>Mot de passe actuel</span><Input required autoComplete="current-password" type="password" value={deleteDraft.currentPassword} onChange={(event) => setDeleteDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label>
+            <LoadingButton loadingLabel="Suppression…" loading={isSavingCredential} className="wp-secondary wp-settings-v2-danger-button" disabled={isSavingCredential} type="submit"><Trash2 size={16} strokeWidth={1.9} /><span>{isSavingCredential ? 'Suppression...' : 'Supprimer définitivement'}</span></LoadingButton>
           </form>
         </ModalShell>
       </Modal>

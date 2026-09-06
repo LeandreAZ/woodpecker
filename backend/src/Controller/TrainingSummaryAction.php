@@ -262,8 +262,16 @@ final class TrainingSummaryAction
     private function withProgressDeltas(array $cycleSummaries): array
     {
         foreach ($cycleSummaries as $index => $cycleSummary) {
-            $previousCycle = $cycleSummaries[$index + 1] ?? null;
-            $cycleSummaries[$index]['progressDelta'] = is_array($previousCycle)
+            $hasActivity = (($cycleSummary['solved'] ?? 0) + ($cycleSummary['failed'] ?? 0)) > 0;
+            $previousCycle = null;
+            for ($previousIndex = $index + 1, $count = count($cycleSummaries); $previousIndex < $count; $previousIndex++) {
+                $candidate = $cycleSummaries[$previousIndex];
+                if ((($candidate['solved'] ?? 0) + ($candidate['failed'] ?? 0)) > 0) {
+                    $previousCycle = $candidate;
+                    break;
+                }
+            }
+            $cycleSummaries[$index]['progressDelta'] = $hasActivity && is_array($previousCycle)
                 ? (int) (($cycleSummary['successRate'] ?? 0) - ($previousCycle['successRate'] ?? 0))
                 : null;
         }

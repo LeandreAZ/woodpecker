@@ -422,7 +422,7 @@ describe('DetailView', () => {
     expect(screen.getByText('Collection verrouillée')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Historique des cycles' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Dernières tentatives' })).toBeInTheDocument();
-    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(screen.getByText('86%')).toBeInTheDocument();
     expect(screen.getByText('+12%')).toBeInTheDocument();
     expect(screen.getByText('1,4')).toBeInTheDocument();
 

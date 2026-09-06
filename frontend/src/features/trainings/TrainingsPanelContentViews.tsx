@@ -1,19 +1,25 @@
+import { LoadingButton } from '../../components/ui/LoadingButton';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   ChevronDown,
-  Circle,
   CircleX,
+  Copy,
   Download,
   FileSpreadsheet,
-  Pencil,
+  Info,
   Search,
   Sparkles,
+  Trash2,
   UploadCloud,
 } from 'lucide-react';
+import { apiRequest } from '../../shared/api/client';
+import { loadStoredSession } from '../auth/authStorage';
 import TrainingsHistoryView from './TrainingsHistoryViewV2';
 import TrainingsSettingsView from './TrainingsSettingsViewV2';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { PageHeader } from './TrainingsViewPrimitives';
 import type {
   HistoryFilterPreset,
@@ -26,10 +32,13 @@ import type {
 } from './trainingsTypes';
 
 type CsvAnalysisPreview = { rating: number; themes: string[] };
-type CsvAnalysisRow = { line: number; status: 'valid' | 'error' | 'duplicate'; duplicateReason?: 'file' | 'training'; message?: string; rating?: number; themes?: string[]; sourceId?: string };
+type CsvAnalysisRow = { line: number; status: 'valid' | 'error' | 'duplicate'; duplicateReason?: 'file' | 'training'; fen?: string | null; message?: string; rating?: number | string | null; themes?: string[]; sourceId?: string | null };
 type CsvAnalysis = {
   analysisId: string;
   totalRows: number;
+  usefulRowCount?: number;
+  detectedHeaderCount?: number;
+  expectedHeaderCount?: number;
   validCount: number;
   errorCount: number;
   duplicateCount: number;
@@ -48,12 +57,49 @@ type LichessCriteria = {
   minMoves?: number;
   maxMoves?: number;
 };
-type CsvStep = 1 | 2 | 3 | 4;
+type CsvStep = 1 | 2 | 3;
 type CsvImportOptions = { analysisId: string; skipDuplicates: boolean; skipErroredPuzzles: boolean };
 
 const QUICK_PUZZLE_COUNTS = [100, 300, 500, 1000] as const;
+const PIECE_SYMBOLS: Record<string, string> = {
+  K: '♔',
+  Q: '♕',
+  R: '♖',
+  B: '♗',
+  N: '♘',
+  P: '♙',
+  k: '♚',
+  q: '♛',
+  r: '♜',
+  b: '♝',
+  n: '♞',
+  p: '♟',
+};
 
 const LICHESS_THEME_OPTIONS = [
+  { label: 'Attaque sur f2 ou f7', value: 'attackingf2f7' },
+  { label: 'Mat de Balestra', value: 'balestramate' },
+  { label: 'Mat des deux cochons', value: 'blindswinemate' },
+  { label: 'Capture du défenseur', value: 'capturingdefender' },
+  { label: 'Coup colinéaire', value: 'collinearmove' },
+  { label: 'Mat du coin', value: 'cornermate' },
+  { label: 'Avantage décisif', value: 'crushing' },
+  { label: 'Échec à la découverte', value: 'discoveredcheck' },
+  { label: 'Prise en passant', value: 'enpassant' },
+  { label: 'Mat des épaulettes', value: 'epaulettemate' },
+  { label: 'Mat de la boîte', value: 'killboxmate' },
+  { label: 'Long', value: 'long' },
+  { label: 'Maître contre maître', value: 'mastervsmaster' },
+  { label: 'Mat de Morphy', value: 'morphysmate' },
+  { label: 'Mat de l’opéra', value: 'operamate' },
+  { label: 'Mat de Pillsbury', value: 'pillsburysmate' },
+  { label: 'Promotion', value: 'promotion' },
+  { label: 'Coup calme', value: 'quietmove' },
+  { label: 'Super grand maître', value: 'supergm' },
+  { label: 'Mat de la queue d’hirondelle', value: 'swallowstailmate' },
+  { label: 'Mat du triangle', value: 'trianglemate' },
+  { label: 'Mat de Vuković', value: 'vukovicmate' },
+
   { label: 'Pion avancé', value: 'advancedpawn' },
   { label: 'Avantage', value: 'advantage' },
   { label: 'Mat d’Anastasie', value: 'anastasiamate' },
@@ -149,17 +195,42 @@ export function ImportView({
   const [maxRating, setMaxRating] = useState(2400);
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   const [themeQuery, setThemeQuery] = useState('');
+  const [catalogOptions, setCatalogOptions] = useState<{ themes: string[]; openings: string[] }>({ themes: [], openings: [] });
+  const [optionsError, setOptionsError] = useState('');
+  const trainingIri = selectedTraining?.['@id'];
+  useEffect(() => {
+    const session = loadStoredSession();
+    if (!session || !trainingIri) return;
+    let cancelled = false;
+    setOptionsError('');
+    void apiRequest<{ themes: string[]; openings: string[] }>(`${trainingIri.replace(/^\/api/, '')}/imports/lichess/options`, { token: session.token })
+      .then((options) => { if (!cancelled) setCatalogOptions(options); })
+      .catch(() => { if (!cancelled) setOptionsError('Les thèmes supplémentaires et les ouvertures sont indisponibles pour le moment.'); });
+    return () => { cancelled = true; };
+  }, [trainingIri]);
+  const themeOptions = useMemo(() => [
+    ...LICHESS_THEME_OPTIONS,
+    ...catalogOptions.themes.filter((value) => !LICHESS_THEME_OPTIONS.some((option) => option.value === value))
+      .map((value) => ({ value, label: value.replace(/_/g, ' ') })),
+  ], [catalogOptions.themes]);
+  const searchOptions = useMemo(() => [
+    ...themeOptions.map((option) => ({ ...option, kind: ['opening', 'middlegame', 'endgame'].includes(option.value) ? 'phase' : 'theme' })),
+    ...catalogOptions.openings.map((value) => ({ value: `opening:${value}`, label: value.replace(/_/g, ' '), kind: 'opening' })),
+  ], [themeOptions, catalogOptions.openings]);
   const [distribution, setDistribution] = useState<'random' | 'custom'>('random');
   const [minMoves, setMinMoves] = useState('');
   const [maxMoves, setMaxMoves] = useState('');
   const [themeDistribution, setThemeDistribution] = useState<Record<string, number>>({});
   const [availablePuzzleCount, setAvailablePuzzleCount] = useState<number | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
-  const [skipDuplicates, setSkipDuplicates] = useState(true);
-  const [skipErroredPuzzles, setSkipErroredPuzzles] = useState(true);
+  const skipDuplicates = true;
+  const [confirmedDuplicates, setConfirmedDuplicates] = useState(false);
+  const [confirmedErrors, setConfirmedErrors] = useState(false);
   const [csvFilter, setCsvFilter] = useState<'all' | 'valid' | 'error' | 'duplicate'>('all');
-  const [csvQuery, setCsvQuery] = useState('');
+  const [dismissedErrorLines, setDismissedErrorLines] = useState<number[]>([]);
+  const [errorLinePendingDeletion, setErrorLinePendingDeletion] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvImportRequestRef = useRef(false);
   const availabilityRequestRef = useRef(0);
   const availabilityEstimatorRef = useRef(onEstimateLichessAvailability);
   const filteredThemeOptions = useMemo(() => {
@@ -169,13 +240,15 @@ export function ImportView({
       return [];
     }
 
-    return LICHESS_THEME_OPTIONS
-      .filter((option) => !selectedThemes.includes(option.value)
-        && (normalizeSearchText(option.label).includes(query) || option.value.includes(query)))
-      .slice(0, 6);
-  }, [themeQuery, selectedThemes]);
+    const words = query.split(/\s+/);
+    const rank = (label: string) => label === query ? 0 : label.startsWith(query) ? 1 : 2;
+    return searchOptions
+      .filter((option) => !selectedThemes.includes(option.value))
+      .filter((option) => words.every((word) => normalizeSearchText(`${option.label} ${option.value.replace(/_/g, ' ')}`).includes(word)))
+      .sort((a, b) => rank(normalizeSearchText(a.label)) - rank(normalizeSearchText(b.label)) || a.label.length - b.label.length || a.label.localeCompare(b.label, 'fr'));
+  }, [themeQuery, selectedThemes, searchOptions]);
   const selectedThemeLabels = selectedThemes.map(
-    (theme) => LICHESS_THEME_OPTIONS.find((option) => option.value === theme)?.label ?? theme,
+    (theme) => searchOptions.find((option) => option.value === theme)?.label ?? theme,
   );
   const countIsValid = Number.isInteger(count) && count >= 1 && count <= 1000;
   const ratingsAreValid = Number.isInteger(minRating) && Number.isInteger(maxRating) && minRating >= 100 && maxRating <= 4000 && minRating <= maxRating;
@@ -188,8 +261,13 @@ export function ImportView({
     && (parsedMinMoves === undefined || parsedMaxMoves === undefined || parsedMinMoves <= parsedMaxMoves);
   const themeDistributionTotal = selectedThemes.reduce((sum, theme) => sum + (themeDistribution[theme] ?? 0), 0);
   const customDistributionIsValid = distribution === 'random' || selectedThemes.length < 2 || themeDistributionTotal === 100;
+  const reviewAnalysis = useMemo(() => {
+    if (!analysis) return null;
+    const rows = analysis.rows.filter((row) => row.status !== 'error' || !dismissedErrorLines.includes(row.line));
+    return { ...analysis, errorCount: rows.filter((row) => row.status === 'error').length, rows };
+  }, [analysis, dismissedErrorLines]);
   const csvFilterCounts = useMemo(() => {
-    const rows = analysis?.rows ?? [];
+    const rows = reviewAnalysis?.rows ?? [];
 
     return {
       all: rows.length,
@@ -197,36 +275,19 @@ export function ImportView({
       error: rows.filter((row) => row.status === 'error').length,
       duplicate: rows.filter((row) => row.status === 'duplicate').length,
     };
-  }, [analysis]);
+  }, [reviewAnalysis]);
   const trainingDuplicateCount = useMemo(
     () => (analysis?.rows ?? []).filter((row) => row.status === 'duplicate' && row.duplicateReason === 'training').length,
     [analysis],
   );
-  const effectiveImportableCount = analysis
-    ? analysis.importableCount + (skipDuplicates ? 0 : trainingDuplicateCount)
-    : 0;
-  const filteredCsvRows = useMemo(() => {
-    const query = normalizeSearchText(csvQuery);
-
-    return (analysis?.rows ?? []).filter((row) => {
-      if (csvFilter !== 'all' && row.status !== csvFilter) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-      return normalizeSearchText([
-        String(row.line),
-        row.sourceId ?? '',
-        row.message ?? '',
-        String(row.rating ?? ''),
-        row.duplicateReason === 'training' ? 'deja present entrainement' : '',
-        ...(row.themes ?? []),
-      ].join(' ')).includes(query);
-    });
-  }, [analysis, csvFilter, csvQuery]);
+  const effectiveImportableCount = analysis?.importableCount ?? 0;
+  const requiresDuplicateConfirmation = (reviewAnalysis?.duplicateCount ?? 0) > 0;
+  const requiresErrorConfirmation = (reviewAnalysis?.errorCount ?? 0) > 0;
+  const confirmationsComplete = (!requiresDuplicateConfirmation || confirmedDuplicates) && (!requiresErrorConfirmation || confirmedErrors);
+  const filteredCsvRows = useMemo(
+    () => (reviewAnalysis?.rows ?? []).filter((row) => csvFilter === 'all' || row.status === csvFilter),
+    [reviewAnalysis, csvFilter],
+  );
 
   useEffect(() => {
     if (selectedThemes.length < 2 && distribution === 'custom') {
@@ -283,6 +344,8 @@ export function ImportView({
     try {
       const nextAnalysis = await onAnalyzeCsv(file);
       setAnalysis(nextAnalysis);
+      setDismissedErrorLines([]);
+      setErrorLinePendingDeletion(null);
       setCsvStep(2);
     } catch {
       setCsvStep(1);
@@ -292,18 +355,22 @@ export function ImportView({
   }
 
   async function handleImport() {
-    if (!analysis) {
+    if (!analysis || csvImportRequestRef.current) {
       return;
     }
 
-    const result = await onImportCsv({
-      analysisId: analysis.analysisId,
-      skipDuplicates,
-      skipErroredPuzzles,
-    });
+    csvImportRequestRef.current = true;
+    try {
+      const result = await onImportCsv({
+        analysisId: analysis.analysisId,
+        skipDuplicates,
+        skipErroredPuzzles: true,
+      });
 
-    setCsvImportResult({ importedCount: result.importedCount });
-    setCsvStep(4);
+      setCsvImportResult({ importedCount: result.importedCount });
+    } finally {
+      csvImportRequestRef.current = false;
+    }
   }
 
   function selectFile(nextFile: File | null) {
@@ -312,7 +379,10 @@ export function ImportView({
     setCsvImportResult(null);
     setCsvStep(1);
     setCsvFilter('all');
-    setCsvQuery('');
+    setConfirmedDuplicates(false);
+    setConfirmedErrors(false);
+    setDismissedErrorLines([]);
+    setErrorLinePendingDeletion(null);
     onSelectCsvFile(nextFile);
   }
 
@@ -341,7 +411,7 @@ export function ImportView({
       {tab === 'csv' ? (
         <section aria-label="Import CSV" className="wp-import-csv" role="tabpanel">
           <ol aria-label="Étapes de l’import CSV" className="wp-import-steps">
-            {['Sélection', 'Validation', 'Importation', 'Succès'].map((label, index) => (
+            {['Sélection', 'Validation', 'Importation'].map((label, index) => (
               <li className={csvStep === index + 1 ? 'is-current' : csvStep > index + 1 ? 'is-complete' : ''} key={label}>
                 <span>{csvStep > index + 1 ? <CheckCircle2 aria-hidden="true" size={16} /> : index + 1}</span>
                 {label}
@@ -351,45 +421,66 @@ export function ImportView({
           <div className="wp-panel wp-import-step">
             <div className="wp-import-section-heading">
               <div>
-                <h3>{csvStep === 1 ? '1. Sélection du fichier CSV' : csvStep === 2 ? '2. Validation et erreurs' : csvStep === 3 ? '3. Importation des puzzles' : '4. Import terminé'}</h3>
-                <p>{csvStep === 1 ? 'Sélectionnez le fichier CSV contenant vos puzzles à importer.' : csvStep === 2 ? 'Vérifiez les lignes détectées, les erreurs et les doublons avant de lancer l’import.' : csvStep === 3 ? 'Confirmez les options d’import à partir de cette analyse existante.' : 'Votre analyse a bien été utilisée pour importer les puzzles.'}</p>
+                <h3>{csvStep === 1 ? '1. Sélection du fichier CSV' : csvStep === 2 ? '2. Validation des puzzles invalides' : '3. Importation des puzzles'}</h3>
+                <p>{csvStep === 1 ? 'Sélectionnez le fichier CSV contenant vos puzzles à importer.' : csvStep === 2 ? 'Vérifiez les puzzles détectés et corrigez ou retirez les puzzles invalides avant l’import.' : csvImportResult ? 'L’import a été effectué à partir de l’analyse existante.' : 'Vérifiez les informations ci-dessous avant d’importer vos puzzles.'}</p>
               </div>
-              {csvStep === 1 ? <a aria-label="Télécharger le modèle CSV" className="wp-import-icon-button" download href="/modele-import-puzzles.csv"><Download aria-hidden="true" size={18} /></a> : null}
-              {file && csvStep !== 1 ? <div className="wp-import-file"><FileSpreadsheet aria-hidden="true" size={18} /><span>{file.name}</span><button className="wp-link-button wp-import-edit-button" onClick={() => fileInputRef.current?.click()} type="button"><Pencil aria-hidden="true" size={14} />Modifier</button></div> : null}
+              {file && csvStep !== 1 ? <div className="wp-import-file"><FileSpreadsheet aria-hidden="true" size={18} /><span>{file.name}</span><button className="wp-link-button wp-import-edit-button" onClick={() => fileInputRef.current?.click()} type="button">Changer</button></div> : null}
             </div>
-            <input accept=".csv,text/csv" className="wp-import-file-input" onChange={(event) => selectFile(event.target.files?.[0] ?? null)} ref={fileInputRef} type="file" />
+            <input accept=".csv,text/csv" className="wp-import-file-input" onChange={(event) => { selectFile(event.target.files?.[0] ?? null); event.currentTarget.value = ''; }} ref={fileInputRef} type="file" />
             {csvStep === 1 ? (
               <>
-                <button className="wp-import-dropzone" disabled={puzzleListIsLocked} onClick={() => fileInputRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); selectFile(event.dataTransfer.files?.[0] ?? null); }} type="button">{file ? <><FileSpreadsheet aria-hidden="true" size={42} /><strong>{file.name}</strong><span>{formatFileSize(file.size)} · Fichier prêt</span><em>Cliquer pour remplacer le fichier</em></> : <><UploadCloud aria-hidden="true" size={42} /><strong>Glissez-déposez votre fichier CSV ici</strong><span>ou</span><small>Parcourir votre ordinateur</small><em>Fichier accepté : .csv (max. 25 Mo)</em></>}</button>
-                {file ? <button aria-label="Supprimer le fichier" className="wp-link-button wp-import-edit-button" onClick={() => selectFile(null)} type="button">Supprimer</button> : null}
-                <div className="wp-import-actions"><button className="wp-secondary" disabled={isAnalyzing || isImportingCsv} onClick={() => selectFile(null)} type="button">Annuler</button><button className="wp-primary" disabled={!file || isAnalyzing || !canImportIntoTraining} onClick={analyze} type="button"><span>{isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}</span><ArrowRight aria-hidden="true" size={16} /></button></div>
+                <div className={file ? 'wp-import-dropzone has-file' : 'wp-import-dropzone'} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); selectFile(event.dataTransfer.files?.[0] ?? null); }}>
+                  {file ? <>
+                    <div className="wp-import-dropzone-surface">
+                      <UploadCloud aria-hidden="true" size={42} />
+                      <strong>Glissez-déposez votre fichier CSV ici</strong>
+                      <span>ou</span>
+                      <button className="wp-secondary" disabled={puzzleListIsLocked} onClick={() => fileInputRef.current?.click()} type="button">Parcourir votre ordinateur</button>
+                    </div>
+                    <div className="wp-import-selected-file">
+                      <button aria-label="Remplacer le fichier CSV" className="wp-import-dropzone-trigger wp-import-dropzone-trigger--file" disabled={puzzleListIsLocked} onClick={() => fileInputRef.current?.click()} type="button">
+                        <span className="wp-import-selected-file__name" title={file.name}>{file.name}</span>
+                        <span className="wp-import-selected-file__size">&mdash; {formatFileSize(file.size)}</span>
+                      </button>
+                      <button aria-label="Supprimer le fichier" className="wp-import-remove-file" onClick={() => selectFile(null)} type="button"><Trash2 aria-hidden="true" size={17} /></button>
+                    </div>
+                  </> : <button className="wp-import-dropzone-trigger" disabled={puzzleListIsLocked} onClick={() => fileInputRef.current?.click()} type="button"><UploadCloud aria-hidden="true" size={42} /><strong>Glissez-déposez votre fichier CSV ici</strong><span>ou</span><small>Parcourir votre ordinateur</small></button>}
+                  {!file ? <em>Fichier accepté : .csv (max. 25 Mo)</em> : null}
+                </div>
+                <div className="wp-import-format"><Info aria-hidden="true" size={22} /><div><strong>Votre fichier doit respecter le format CSV Woodpecker.</strong><p>Téléchargez le modèle pour voir un exemple de fichier valide.</p></div><a className="wp-secondary wp-import-template-link" download href="/modele-import-puzzles.csv"><Download aria-hidden="true" size={17} />Télécharger le modèle CSV</a></div>
+                <div className="wp-import-actions"><button className="wp-secondary" disabled={isAnalyzing || isImportingCsv} onClick={onBackToTraining} type="button">Annuler</button><LoadingButton loadingLabel="Analyse en cours…" loading={isAnalyzing} className="wp-primary" disabled={!file || isAnalyzing || !canImportIntoTraining} onClick={analyze} type="button"><span>{isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}</span><ArrowRight aria-hidden="true" size={16} /></LoadingButton></div>
               </>
             ) : null}
-            {(csvStep === 2 || csvStep === 3) && analysis ? (
+            {csvStep === 2 && analysis ? (
               <CsvAnalysisReview
-                analysis={analysis}
+                analysis={reviewAnalysis ?? analysis}
                 csvFilter={csvFilter}
                 csvFilterCounts={csvFilterCounts}
-                csvQuery={csvQuery}
-                effectiveImportableCount={effectiveImportableCount}
                 filteredRows={filteredCsvRows}
                 onCsvFilterChange={setCsvFilter}
-                onCsvQueryChange={setCsvQuery}
+                onRequestDeleteError={setErrorLinePendingDeletion}
               />
             ) : null}
             {csvStep === 2 && analysis ? (
-              <div className="wp-import-actions"><button className="wp-secondary" disabled={isImportingCsv} onClick={() => setCsvStep(1)} type="button">Retour</button><button className="wp-primary" disabled={isImportingCsv || !canImportIntoTraining} onClick={() => setCsvStep(3)} type="button">Continuer vers l’importation <ArrowRight aria-hidden="true" size={16} /></button></div>
+              <div className="wp-import-actions wp-import-actions--between"><button className="wp-secondary" disabled={isImportingCsv} onClick={() => setCsvStep(1)} type="button"><ArrowLeft aria-hidden="true" size={16} />Retour</button><button className="wp-primary" disabled={isImportingCsv || !canImportIntoTraining} onClick={() => setCsvStep(3)} type="button">Continuer vers l’importation <ArrowRight aria-hidden="true" size={16} /></button></div>
             ) : null}
-            {csvStep === 3 && analysis ? (
+            {csvStep === 3 && analysis && !csvImportResult ? (
               <>
-                <div className="wp-import-options"><h4>Options d’import</h4><label className="wp-import-check"><input checked={skipDuplicates} onChange={(event) => setSkipDuplicates(event.target.checked)} type="checkbox" /><span>Éviter les doublons déjà présents dans l’entraînement</span></label><label className="wp-import-check"><input checked={skipErroredPuzzles} onChange={(event) => setSkipErroredPuzzles(event.target.checked)} type="checkbox" /><span>Ignorer les puzzles en erreur</span></label></div>
-                <div className="wp-import-actions"><button className="wp-secondary wp-import-edit-button" disabled={isImportingCsv} onClick={() => setCsvStep(2)} type="button"><Pencil aria-hidden="true" size={14} />Revoir l’analyse</button><button className="wp-primary" disabled={isImportingCsv || !canImportIntoTraining || effectiveImportableCount < 1} onClick={() => void handleImport()} type="button"><UploadCloud aria-hidden="true" size={16} />{isImportingCsv ? 'Import en cours...' : `Importer ${effectiveImportableCount} puzzle${effectiveImportableCount > 1 ? 's' : ''}`}</button></div>
+                <div className="wp-import-analysis-stats wp-import-analysis-stats--four">
+                  <ImportStat icon={<CheckCircle2 aria-hidden="true" size={18} />} label="Puzzles valides" tone="success" value={String(analysis.validCount)} />
+                  <ImportStat icon={<CircleX aria-hidden="true" size={18} />} label="Puzzles invalides" tone="danger" value={String(reviewAnalysis?.errorCount ?? 0)} />
+                  <ImportStat icon={<Copy aria-hidden="true" size={18} />} label="Doublons détectés" tone="warning" value={String(analysis.duplicateCount)} />
+                  <ImportStat icon={<FileSpreadsheet aria-hidden="true" size={18} />} label="Importables" value={String(effectiveImportableCount)} />
+                </div>
+                {(requiresDuplicateConfirmation || requiresErrorConfirmation) ? <div className="wp-import-options"><h4>Confirmations</h4>{requiresDuplicateConfirmation ? <label className="wp-import-confirmation"><input checked={confirmedDuplicates} onChange={(event) => setConfirmedDuplicates(event.target.checked)} type="checkbox" /><span>{analysis.duplicateCount} puzzle{analysis.duplicateCount > 1 ? 's déjà présents ne seront pas ajoutés' : ' déjà présent ne sera pas ajouté'} (doublons).</span></label> : null}{requiresErrorConfirmation ? <label className="wp-import-confirmation"><input checked={confirmedErrors} onChange={(event) => setConfirmedErrors(event.target.checked)} type="checkbox" /><span>{reviewAnalysis?.errorCount ?? 0} puzzle{(reviewAnalysis?.errorCount ?? 0) > 1 ? 's invalides ne seront pas ajoutés.' : ' invalide ne sera pas ajouté.'}</span></label> : null}</div> : null}
+                <div className="wp-import-actions wp-import-actions--between"><button className="wp-secondary" disabled={isImportingCsv} onClick={() => setCsvStep(2)} type="button"><ArrowLeft aria-hidden="true" size={16} />Retour</button><LoadingButton loadingLabel="Import en cours…" loading={isImportingCsv} className="wp-primary" disabled={isImportingCsv || !canImportIntoTraining || effectiveImportableCount < 1 || !confirmationsComplete} onClick={() => void handleImport()} type="button"><UploadCloud aria-hidden="true" size={16} />{isImportingCsv ? 'Import en cours...' : `Importer ${effectiveImportableCount} puzzle${effectiveImportableCount > 1 ? 's' : ''}`}</LoadingButton></div>
               </>
             ) : null}
-            {csvStep === 4 && analysis && csvImportResult ? (
+            {csvStep === 3 && analysis && csvImportResult ? (
               <>
                 <div className="wp-import-success"><CheckCircle2 aria-hidden="true" size={28} /><div><strong>Import terminé</strong><p>{csvImportResult.importedCount} puzzle{csvImportResult.importedCount > 1 ? 's ont été ajoutés' : ' a été ajouté'} à l’entraînement à partir de l’analyse enregistrée.</p></div></div>
-                <div className="wp-import-analysis-stats"><ImportStat icon={<CheckCircle2 aria-hidden="true" size={20} />} label="Importés" tone="success" value={String(csvImportResult.importedCount)} /><ImportStat icon={<FileSpreadsheet aria-hidden="true" size={20} />} label="Importables" value={String(analysis.importableCount)} /><ImportStat icon={<CircleX aria-hidden="true" size={20} />} label="Erreurs" tone="danger" value={String(analysis.errorCount)} /></div>
+                <div className="wp-import-info-card"><strong>Résumé final</strong><p>{csvImportResult.importedCount} puzzle{csvImportResult.importedCount > 1 ? 's ont été importés.' : ' a été importé.'}</p><p>{analysis.errorCount + (skipDuplicates ? trainingDuplicateCount : 0)} ligne{analysis.errorCount + (skipDuplicates ? trainingDuplicateCount : 0) > 1 ? 's ont été ignorées' : ' a été ignorée'} à cause des erreurs ou doublons exclus.</p></div>
+                <div className="wp-import-analysis-stats"><ImportStat icon={<CheckCircle2 aria-hidden="true" size={20} />} label="Importés" tone="success" value={String(csvImportResult.importedCount)} /><ImportStat icon={<FileSpreadsheet aria-hidden="true" size={20} />} label="Importables" value={String(effectiveImportableCount)} /><ImportStat icon={<CircleX aria-hidden="true" size={20} />} label="Puzzles invalides" tone="danger" value={String(reviewAnalysis?.errorCount ?? 0)} /></div>
                 <div className="wp-import-actions"><button className="wp-secondary" onClick={resetCsvFlow} type="button">Importer un autre fichier</button><button className="wp-primary" onClick={onBackToTraining} type="button">Revenir à l’entraînement</button></div>
               </>
             ) : null}
@@ -420,10 +511,12 @@ export function ImportView({
               {!ratingsAreValid ? <p className="alert error-alert">La plage doit contenir des ratings entiers entre 100 et 4 000.</p> : null}
             </details>
             <details className="wp-panel wp-import-step wp-import-step-card" open>
-              <summary><span><h3>3. Thèmes (optionnel)</h3><p>Sélectionnez un ou plusieurs thèmes. Laissez vide pour tous les thèmes.</p></span><ChevronDown aria-hidden="true" size={18} /></summary>
-              <label className="wp-import-search-field"><Search aria-hidden="true" size={16} /><input onChange={(event) => setThemeQuery(event.target.value)} placeholder="Rechercher un thème..." value={themeQuery} /></label>
-              {selectedThemes.length ? <div className="wp-import-theme-list">{selectedThemes.map((theme) => <button aria-label={`Retirer ${LICHESS_THEME_OPTIONS.find((option) => option.value === theme)?.label ?? theme}`} className="wp-import-theme-chip is-selected" key={theme} onClick={() => removeTheme(theme)} type="button">{LICHESS_THEME_OPTIONS.find((option) => option.value === theme)?.label ?? theme}<span aria-hidden="true">×</span></button>)}</div> : null}
-              {themeQuery.trim() ? <div className="wp-import-theme-options">{filteredThemeOptions.length ? filteredThemeOptions.map((option) => <button className="wp-import-theme-chip" key={option.value} onClick={() => addTheme(option.value)} type="button">{option.label}</button>) : <p className="wp-import-theme-empty">Aucun thème correspondant.</p>}</div> : null}
+              <summary><span><h3>3. Thèmes (optionnel)</h3><p>Sélectionnez des thèmes, des phases ou des ouvertures. Chaque puzzle correspond à au moins une catégorie sélectionnée.</p></span><ChevronDown aria-hidden="true" size={18} /></summary>
+              <label className="wp-import-search-field"><Search aria-hidden="true" size={16} /><input onChange={(event) => setThemeQuery(event.target.value)} aria-label="Rechercher un thème, une phase ou une ouverture" placeholder="Rechercher un thème, une phase ou une ouverture..." value={themeQuery} /></label>
+              {selectedThemes.length ? <div className="wp-import-theme-list">{selectedThemes.map((theme) => <button aria-label={`Retirer ${searchOptions.find((option) => option.value === theme)?.label ?? theme}`} className="wp-import-theme-chip is-selected" key={theme} onClick={() => removeTheme(theme)} type="button">{searchOptions.find((option) => option.value === theme)?.label ?? theme}<span aria-hidden="true">×</span></button>)}
+              </div> : null}
+              {themeQuery.trim() ? <div className="wp-import-theme-options">{filteredThemeOptions.length ? filteredThemeOptions.map((option) => <button className="wp-import-theme-chip" key={`${option.kind}-${option.value}`} title={option.label} onClick={() => addTheme(option.value)} type="button">{option.label}</button>) : <p className="wp-import-theme-empty">Aucun thème correspondant.</p>}</div> : null}
+              {optionsError ? <p role="status">{optionsError}</p> : null}
             </details>
             {selectedThemes.length >= 2 ? (
             <details className="wp-panel wp-import-step wp-import-step-card" open>
@@ -432,12 +525,12 @@ export function ImportView({
                 <button aria-pressed={distribution === 'random'} className={distribution === 'random' ? 'is-selected' : ''} onClick={() => setDistribution('random')} type="button"><span className="wp-import-radio" /> <strong>Répartition aléatoire</strong><small>Lichess répartit automatiquement les puzzles.</small></button>
                 <button aria-pressed={distribution === 'custom'} className={distribution === 'custom' ? 'is-selected' : ''} onClick={() => setDistribution('custom')} type="button"><span className="wp-import-radio" /> <strong>Répartition personnalisée</strong><small>Définissez un pourcentage pour chaque thème choisi.</small></button>
               </div>
-              {distribution === 'custom' && selectedThemes.length ? <div className="wp-import-theme-distribution">{selectedThemes.map((theme) => <label key={theme}><span>{LICHESS_THEME_OPTIONS.find((option) => option.value === theme)?.label ?? theme}</span><div><input max="100" min="0" onChange={(event) => setThemeDistribution((current) => ({ ...current, [theme]: Number(event.target.value) }))} type="number" value={themeDistribution[theme] ?? 0} /><small>%</small></div></label>)}</div> : null}
+              {distribution === 'custom' && selectedThemes.length ? <div className="wp-import-theme-distribution">{selectedThemes.map((theme) => <label key={theme}><span>{searchOptions.find((option) => option.value === theme)?.label ?? theme}</span><div><input max="100" min="0" onChange={(event) => setThemeDistribution((current) => ({ ...current, [theme]: Number(event.target.value) }))} type="number" value={themeDistribution[theme] ?? 0} /><small>%</small></div></label>)}</div> : null}
               {!customDistributionIsValid ? <p className="alert error-alert">La répartition personnalisée doit totaliser 100 %.</p> : null}
             </details>
             ) : null}
             <details className="wp-panel wp-import-advanced">
-              <summary><span>5. Options avancées</span><ChevronDown aria-hidden="true" size={18} /></summary>
+              <summary><span>{selectedThemes.length >= 2 ? 5 : 4}. Options avancées</span><ChevronDown aria-hidden="true" size={18} /></summary>
               <div className="wp-import-advanced-grid">
                 <label>Nombre min de coups<input min="1" onChange={(event) => setMinMoves(event.target.value)} placeholder="Ex : 1" type="number" value={minMoves} /></label>
                 <label>Nombre max de coups<input min="1" onChange={(event) => setMaxMoves(event.target.value)} placeholder="Ex : 10" type="number" value={maxMoves} /></label>
@@ -456,11 +549,12 @@ export function ImportView({
               <div><dt>Nombre max de coups</dt><dd>{parsedMaxMoves ?? 'Aucun'}</dd></div>
             </dl>
             <p className="wp-import-summary-note"><strong>Disponibilité actuelle</strong><br />{availablePuzzleCount === null ? 'Indisponible pour le moment.' : `${formatInteger(availablePuzzleCount)} puzzles disponibles avec ces filtres.`}</p>
-            <button className="wp-primary full" disabled={!countIsValid || !ratingsAreValid || !moveRangeIsValid || !customDistributionIsValid || isImportingLichess || !canImportIntoTraining} onClick={() => onImportLichess({ count, minRating, maxRating, themes: selectedThemes, distribution, themeDistribution: distribution === 'custom' ? themeDistribution : undefined, minMoves: parsedMinMoves, maxMoves: parsedMaxMoves })} type="button">{isImportingLichess ? 'Génération en cours...' : `Générer les ${count} puzzles`}</button>
+            <LoadingButton loadingLabel="Génération en cours…" loading={isImportingLichess} className="wp-primary full" disabled={!countIsValid || !ratingsAreValid || !moveRangeIsValid || !customDistributionIsValid || isImportingLichess || !canImportIntoTraining} onClick={() => onImportLichess({ count, minRating, maxRating, themes: selectedThemes, distribution, themeDistribution: distribution === 'custom' ? themeDistribution : undefined, minMoves: parsedMinMoves, maxMoves: parsedMaxMoves })} type="button">{isImportingLichess ? 'Génération en cours...' : `Générer les ${count} puzzles`}</LoadingButton>
             <small className="wp-import-summary-footnote">Un set sera créé et ajouté à votre entraînement.</small>
           </aside>
         </section>
       )}
+      <ConfirmationModal confirmLabel="Retirer le puzzle invalide" description="Cette ligne sera retirée de la revue avant l’import." isDanger onClose={() => setErrorLinePendingDeletion(null)} onConfirm={() => { if (errorLinePendingDeletion !== null) { setDismissedErrorLines((current) => current.includes(errorLinePendingDeletion) ? current : [...current, errorLinePendingDeletion]); setConfirmedErrors(false); } setErrorLinePendingDeletion(null); }} open={errorLinePendingDeletion !== null} title="Retirer ce puzzle invalide ?" />
     </div>
   );
 }
@@ -501,35 +595,34 @@ function CsvAnalysisReview({
   analysis,
   csvFilter,
   csvFilterCounts,
-  csvQuery,
-  effectiveImportableCount,
   filteredRows,
   onCsvFilterChange,
-  onCsvQueryChange,
+  onRequestDeleteError,
 }: {
   analysis: CsvAnalysis;
   csvFilter: 'all' | 'valid' | 'error' | 'duplicate';
   csvFilterCounts: Record<'all' | 'valid' | 'error' | 'duplicate', number>;
-  csvQuery: string;
-  effectiveImportableCount: number;
   filteredRows: CsvAnalysisRow[];
   onCsvFilterChange: (value: 'all' | 'valid' | 'error' | 'duplicate') => void;
-  onCsvQueryChange: (value: string) => void;
+  onRequestDeleteError: (line: number) => void;
 }) {
+  const usefulRowCount = analysis.usefulRowCount ?? analysis.totalRows;
+
   return (
     <div className="wp-import-review">
-      <div className="wp-import-analysis-stats wp-import-analysis-stats--four">
-        <ImportStat icon={<CheckCircle2 aria-hidden="true" size={20} />} label="Valides" tone="success" value={String(analysis.validCount)} />
-        <ImportStat icon={<CircleX aria-hidden="true" size={20} />} label="Erreurs" tone="danger" value={String(analysis.errorCount)} />
-        <ImportStat icon={<Circle aria-hidden="true" size={20} />} label="Doublons" value={String(analysis.duplicateCount)} />
-        <ImportStat icon={<FileSpreadsheet aria-hidden="true" size={20} />} label="Importables" value={String(effectiveImportableCount)} />
+      <div className="wp-import-analysis-stats wp-import-analysis-stats--five">
+        <ImportStat icon={<CheckCircle2 aria-hidden="true" size={18} />} label="Puzzles valides" tone="success" value={String(analysis.validCount)} />
+        <ImportStat icon={<CircleX aria-hidden="true" size={18} />} label="Puzzles invalides" tone="danger" value={String(analysis.errorCount)} />
+        <ImportStat icon={<Copy aria-hidden="true" size={18} />} label="Doublons détectés" tone="warning" value={String(analysis.duplicateCount)} />
+        <ImportStat icon={<FileSpreadsheet aria-hidden="true" size={18} />} label="Lignes utiles" value={String(usefulRowCount)} />
+        <ImportStat icon={<Info aria-hidden="true" size={18} />} label="En-têtes détectés" value={`${analysis.detectedHeaderCount ?? 0} / ${analysis.expectedHeaderCount ?? 0}`} />
       </div>
-      <div className="wp-import-review-toolbar">
+      <div className="wp-import-review-toolbar wp-import-review-toolbar--validation">
         <div className="wp-import-filter-pills" role="tablist" aria-label="Filtres CSV">
           {[
             ['all', 'Tous', csvFilterCounts.all],
             ['valid', 'Valides', csvFilterCounts.valid],
-            ['error', 'Erreurs', csvFilterCounts.error],
+            ['error', 'Invalides', csvFilterCounts.error],
             ['duplicate', 'Doublons', csvFilterCounts.duplicate],
           ].map(([value, label, count]) => (
             <button
@@ -539,35 +632,32 @@ function CsvAnalysisReview({
               onClick={() => onCsvFilterChange(value as 'all' | 'valid' | 'error' | 'duplicate')}
               type="button"
             >
-              <span>{label}</span>
-              <strong>{count}</strong>
+              <span>{label} {count}</span>
             </button>
           ))}
         </div>
-        <label className="wp-import-search-field wp-import-search-field--compact">
-          <Search aria-hidden="true" size={16} />
-          <input onChange={(event) => onCsvQueryChange(event.target.value)} placeholder="Rechercher une ligne, un thème ou un message..." value={csvQuery} />
-        </label>
+        <button className="wp-secondary wp-import-report-button" onClick={() => exportAnalysisReport(analysis)} type="button"><Download aria-hidden="true" size={16} />Exporter le rapport</button>
       </div>
-      <p className="wp-import-results-count">{filteredRows.length} ligne{filteredRows.length > 1 ? 's' : ''} affichée{filteredRows.length > 1 ? 's' : ''} sur {analysis.rows.length}.</p>
       {filteredRows.length ? (
         <div className="wp-import-rows-table" role="region" aria-label="Résultats CSV">
-          <div className="wp-import-rows-table__head">
-            <span>Ligne</span>
+          <div className="wp-import-rows-table__head wp-import-rows-table__head--csv">
+            <span>#</span>
+            <span>Aperçu</span>
+            <span>FEN / ID Lichess</span>
+            <span>Difficulté</span>
             <span>Statut</span>
-            <span>Puzzle ID</span>
-            <span>Rating</span>
-            <span>Thèmes</span>
             <span>Détail</span>
+            <span>Action</span>
           </div>
-          {filteredRows.map((row) => (
-            <div className="wp-import-rows-table__row" key={`${row.line}-${row.status}-${row.sourceId ?? 'none'}`}>
-              <span>#{row.line}</span>
-              <span><span className={`wp-status-pill ${row.status === 'valid' ? 'success' : row.status === 'error' ? 'danger' : 'warning'}`}>{formatCsvRowStatus(row)}</span></span>
-              <span>{row.sourceId ?? '—'}</span>
-              <span>{row.rating ?? '—'}</span>
-              <span>{row.themes?.length ? row.themes.join(', ') : 'Sans thème'}</span>
-              <span>{row.message ?? '—'}</span>
+          {filteredRows.map((row, index) => (
+            <div className="wp-import-rows-table__row wp-import-rows-table__row--csv" key={`${row.line}-${row.status}-${row.sourceId ?? 'none'}`}>
+              <span className="wp-import-table-index">#{index + 1}</span>
+              <span className="wp-import-preview-board"><CsvRowBoard fen={row.fen} /></span>
+              <span className="wp-import-table-stack"><strong title={row.fen ?? undefined}>{truncateFen(row.fen)}</strong>{row.sourceId?.trim() ? <small>Lichess ID: {row.sourceId}</small> : null}</span>
+              <span className="wp-import-rating-value">{renderDifficultyValue(row.rating)}</span>
+              <span><span className={`wp-import-chip is-${row.status === 'valid' ? 'success' : row.status === 'error' ? 'danger' : 'warning'}`}>{formatCsvRowStatus(row)}</span></span>
+              <span className="wp-import-table-stack"><strong>{row.status === 'valid' ? '—' : row.message ?? '—'}</strong>{row.status !== 'valid' ? <small>{row.status === 'duplicate' && row.sourceId ? `ID: ${row.sourceId}` : `Ligne ${row.line}`}</small> : null}</span>
+              <span>{renderCsvRowAction(row, onRequestDeleteError)}</span>
             </div>
           ))}
         </div>
@@ -578,24 +668,138 @@ function CsvAnalysisReview({
   );
 }
 
+function CsvRowBoard({ fen }: { fen?: string | null }) {
+  const rows = parseFenBoard(fen);
+
+  if (!rows) {
+    return <span className="wp-detail-problem-preview__empty">?</span>;
+  }
+
+  return (
+    <span className="wp-detail-problem-preview__board" aria-hidden="true">
+      {rows.map((row, rowIndex) =>
+        row.map((piece, columnIndex) => {
+          const isDark = (rowIndex + columnIndex) % 2 === 1;
+          const cellClassName = isDark
+            ? 'wp-detail-problem-preview__cell is-dark'
+            : 'wp-detail-problem-preview__cell is-light';
+
+          return (
+            <span className={cellClassName} key={`${rowIndex}-${columnIndex}`}>
+              {piece ? PIECE_SYMBOLS[piece] ?? '' : ''}
+            </span>
+          );
+        }))}
+    </span>
+  );
+}
+
+function parseFenBoard(fen?: string | null) {
+  const board = fen?.trim().split(' ')[0] ?? '';
+  const rows = board.split('/');
+  if (rows.length !== 8) {
+    return null;
+  }
+
+  try {
+    return rows.map((row) => {
+      const cells: string[] = [];
+      for (const token of row) {
+        const emptyCount = Number(token);
+        if (Number.isInteger(emptyCount) && emptyCount > 0) {
+          for (let index = 0; index < emptyCount; index += 1) {
+            cells.push('');
+          }
+        } else {
+          cells.push(token);
+        }
+      }
+      if (cells.length !== 8) {
+        throw new Error('invalid fen');
+      }
+      return cells;
+    });
+  } catch {
+    return null;
+  }
+}
+
+function truncateFen(fen?: string | null) {
+  if (!fen) {
+    return 'FEN indisponible';
+  }
+
+  return fen.length > 34 ? `${fen.slice(0, 34)}…` : fen;
+}
+
+function renderDifficultyValue(rating?: number | string | null) {
+  const numericRating = typeof rating === 'number' ? rating : typeof rating === 'string' ? Number(rating) : NaN;
+  if (!Number.isFinite(numericRating)) {
+    return '—';
+  }
+
+  return formatInteger(numericRating);
+}
+
+function renderCsvRowAction(row: CsvAnalysisRow, onRequestDeleteError: (line: number) => void) {
+  if (row.status === 'error') {
+    return <button aria-label={'Retirer le puzzle invalide de la ligne ' + row.line} className="wp-import-action-button" onClick={() => onRequestDeleteError(row.line)} type="button"><Trash2 aria-hidden="true" size={15} /></button>;
+  }
+
+  return '—';
+}
+
 function formatCsvRowStatus(row: CsvAnalysisRow) {
   if (row.status === 'valid') {
     return 'Valide';
   }
 
   if (row.status === 'error') {
-    return 'Erreur';
+    return 'Invalide';
   }
 
-  return row.duplicateReason === 'training' ? 'Doublon entraînement' : 'Doublon fichier';
+  return 'Doublon';
 }
 
 function formatInteger(value: number) {
   return new Intl.NumberFormat('fr-FR').format(value);
 }
 
-function ImportStat({ icon, label, tone, value }: { icon: ReactNode; label: string; tone?: 'danger' | 'success'; value: string }) {
-  return <div className={`wp-import-stat${tone ? ` is-${tone}` : ''}`}>{icon}<span>{label}</span><strong>{value}</strong></div>;
+function escapeCsvCell(value: number | string | null | undefined) {
+  const normalizedValue = String(value ?? '');
+  if (!/[";\n]/.test(normalizedValue)) {
+    return normalizedValue;
+  }
+
+  return `"${normalizedValue.replace(/"/g, '""')}"`;
+}
+
+function exportAnalysisReport(analysis: CsvAnalysis) {
+  const csv = [
+    ['Ligne', 'Statut', 'Doublon', 'Message', 'FEN', 'ID Lichess', 'Rating', 'Themes'],
+    ...analysis.rows.map((row) => [
+      row.line,
+      formatCsvRowStatus(row),
+      row.duplicateReason ?? '',
+      row.message ?? '',
+      row.fen ?? '',
+      row.sourceId ?? '',
+      row.rating ?? '',
+      (row.themes ?? []).join(', '),
+    ]),
+  ].map((line) => line.map((value) => escapeCsvCell(value)).join(';')).join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `rapport-analyse-${analysis.analysisId}.csv`;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function ImportStat({ icon, label, tone, value }: { icon: ReactNode; label: string; tone?: 'danger' | 'success' | 'warning'; value: string }) {
+  return <div className={`wp-import-stat${tone ? ` is-${tone}` : ''}`}><div className="wp-import-stat__header">{icon}<span>{label}</span></div><strong>{value}</strong></div>;
 }
 
 export function HistoryOverviewView({

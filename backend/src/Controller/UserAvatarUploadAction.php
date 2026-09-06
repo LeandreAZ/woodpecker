@@ -55,7 +55,12 @@ final class UserAvatarUploadAction
             throw new BadRequestHttpException("Le dossier de destination de l'avatar est indisponible.");
         }
 
-        $this->deletePreviousAvatar($user, $uploadDirectory);
+        if (!is_writable($uploadDirectory)) {
+            @chmod($uploadDirectory, 0775);
+        }
+        if (!is_writable($uploadDirectory)) {
+            throw new BadRequestHttpException("Le dossier de destination de l'avatar est indisponible.");
+        }
 
         $extension = match ($mimeType) {
             'image/jpeg' => 'jpg',
@@ -71,6 +76,7 @@ final class UserAvatarUploadAction
             throw new BadRequestHttpException("Impossible d'enregistrer la photo de profil.", $exception);
         }
 
+        $this->deletePreviousAvatar($user, $uploadDirectory);
         $user->setAvatarUrl('/uploads/avatars/'.$fileName);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
