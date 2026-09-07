@@ -1,0 +1,195 @@
+
+
+
+/* Authoritative CSV import layout overrides. */
+.wp-import-wizard .wp-import-section-heading,
+.wp-import-wizard .wp-import-section-heading > div:first-child {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.wp-import-wizard .wp-import-selected-file {
+  align-items: center;
+  display: flex;
+  min-height: 58px;
+}
+
+.wp-import-wizard .wp-import-dropzone.has-file .wp-import-dropzone-trigger--file {
+  align-items: center;
+  align-self: center;
+  display: flex;
+  flex: 1 1 auto;
+  height: 36px;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-selected-file__name,
+.wp-import-wizard .wp-import-selected-file__size {
+  align-items: center;
+  display: inline-flex;
+  height: 36px;
+  line-height: 1;
+}
+
+.wp-import-wizard .wp-import-selected-file__name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-selected-file__size {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-remove-file {
+  align-self: center;
+  flex: 0 0 36px;
+}
+
+.wp-import-wizard .wp-import-stat {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  min-height: 52px;
+  padding: 10px 12px;
+}
+
+.wp-import-wizard .wp-import-stat__header {
+  align-items: center;
+  display: inline-flex;
+  flex: 1 1 auto;
+  gap: 7px;
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-stat__header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-stat strong {
+  flex: 0 0 auto;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.wp-import-wizard .wp-import-analysis-stats--five {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wp-import-wizard .wp-import-rows-table__head--csv,
+.wp-import-wizard .wp-import-rows-table__row--csv {
+  align-items: center;
+}
+
+.wp-import-wizard .wp-import-rows-table__head--csv > span,
+.wp-import-wizard .wp-import-rows-table__row--csv > span {
+  align-items: center;
+  display: flex;
+  min-height: 100%;
+}
+
+.wp-import-wizard .wp-import-preview-board {
+  display: inline-flex;
+  height: 62px;
+  overflow: visible !important;
+  padding: 0;
+  width: 62px;
+}
+
+.wp-import-wizard .wp-import-preview-board .wp-detail-problem-preview__board {
+  display: grid;
+  height: 62px;
+  width: 62px;
+}
+
+.wp-import-wizard .wp-import-action-icon {
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .wp-import-wizard .wp-import-section-heading .wp-import-file {
+    width: 100%;
+  }
+
+  .wp-import-wizard .wp-import-analysis-stats--five {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .wp-import-wizard .wp-import-step,
+  .wp-import-wizard .wp-import-section-heading,
+  .wp-import-wizard .wp-import-selected-file {
+    min-width: 0;
+  }
+
+  .wp-import-wizard .wp-import-analysis-stats--five,
+  .wp-import-wizard .wp-import-analysis-stats--four {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-import-wizard .wp-import-stat {
+    min-height: 48px;
+  }
+}
+
+
+/* Keep import headers readable when the file chip moves below the copy. */
+@media (max-width: 1100px) {
+  .wp-import-wizard .wp-import-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .wp-import-wizard .wp-import-section-heading > div:first-child,
+  .wp-import-wizard .wp-import-section-heading .wp-import-file {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+/* CSV validation table: fields share one horizontal center. */
+.wp-import-wizard .wp-import-rows-table__head--csv > span,
+.wp-import-wizard .wp-import-rows-table__row--csv > span {
+  justify-content: center;
+  text-align: center;
+}
+
+.wp-import-wizard .wp-import-rows-table__row--csv .wp-import-table-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  justify-items: center;
+  text-align: center;
+}
+
+
+.wp-import-wizard .wp-import-action-button {
+  align-items: center;
+  background: rgba(148, 42, 52, 0.16);
+  border: 1px solid rgba(246, 111, 122, 0.32);
+  border-radius: 8px;
+  color: #ffb0b7;
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.wp-import-wizard .wp-import-action-button:hover {
+  background: rgba(148, 42, 52, 0.3);
+}
+
+.wp-import-wizard .wp-import-step select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}

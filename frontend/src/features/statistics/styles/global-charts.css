@@ -1,0 +1,116 @@
+
+
+.wp-global-stats-legend {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  color: #aebdd1;
+  font-size: 0.92rem;
+}
+
+.wp-global-stats-legend span {
+  position: relative;
+  padding-left: 20px;
+}
+
+.wp-global-stats-legend span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+
+  background: currentColor;
+}
+
+.is-lime,
+.is-lime-dot { color: #b7e642; }
+.is-green,
+.is-green-dot { color: #96dd33; }
+.is-violet,
+.is-violet-dot { color: #b481ff; }
+.is-red { color: #ff665f; }
+.is-amber { color: #f0b73d; }
+
+.wp-global-stats-chart-shell {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 344px;
+}
+
+.wp-global-stats-chart-shell--focused {
+  min-height: 308px;
+}
+
+.wp-global-stats-chart-yaxis,
+.wp-global-stats-chart-xaxis {
+  color: #97abc3;
+  font-size: 0.83rem;
+}
+
+.wp-global-stats-chart-yaxis {
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  align-content: stretch;
+  padding: 6px 0 26px;
+}
+
+.wp-global-stats-axis-label {
+  display: flex;
+  align-items: center;
+}
+
+.wp-global-stats-chart-yaxis .wp-global-stats-axis-label {
+  justify-content: flex-start;
+}
+
+.wp-global-stats-chart-xaxis .wp-global-stats-axis-label {
+  justify-content: center;
+}
+
+.wp-global-stats-chart-main {
+  display: grid;
+  gap: 12px;
+}
+
+.wp-global-stats-chart-main svg {
+  width: 100%;
+  height: 300px;
+  min-height: 300px;
+  display: block;
+}
+
+.wp-global-stats-chart-main .grid-line {
+  stroke: rgba(110, 131, 163, 0.18);
+  stroke-width: 1;
+}
+
+.wp-global-stats-chart-main .grid-line--vertical {
+  stroke: rgba(110, 131, 163, 0.1);
+}
+
+.line-success,
+.line-progress,
+.line-attempts {
+  fill: none;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.line-success { stroke: #b7e642; }
+.line-progress { stroke: #96dd33; }
+.line-attempts { stroke: #b481ff; }
+
+.wp-global-stats-chart-xaxis {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.wp-global-stats-chart-xaxis--compact {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}

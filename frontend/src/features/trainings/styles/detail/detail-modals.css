@@ -1,0 +1,79 @@
+
+
+.wp-detail-modal-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.wp-detail-modal-card__header h2,
+.wp-detail-modal-card__header p {
+  margin: 0;
+}
+
+.wp-detail-modal-card__header h2 {
+  color: var(--color-text-primary);
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.wp-detail-modal-card__header p {
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.wp-detail-modal-card__close {
+  flex: 0 0 auto;
+}
+
+.wp-detail-modal-card__divider {
+  height: 1px;
+  background: rgba(115, 139, 177, 0.2);
+}
+
+.wp-detail-modal-table-wrap {
+  overflow-x: auto;
+}
+
+.wp-detail-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wp-detail-modal-table th,
+.wp-detail-modal-table td {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid rgba(30, 47, 77, 0.92);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.wp-detail-modal-table th {
+  border-top: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.wp-detail-modal-table td {
+  color: var(--color-text-primary);
+}
+
+.wp-detail-info-banner {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-5);
+}
+
+.wp-detail-info-banner__icon {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--color-primary);
+}

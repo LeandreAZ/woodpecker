@@ -1,0 +1,58 @@
+.wp-import-wizard { max-width: 1180px; }
+.wp-import-tabs { display: flex; gap: 20px; border-bottom: 1px solid rgba(106, 141, 184, 0.24); }
+.wp-import-tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; color: #9fb0c5; padding: 10px 4px 12px; }
+.wp-import-tabs button.is-active { border-color: #4193ff; color: #72b2ff; }
+.wp-import-grid { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1.55fr) minmax(290px, 0.8fr); }
+.wp-import-configuration, .wp-import-step { display: grid; gap: 16px; }
+.wp-import-step h3, .wp-import-summary h3 { margin: 2px 0 6px; }
+.wp-import-step p, .wp-import-summary-note, .wp-import-format p, .wp-import-error-list p { color: #9fb0c5; line-height: 1.55; margin: 0; }
+.wp-import-step label, .wp-import-advanced label { color: #e8eef8; display: grid; font-size: 0.9rem; gap: 7px; }
+.wp-import-step input, .wp-import-advanced input { max-width: 100%; }
+.wp-import-quick-counts, .wp-import-theme-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.wp-import-quick-counts button, .wp-import-theme-list span { border: 1px solid rgba(115, 154, 198, 0.26); border-radius: 8px; background: rgba(12, 29, 51, 0.75); color: #c7d5e7; padding: 7px 12px; }
+.wp-import-quick-counts button.is-active { background: #1769df; border-color: #4193ff; color: #fff; }
+.wp-import-theme-list span { color: #9ed0ff; }
+.wp-import-rating-fields { align-items: end; display: grid; gap: 10px; grid-template-columns: 1fr auto 1fr; }
+.wp-import-rating-fields > span { color: #72b2ff; padding-bottom: 10px; }
+.wp-import-summary { display: grid; gap: 18px; position: sticky; top: 18px; }
+.wp-import-summary > div { align-items: center; display: flex; gap: 9px; }
+.wp-import-summary > div svg { color: #72b2ff; }
+.wp-import-summary dl { border-block: 1px solid rgba(106, 141, 184, 0.2); display: grid; gap: 12px; margin: 0; padding: 16px 0; }
+.wp-import-summary dl div { display: flex; gap: 16px; justify-content: space-between; }
+.wp-import-summary dt { color: #9fb0c5; }
+.wp-import-summary dd { color: #edf4ff; font-weight: 650; margin: 0; text-align: right; }
+.wp-import-advanced { display: grid; gap: 14px; }
+.wp-import-advanced summary { color: #edf4ff; cursor: pointer; font-weight: 650; }
+.wp-import-advanced p { color: #9fb0c5; font-size: 0.88rem; line-height: 1.45; margin: 0; }
+.wp-import-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0 10px; }
+.wp-import-steps li { align-items: center; color: #8da0b8; display: grid; font-size: 0.82rem; gap: 7px; justify-items: center; position: relative; text-align: center; }
+.wp-import-steps li:not(:last-child)::after { background: rgba(106, 141, 184, 0.35); content: ''; height: 1px; left: calc(50% + 18px); position: absolute; right: calc(-50% + 18px); top: 16px; }
+.wp-import-steps li span { align-items: center; background: #0b192c; border: 1px solid rgba(119, 151, 190, 0.55); border-radius: 50%; color: #dce8f7; display: inline-flex; height: 33px; justify-content: center; width: 33px; z-index: 1; }
+.wp-import-steps li.is-current { color: #f3f7fd; font-weight: 650; }
+.wp-import-steps li.is-current span { background: #1769df; border-color: #52a0ff; }
+.wp-import-steps li.is-complete { color: #bde58c; }
+.wp-import-steps li.is-complete span { background: #183d24; border-color: #67c33b; color: #8ce153; }
+.wp-import-section-heading { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; }
+.wp-import-section-heading > div:first-child { max-width: 680px; }
+.wp-import-file { align-items: center; background: rgba(5, 15, 29, 0.42); border: 1px solid rgba(106, 141, 184, 0.24); border-radius: 10px; display: flex; flex-shrink: 0; gap: 8px; padding: 9px 11px; }
+.wp-import-file svg { color: #72b2ff; }
+.wp-import-file span { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-import-file-input { block-size: 1px; clip: rect(0 0 0 0); overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+.wp-import-dropzone { align-items: center; background: rgba(7, 20, 37, 0.58); border: 1px dashed rgba(116, 159, 210, 0.62); border-radius: 14px; color: #e9f1fb; display: grid; gap: 8px; justify-items: center; min-height: 220px; padding: 28px; }
+.wp-import-dropzone:hover:not(:disabled) { border-color: #72b2ff; background: rgba(18, 55, 94, 0.4); }
+.wp-import-dropzone svg { color: #4193ff; }
+.wp-import-dropzone span, .wp-import-dropzone small { color: #9fb0c5; }
+.wp-import-format { align-items: flex-start; background: rgba(18, 58, 93, 0.2); border: 1px solid rgba(64, 148, 242, 0.36); border-radius: 10px; display: flex; gap: 12px; padding: 13px 15px; }
+.wp-import-format svg { color: #55a5ff; flex: 0 0 auto; margin-top: 2px; }
+.wp-import-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.wp-import-analysis-stats { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wp-import-stat { background: rgba(5, 15, 29, 0.42); border: 1px solid rgba(106, 141, 184, 0.21); border-radius: 12px; display: grid; gap: 5px; padding: 14px; }
+.wp-import-stat svg { color: #72b2ff; }
+.wp-import-stat span { color: #9fb0c5; font-size: 0.8rem; }
+.wp-import-stat strong { color: #f5f8fd; font-size: 1.5rem; }
+.wp-import-stat.is-success svg, .wp-import-stat.is-success strong { color: #8ce153; }
+.wp-import-stat.is-danger svg, .wp-import-stat.is-danger strong { color: #fa7d82; }
+.wp-import-error-list { background: rgba(92, 25, 33, 0.18); border: 1px solid rgba(232, 85, 93, 0.35); border-radius: 10px; display: grid; gap: 10px; padding: 14px 16px; }
+.wp-import-errors { color: #ffc0c4; margin: 0; max-height: 180px; overflow: auto; padding-left: 20px; }
+@media (max-width: 820px) { .wp-import-grid { grid-template-columns: 1fr; } .wp-import-summary { position: static; } .wp-import-section-heading { align-items: stretch; flex-direction: column; } .wp-import-file { align-self: flex-start; } }
+@media (max-width: 540px) { .wp-import-tabs { gap: 10px; } .wp-import-tabs button { flex: 1; font-size: 0.82rem; padding-inline: 0; } .wp-import-steps { padding: 0; } .wp-import-steps li { font-size: 0.68rem; } .wp-import-steps li:not(:last-child)::after { left: calc(50% + 15px); right: calc(-50% + 15px); } .wp-import-steps li span { height: 29px; width: 29px; } .wp-import-analysis-stats { grid-template-columns: 1fr; } .wp-import-actions { align-items: stretch; flex-direction: column; } .wp-import-actions button { width: 100%; } }

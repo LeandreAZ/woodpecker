@@ -1,0 +1,316 @@
+
+
+/* Final CSV import flow refresh */
+.wp-import-wizard .wp-import-steps {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 4px 0 12px;
+  padding: 0;
+}
+
+.wp-import-wizard .wp-import-step {
+  gap: 16px;
+}
+
+.wp-import-wizard .wp-import-section-heading {
+  align-items: center;
+}
+
+.wp-import-wizard .wp-import-file {
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.wp-import-wizard .wp-import-file small {
+  color: #9db0c9;
+}
+
+.wp-import-wizard .wp-import-dropzone {
+  min-height: 200px;
+  padding: 22px;
+}
+
+.wp-import-wizard .wp-import-dropzone.has-file {
+  align-items: stretch;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger,
+.wp-import-wizard .wp-import-dropzone-surface {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 0;
+  width: 100%;
+}
+
+.wp-import-wizard .wp-import-dropzone-surface {
+  gap: 18px;
+}
+
+.wp-import-wizard .wp-import-dropzone-copy {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.wp-import-wizard .wp-import-selected-file {
+  align-items: center;
+  background: rgba(8, 22, 40, 0.82);
+  border: 1px solid rgba(91, 132, 182, 0.28);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 14px 16px;
+  width: min(100%, 760px);
+}
+
+.wp-import-wizard .wp-import-selected-file__meta {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-selected-file__meta > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-selected-file__meta strong,
+.wp-import-wizard .wp-import-table-stack strong,
+.wp-import-wizard .wp-import-table-stack small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-selected-file__meta small,
+.wp-import-wizard .wp-import-table-stack small,
+.wp-import-wizard .wp-import-info-card p,
+.wp-import-wizard .wp-import-submit-block small,
+.wp-import-wizard .wp-import-stat small {
+  color: #9db0c9;
+}
+
+.wp-import-wizard .wp-import-selected-file__actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
+}
+
+.wp-import-wizard .wp-import-selected-file__replace {
+  color: #9db0c9;
+  font-size: 0.9rem;
+}
+
+.wp-import-wizard .wp-import-remove-file {
+  align-items: center;
+  background: rgba(17, 40, 67, 0.92);
+  border: 1px solid rgba(91, 132, 182, 0.28);
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.wp-import-wizard .wp-import-format {
+  align-items: center;
+}
+
+.wp-import-wizard .wp-import-review {
+  display: grid;
+  gap: 16px;
+}
+
+.wp-import-wizard .wp-import-analysis-stats--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.wp-import-wizard .wp-import-stat {
+  gap: 6px;
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-stat strong {
+  font-size: 1.4rem;
+}
+
+.wp-import-wizard .wp-import-review-toolbar--validation {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(240px, 1.2fr) minmax(0, 1fr) auto;
+}
+
+.wp-import-wizard .wp-import-report-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.wp-import-wizard .wp-import-rows-table__head--csv,
+.wp-import-wizard .wp-import-rows-table__row--csv {
+  grid-template-columns: 76px 86px minmax(220px, 1.35fr) 120px 110px minmax(220px, 1.15fr) 80px;
+}
+
+.wp-import-wizard .wp-import-preview-board {
+  align-items: center;
+  background: rgba(8, 22, 40, 0.72);
+  border: 1px solid rgba(91, 132, 182, 0.18);
+  border-radius: 12px;
+  display: inline-grid;
+  height: 56px;
+  justify-content: center;
+  padding: 4px;
+  width: 56px;
+}
+
+.wp-import-wizard .wp-import-table-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-chip {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.wp-import-wizard .wp-import-chip.is-success {
+  background: rgba(47, 135, 74, 0.18);
+  border-color: rgba(74, 196, 113, 0.24);
+  color: #9de09f;
+}
+
+.wp-import-wizard .wp-import-chip.is-warning,
+.wp-import-wizard .wp-import-stat.is-warning svg,
+.wp-import-wizard .wp-import-stat.is-warning strong {
+  background: rgba(171, 112, 31, 0.16);
+  border-color: rgba(245, 176, 88, 0.24);
+  color: #f2c17a;
+}
+
+.wp-import-wizard .wp-import-chip.is-danger {
+  background: rgba(148, 42, 52, 0.18);
+  border-color: rgba(246, 111, 122, 0.24);
+  color: #ffb0b7;
+}
+
+.wp-import-wizard .wp-import-info-card {
+  background: rgba(8, 22, 40, 0.62);
+  border: 1px solid rgba(81, 124, 172, 0.24);
+  border-radius: 14px;
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.wp-import-wizard .wp-import-info-card strong,
+.wp-import-wizard .wp-import-info-card p {
+  margin: 0;
+}
+
+.wp-import-wizard .wp-import-check {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.wp-import-wizard .wp-import-check span {
+  display: grid;
+  gap: 4px;
+}
+
+.wp-import-wizard .wp-import-check small {
+  color: #9db0c9;
+}
+
+.wp-import-wizard .wp-import-check.is-static {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.wp-import-wizard .wp-import-check-marker {
+  background: rgba(66, 104, 150, 0.36);
+  border-radius: 999px;
+  height: 10px;
+  margin-top: 7px;
+  width: 10px;
+}
+
+.wp-import-wizard .wp-import-actions--with-note {
+  align-items: end;
+}
+
+.wp-import-wizard .wp-import-submit-block {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.wp-import-wizard .wp-import-submit-block small {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+@media (max-width: 1100px) {
+  .wp-import-wizard .wp-import-analysis-stats--five,
+  .wp-import-wizard .wp-import-review-toolbar--validation {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .wp-import-wizard .wp-import-review-toolbar--validation > :last-child {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .wp-import-wizard .wp-import-rows-table {
+    overflow-x: auto;
+  }
+
+  .wp-import-wizard .wp-import-rows-table__head--csv,
+  .wp-import-wizard .wp-import-rows-table__row--csv {
+    min-width: 980px;
+  }
+}
+
+@media (max-width: 720px) {
+  .wp-import-wizard .wp-import-analysis-stats--five,
+  .wp-import-wizard .wp-import-analysis-stats--four,
+  .wp-import-wizard .wp-import-review-toolbar--validation,
+  .wp-import-wizard .wp-import-selected-file {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-import-wizard .wp-import-selected-file__actions,
+  .wp-import-wizard .wp-import-submit-block {
+    justify-content: flex-start;
+    justify-items: start;
+  }
+}
+
+
+/* Final CSV review polish: compact cards and a real board preview. */
+.wp-import-wizard .wp-import-stat small { display: none; }
+.wp-import-wizard .wp-import-stat.is-warning strong { background: transparent; border: 0; }
+.wp-import-wizard .wp-import-stat { align-content: start; grid-template-rows: auto auto; }
+.wp-import-wizard .wp-import-stat > svg { align-self: center; }
+.wp-import-wizard .wp-import-stat > span { align-self: center; }
+.wp-import-wizard .wp-import-real-board { display: block; height: 52px; overflow: hidden; width: 52px; }
+.wp-import-wizard .wp-import-real-board > div { height: 52px !important; width: 52px !important; }

@@ -1,0 +1,381 @@
+.wp-create-training-page {
+  gap: 18px;
+}
+
+.wp-create-training-page__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  padding: 2px 0;
+}
+
+.wp-create-training-page__header h1 {
+  margin: 0;
+  color: #f5f7fc;
+  font-family: 'Sora', 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(2.2rem, 3vw, 3.05rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+
+.wp-create-training-page__header p {
+  margin: 8px 0 0;
+  color: #b1bfd0;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.wp-create-training-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.wp-create-training-card,
+.wp-create-training-footer {
+  border: 1px solid rgba(58, 80, 109, 0.34);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(10, 21, 37, 0.98), rgba(8, 17, 31, 0.98));
+  box-shadow: 0 24px 48px rgba(3, 8, 18, 0.24);
+}
+
+.wp-create-training-card {
+  overflow: visible;
+}
+
+.wp-create-training-card__section {
+  position: relative;
+  display: grid;
+  gap: 20px;
+  padding: 24px 20px;
+}
+
+.wp-create-training-card__section--bordered {
+  border-top: 1px solid rgba(61, 82, 109, 0.2);
+}
+
+.wp-create-training-card__section h3 {
+  margin: 0;
+  color: #f5f7fc;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.wp-create-training-card__section label,
+.wp-create-training-card__plain-label {
+  display: grid;
+  gap: 9px;
+  color: #edf2fa;
+  font-size: 0.96rem;
+}
+
+.wp-create-training-card__section input,
+.wp-create-training-card__section textarea,
+.wp-create-training-card__section select {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 1px solid rgba(65, 87, 114, 0.48);
+  border-radius: 14px;
+  background: rgba(8, 16, 29, 0.84);
+  color: #edf2fa;
+  font-size: 1rem;
+}
+
+.wp-create-training-card__section textarea {
+  min-height: 138px;
+  padding: 16px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.wp-create-training-card__section input::placeholder,
+.wp-create-training-card__section textarea::placeholder {
+  color: #79889b;
+}
+
+.wp-create-training-card__counter {
+  justify-self: end;
+  color: #9fb0c5;
+  font-size: 0.82rem;
+}
+
+.wp-create-training-card__label-row,
+.wp-create-training-field__label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wp-create-training-card__plain-label {
+  color: #edf2fa;
+}
+
+.wp-create-training-card__hint {
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(155, 172, 196, 0.32);
+  border-radius: 999px;
+  color: #9fb0c5;
+  font-size: 0.72rem;
+}
+
+.wp-create-training-card__hint--button {
+  cursor: pointer;
+  background: rgba(11, 23, 40, 0.9);
+}
+
+.wp-create-training-info {
+  position: relative;
+  display: inline-flex;
+}
+
+.wp-create-training-info__bubble {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 50;
+  width: min(280px, calc(100vw - 340px));
+  min-width: 220px;
+  padding: 10px 12px;
+  border: 1px solid rgba(76, 104, 141, 0.38);
+  border-radius: 12px;
+  background: rgba(7, 16, 29, 0.98);
+  box-shadow: 0 18px 36px rgba(3, 8, 18, 0.34);
+  color: #c9d5e3;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.wp-create-training-info.is-open .wp-create-training-info__bubble {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.wp-create-training-tolerance-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wp-create-training-tolerance {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(62, 83, 110, 0.42);
+  border-radius: 16px;
+  background: rgba(8, 16, 29, 0.7);
+  color: #edf2fa;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.wp-create-training-tolerance.is-active {
+  border-color: rgba(147, 209, 63, 0.58);
+  background: linear-gradient(180deg, rgba(26, 56, 22, 0.82), rgba(18, 41, 17, 0.82));
+  box-shadow: inset 0 0 0 1px rgba(185, 229, 78, 0.18);
+}
+
+.wp-create-training-tolerance__check {
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  color: #a5db3f;
+}
+
+.wp-create-training-tolerance__check svg {
+  width: 22px;
+  height: 22px;
+}
+
+.wp-create-training-tolerance__dot {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(122, 141, 164, 0.7);
+  border-radius: 999px;
+}
+
+.wp-create-training-tolerance__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.wp-create-training-tolerance__copy strong {
+  color: #f5f7fc;
+  font-size: 1rem;
+}
+
+.wp-create-training-tolerance__copy small {
+  color: #a7b6c9;
+  font-size: 0.88rem;
+}
+
+.wp-create-training-fields {
+  overflow: visible;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wp-create-training-select-shell {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  padding: 0 14px 0 16px;
+  border: 1px solid rgba(65, 87, 114, 0.48);
+  border-radius: 14px;
+  background: rgba(8, 16, 29, 0.84);
+}
+
+.wp-create-training-select-shell select {
+  min-height: 54px;
+  padding: 0 28px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #edf2fa;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #c7d5e7 50%), linear-gradient(135deg, #c7d5e7 50%, transparent 50%);
+  background-position: calc(100% - 12px) calc(50% - 3px), calc(100% - 6px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.wp-create-training-select-shell__icon {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.wp-create-training-select-shell__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.wp-create-training-select-shell__icon.tone-green {
+  color: #b9e54e;
+  background: rgba(114, 170, 44, 0.12);
+}
+
+.wp-create-training-select-shell__icon.tone-amber {
+  color: #f4b000;
+  background: rgba(244, 176, 0, 0.12);
+}
+
+.wp-create-training-select-shell__icon.tone-blue {
+  color: #3f8cff;
+  background: rgba(63, 140, 255, 0.12);
+}
+
+.wp-create-training-select-shell__icon.tone-violet {
+  color: #b38cff;
+  background: rgba(179, 140, 255, 0.12);
+}
+
+.wp-create-training-footer {
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.wp-create-training-footer__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.wp-create-training-footer__note-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(41, 113, 239, 0.14);
+  color: #4f8ef7;
+}
+
+.wp-create-training-footer__note-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.wp-create-training-footer__note strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #f5f7fc;
+  font-size: 1.02rem;
+}
+
+.wp-create-training-footer__note p {
+  margin: 0;
+  max-width: 760px;
+  color: #a7b6c9;
+  line-height: 1.55;
+}
+
+.wp-create-training-footer__submit {
+  min-width: 350px;
+  min-height: 56px;
+  padding: 0 26px;
+  border-radius: 12px;
+  justify-self: end;
+}
+
+@media (max-width: 1080px) {
+  .wp-create-training-tolerance-grid,
+  .wp-create-training-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-create-training-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wp-create-training-footer__submit {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .wp-create-training-page__header {
+    gap: 12px;
+  }
+
+  .wp-create-training-page__header h1 {
+    font-size: 2rem;
+  }
+
+  .wp-create-training-card__section,
+  .wp-create-training-footer {
+    padding: 18px;
+  }
+
+  .wp-create-training-tolerance {
+    min-height: 68px;
+    padding: 14px 16px;
+  }
+
+  .wp-create-training-info__bubble {
+    width: min(240px, calc(100vw - 48px));
+    min-width: 0;
+  }
+}
+
+
+

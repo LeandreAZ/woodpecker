@@ -1,0 +1,46 @@
+
+
+@media (max-width: 1280px) {
+  .wp-stats-v2-cards,
+  .wp-stats-v2-grid--global,
+  .wp-stats-v2-grid--specific {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .wp-stats-v2-header,
+  .wp-stats-v2-panel__head,
+  .wp-stats-v2-header__filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wp-stats-v2-cards,
+  .wp-stats-v2-grid--global,
+  .wp-stats-v2-grid--specific {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-stats-v2-select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .wp-stats-v2-table--trainings .wp-stats-v2-table__head,
+  .wp-stats-v2-table--trainings .wp-stats-v2-table__row,
+  .wp-stats-v2-table--cycles .wp-stats-v2-table__head,
+  .wp-stats-v2-table--cycles .wp-stats-v2-table__row,
+  .wp-stats-v2-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-stats-v2-chart__labels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.wp-stats-v2-grid--quad {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

@@ -1,0 +1,561 @@
+
+
+
+/* Import puzzles refinements for the current maquette pass. */
+.wp-import-wizard {
+  max-width: min(1380px, 100%);
+}
+
+.wp-import-wizard .wp-import-grid {
+  align-items: start;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.78fr);
+}
+
+.wp-import-wizard .wp-import-configuration,
+.wp-import-wizard .wp-import-csv {
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-step-card,
+.wp-import-wizard .wp-import-csv .wp-import-step,
+.wp-import-wizard .wp-import-summary {
+  padding: 18px;
+}
+
+.wp-import-wizard .wp-import-dropzone {
+  min-height: 220px;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wp-import-wizard .wp-import-dropzone small {
+  align-items: center;
+  background: rgba(18, 104, 237, 0.18);
+  border: 1px solid rgba(84, 157, 255, 0.72);
+  border-radius: 10px;
+  color: #f3f8ff;
+  display: inline-flex;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 18px;
+}
+
+.wp-import-wizard .wp-import-dropzone em {
+  color: #9eb2ca;
+  font-size: 0.9rem;
+  font-style: normal;
+}
+
+.wp-import-icon-button {
+  align-items: center;
+  background: rgba(9, 23, 42, 0.72);
+  border: 1px solid rgba(73, 114, 163, 0.52);
+  border-radius: 10px;
+  color: #edf4ff;
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.wp-import-edit-button {
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+}
+
+.wp-import-wizard .wp-import-actions .wp-primary,
+.wp-import-wizard .wp-import-actions .wp-secondary {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.wp-import-search-field {
+  align-items: center;
+  background: rgba(8, 22, 40, 0.72);
+  border: 1px solid rgba(91, 132, 182, 0.35);
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 0 14px;
+}
+
+.wp-import-search-field input {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  min-height: 42px;
+  outline: none;
+  padding: 0;
+}
+
+.wp-import-search-field input:focus,
+.wp-import-search-field input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.wp-import-theme-options {
+  max-height: 124px;
+  overflow: auto;
+}
+
+.wp-import-theme-distribution {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-import-theme-distribution label {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 112px;
+}
+
+.wp-import-theme-distribution label > div {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.wp-import-distribution-total {
+  color: #9db0c9;
+  margin: 0;
+}
+
+.wp-import-distribution-total.is-invalid {
+  color: #fa7d82;
+}
+
+.wp-import-options {
+  background: rgba(8, 22, 40, 0.62);
+  border: 1px solid rgba(81, 124, 172, 0.24);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.wp-import-options h4 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.wp-import-check {
+  align-items: center;
+  color: #dce9fa;
+  display: inline-flex;
+  gap: 10px;
+}
+
+.wp-import-analysis-stats--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.wp-import-review {
+  display: grid;
+  gap: 14px;
+}
+
+.wp-import-review-toolbar {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+}
+
+.wp-import-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wp-import-filter-pills button {
+  align-items: center;
+  background: rgba(8, 22, 40, 0.72);
+  border: 1px solid rgba(91, 132, 182, 0.35);
+  border-radius: 999px;
+  color: #dce9fa;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.wp-import-filter-pills button.is-active {
+  background: rgba(37, 132, 255, 0.16);
+  border-color: rgba(78, 162, 255, 0.7);
+}
+
+.wp-import-search-field--compact {
+  min-width: 0;
+}
+
+.wp-import-results-count {
+  color: #9db0c9;
+  margin: 0;
+}
+
+.wp-import-rows-table {
+  border: 1px solid rgba(91, 132, 182, 0.2);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.wp-import-rows-table__head,
+.wp-import-rows-table__row {
+  align-items: start;
+  column-gap: 12px;
+  display: grid;
+  grid-template-columns: 84px 150px minmax(110px, 0.9fr) 90px minmax(180px, 1.2fr) minmax(220px, 1.4fr);
+  padding: 12px 14px;
+}
+
+.wp-import-rows-table__head {
+  background: rgba(8, 22, 40, 0.82);
+  color: #9db0c9;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.wp-import-rows-table__row {
+  background: rgba(11, 24, 42, 0.72);
+  border-top: 1px solid rgba(91, 132, 182, 0.14);
+}
+
+.wp-import-rows-table__row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-import-success {
+  align-items: start;
+  background: rgba(20, 61, 34, 0.5);
+  border: 1px solid rgba(92, 196, 104, 0.35);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 16px;
+}
+
+.wp-import-success strong,
+.wp-import-success p {
+  margin: 0;
+}
+
+@media (max-width: 980px) {
+  .wp-import-analysis-stats--four,
+  .wp-import-review-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-import-rows-table {
+    overflow-x: auto;
+  }
+
+  .wp-import-rows-table__head,
+  .wp-import-rows-table__row {
+    min-width: 860px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .wp-import-wizard .wp-import-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .wp-import-theme-distribution label {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-import-wizard .wp-import-dropzone {
+    min-height: 190px;
+  }
+}
+
+
+.wp-import-count-control {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-import-wizard .wp-import-quick-counts button {
+  min-width: 58px;
+}
+
+.wp-import-wizard .wp-import-theme-options {
+  max-height: none;
+  overflow: visible;
+}
+
+.wp-import-wizard .wp-import-advanced-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .wp-import-wizard .wp-import-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.wp-import-wizard .wp-import-count-row {
+  align-items: center;
+}
+
+.wp-import-wizard .wp-import-quick-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+}
+
+.wp-import-wizard .wp-import-quick-counts button {
+  width: 100%;
+}
+
+.wp-import-wizard .wp-import-availability {
+  align-self: stretch;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.wp-import-wizard .wp-import-availability strong {
+  color: #dbe9fb;
+}
+
+.wp-import-wizard .wp-import-step input:focus,
+.wp-import-wizard .wp-import-step input:focus-visible,
+.wp-import-wizard .wp-import-advanced input:focus,
+.wp-import-wizard .wp-import-advanced input:focus-visible {
+  border-color: #2584ff;
+  box-shadow: 0 0 0 2px rgba(37, 132, 255, 0.14);
+  outline: none;
+}
+
+.wp-import-wizard .wp-import-distribution-options button {
+  column-gap: 10px;
+  row-gap: 3px;
+}
+
+
+.wp-import-wizard .wp-import-step-card:not([open]) {
+  display: block;
+}
+
+.wp-import-wizard .wp-import-dual-range input:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid #dbe9fb;
+  outline-offset: 3px;
+}
+
+.wp-import-wizard .wp-import-dual-range input:focus-visible::-moz-range-thumb {
+  outline: 2px solid #dbe9fb;
+  outline-offset: 3px;
+}
+
+.wp-import-wizard .wp-import-step-card > summary,
+.wp-import-wizard .wp-import-advanced > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.wp-import-wizard .wp-import-step-card > summary::-webkit-details-marker,
+.wp-import-wizard .wp-import-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.wp-import-wizard .wp-import-step-card > summary > span {
+  display: grid;
+  gap: 4px;
+}
+
+.wp-import-wizard .wp-import-step-card > summary h3 {
+  margin: 0;
+}
+
+.wp-import-wizard .wp-import-step-card > summary p {
+  margin: 0;
+}
+
+.wp-import-wizard .wp-import-step-card > summary > svg,
+.wp-import-wizard .wp-import-advanced > summary > svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.wp-import-wizard .wp-import-step-card[open] > summary > svg,
+.wp-import-wizard .wp-import-advanced[open] > summary > svg {
+  transform: rotate(180deg);
+}
+
+.wp-import-wizard .wp-import-dual-range {
+  height: 28px;
+}
+
+.wp-import-wizard .wp-import-dual-range__track {
+  background: #43566b;
+  height: 4px;
+  inset: 50% 8px auto;
+  width: auto;
+  transform: translateY(-50%);
+}
+
+.wp-import-wizard .wp-import-dual-range__track span {
+  background: #2584ff;
+}
+
+.wp-import-wizard .wp-import-dual-range input {
+  padding: 0;
+  margin: 0;
+  height: 28px;
+  inset: 0;
+}
+
+.wp-import-wizard .wp-import-dual-range input::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 4px;
+}
+
+.wp-import-wizard .wp-import-dual-range input::-moz-range-track {
+  background: transparent;
+  height: 4px;
+}
+
+.wp-import-wizard .wp-import-dual-range input::-webkit-slider-thumb {
+  height: 16px;
+  margin-top: -6px;
+  width: 16px;
+}
+
+.wp-import-wizard .wp-import-dual-range input::-moz-range-thumb {
+  box-sizing: border-box;
+  height: 16px;
+  width: 16px;
+}
+
+.wp-import-wizard .wp-import-step .wp-import-search-field input,
+.wp-import-wizard .wp-import-step .wp-import-search-field input:focus,
+.wp-import-wizard .wp-import-step .wp-import-search-field input:focus-visible {
+  border: 0;
+  box-shadow: none;
+}
+
+.wp-import-wizard .wp-import-advanced {
+  padding-bottom: 14px;
+}
+
+/* Keep the import steps compact while preserving a clear separation. */
+.wp-import-wizard .wp-import-configuration {
+  gap: 8px;
+}
+
+.wp-import-wizard .wp-import-step-card,
+.wp-import-wizard .wp-import-advanced[open] {
+  gap: 10px;
+}
+
+/* The browser range control must not paint a second rounded track. */
+.wp-import-wizard .wp-import-dual-range input,
+.wp-import-wizard .wp-import-dual-range input:focus,
+.wp-import-wizard .wp-import-dual-range input:focus-visible {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  inset: 50% 0 auto;
+  outline: none;
+  transform: translateY(-50%);
+}
+
+.wp-import-wizard .wp-import-dual-range input::-webkit-slider-thumb {
+  margin-top: -6px;
+}
+
+.wp-import-wizard .wp-import-theme-options {
+  max-height: 84px;
+  gap: 8px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.wp-import-wizard .wp-import-advanced {
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.wp-import-wizard .wp-import-theme-list {
+  margin-top: 8px;
+}
+
+.wp-import-wizard .wp-import-theme-distribution {
+  margin-top: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+}
+
+.wp-import-wizard .wp-import-theme-distribution label {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 112px;
+}
+
+.wp-import-wizard .wp-import-theme-distribution label > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.wp-import-wizard .wp-import-theme-options .wp-import-theme-chip {
+  height: 38px;
+  min-height: 38px;
+  max-width: 100%;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 760px) {
+  .wp-import-wizard .wp-import-theme-distribution {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.wp-import-wizard .wp-import-distribution-options button {
+  align-content: center;
+}
+
+.wp-import-wizard .wp-import-distribution-options .wp-import-radio {
+  align-self: center;
+  margin-top: 0;
+}
+
+@media (min-width: 1501px) {
+  .wp-import-wizard .wp-import-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  }
+}
+
+@media (max-width: 1500px) {
+  .wp-import-wizard .wp-import-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wp-import-wizard .wp-import-summary {
+    position: static;
+  }
+}
+
+@media (min-width: 761px) {
+  .wp-import-wizard {
+    max-width: none;
+  }
+}

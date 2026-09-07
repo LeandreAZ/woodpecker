@@ -1,0 +1,132 @@
+
+
+.wp-stats-v2-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.wp-stats-v2-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.wp-stats-v2-panel__head h2 {
+  margin: 0;
+  color: #f6f8fc;
+  font-size: 1.14rem;
+}
+
+.wp-stats-v2-panel__head p {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+
+.wp-stats-v2-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.wp-stats-v2-chart__main svg {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+
+.wp-stats-v2-chart__grid {
+  stroke: rgba(105, 128, 160, 0.18);
+  stroke-width: 1;
+}
+
+.wp-stats-v2-chart__line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wp-stats-v2-chart__line.is-blue,
+.wp-stats-v2-chart__dot.is-blue {
+  stroke: #5ea8ff;
+  fill: #5ea8ff;
+}
+
+.wp-stats-v2-chart__line.is-lime,
+.wp-stats-v2-chart__dot.is-lime {
+  stroke: #b7e642;
+  fill: #b7e642;
+}
+
+.wp-stats-v2-chart__labels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.wp-stats-v2-chart__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.84rem;
+}
+
+.wp-stats-v2-table {
+  display: grid;
+}
+
+.wp-stats-v2-table__head,
+.wp-stats-v2-table__row {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+}
+
+.wp-stats-v2-table--trainings .wp-stats-v2-table__head,
+.wp-stats-v2-table--trainings .wp-stats-v2-table__row {
+  grid-template-columns: minmax(0, 1.35fr) 96px 86px 92px;
+}
+
+.wp-stats-v2-table--cycles .wp-stats-v2-table__head,
+.wp-stats-v2-table--cycles .wp-stats-v2-table__row {
+  grid-template-columns: 72px minmax(0, 1.25fr) 92px 96px 120px 92px;
+}
+
+.wp-stats-v2-table__head {
+  padding: 0 0 12px;
+  border-bottom: 1px solid rgba(69, 93, 126, 0.2);
+  font-size: 0.88rem;
+}
+
+.wp-stats-v2-table__row {
+  width: 100%;
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(69, 93, 126, 0.14);
+  background: transparent;
+  color: #e6eef9;
+  text-align: left;
+}
+
+.wp-stats-v2-table__row:last-child {
+  border-bottom: 0;
+}
+
+.wp-stats-v2-table__row--button {
+  cursor: pointer;
+}
+
+.wp-stats-v2-training-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wp-stats-v2-training-cell strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

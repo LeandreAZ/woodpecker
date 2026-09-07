@@ -1,0 +1,69 @@
+
+
+@media (max-width: 1280px) {
+  .wp-global-stats-kpis,
+  .wp-global-stats-grid--top,
+  .wp-global-stats-grid--bottom,
+  .wp-global-stats-grid--portfolio {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 920px) {
+  .wp-global-stats-page__header,
+  .wp-global-stats-panel__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wp-global-stats-controls {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .wp-global-stats-filter,
+  .wp-global-stats-select {
+    width: 100%;
+  }
+
+  .wp-global-stats-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wp-global-stats-table--trainings .wp-global-stats-table__head,
+  .wp-global-stats-table--trainings .wp-global-stats-table__row,
+  .wp-global-stats-table--cycles .wp-global-stats-table__head,
+  .wp-global-stats-table--cycles .wp-global-stats-table__row,
+  .wp-global-stats-portfolio-row,
+  .wp-global-stats-mini-chart__row {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-global-stats-bars {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-global-stats-bars__columns {
+    max-width: 320px;
+  }
+
+  .wp-global-stats-focus-card__stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .wp-global-stats-kpis,
+  .wp-global-stats-chart-xaxis,
+  .wp-global-stats-chart-xaxis--compact {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-global-stats-chart-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-global-stats-chart-yaxis {
+    display: none;
+  }
+}

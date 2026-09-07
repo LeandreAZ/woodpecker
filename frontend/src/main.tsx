@@ -1,13 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import App from './App';
-import { Notifications } from './components/ui/Notifications';
-import { AppErrorBoundary } from './shared/AppErrorBoundary';
-import './styles.css';
-import './components/navigation/app-navigation.css';
-import './features/trainings/layout/trainings-shell.css';
-import './styles/components/ui-consistency.css';
+import App from './app/App';
+import { Notifications } from './shared/ui/Notifications';
+import { AppErrorBoundary } from './app/errors/AppErrorBoundary';
+import './styles/globals.css';
+import './app/layout/navigation/app-navigation.css';
+import './app/layout/trainings/trainings-shell.css';
+import './shared/ui/styles/ui-consistency.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

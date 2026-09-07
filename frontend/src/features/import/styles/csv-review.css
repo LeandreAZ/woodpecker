@@ -1,0 +1,330 @@
+
+
+/* CSV import finishing pass: align the 3-step flow with the validated mockups. */
+.wp-import-wizard .wp-import-file {
+  align-items: center;
+  background: rgba(8, 22, 40, 0.78);
+  border: 1px solid rgba(83, 121, 166, 0.34);
+  border-radius: 14px;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.wp-import-wizard .wp-import-file span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-edit-button {
+  background: rgba(9, 25, 44, 0.88);
+  border: 1px solid rgba(93, 132, 178, 0.34);
+  border-radius: 10px;
+  color: #edf4ff;
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.wp-import-wizard .wp-import-dropzone {
+  align-content: center;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 214px;
+}
+
+.wp-import-wizard .wp-import-dropzone.has-file {
+  align-content: center;
+  gap: 14px;
+  justify-items: stretch;
+}
+
+.wp-import-wizard .wp-import-selected-file {
+  align-items: center;
+  background: rgba(8, 22, 40, 0.82);
+  border: 1px solid rgba(83, 121, 166, 0.34);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  box-sizing: border-box;
+  justify-self: stretch;
+  max-width: none;
+  min-width: 0;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger--file {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  justify-items: start;
+  width: 100%;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger--file > svg {
+  color: #72b2ff;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger--file > strong,
+.wp-import-wizard .wp-import-dropzone-trigger--file > span {
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger--file > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger--file > span {
+  color: #a7b9ce;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-remove-file {
+  flex: 0 0 auto;
+}
+
+/* Keep the selected file compact while preserving one readable row. */
+.wp-import-wizard .wp-import-dropzone.has-file {
+  min-height: 0;
+  padding: 16px 20px;
+}
+
+.wp-import-wizard .wp-import-dropzone.has-file .wp-import-dropzone-surface {
+  gap: 8px;
+}
+
+.wp-import-wizard .wp-import-dropzone.has-file > em {
+  justify-self: center;
+}
+
+.wp-import-wizard .wp-import-dropzone.has-file .wp-import-dropzone-trigger--file {
+  align-self: center;
+  display: flex;
+  gap: 10px;
+  height: 36px;
+  min-height: 0;
+  padding: 0;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger--file > strong {
+  flex: 0 1 auto;
+}
+
+.wp-import-wizard .wp-import-dropzone-trigger--file > span {
+  flex: 0 0 auto;
+  justify-self: auto;
+}
+
+/* Each element shares the same optical center in the selected-file row. */
+.wp-import-wizard .wp-import-dropzone-trigger--file > svg,
+.wp-import-wizard .wp-import-dropzone-trigger--file > strong,
+.wp-import-wizard .wp-import-dropzone-trigger--file > span {
+  align-self: center;
+  line-height: 1;
+}
+
+.wp-import-wizard .wp-import-remove-file {
+  align-self: center;
+}
+
+.wp-import-wizard .wp-import-format {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.wp-import-wizard .wp-import-format > div {
+  justify-items: start;
+}
+
+.wp-import-wizard .wp-import-template-link {
+  margin-left: auto;
+}
+
+.wp-import-wizard .wp-import-stat {
+  align-content: start;
+  gap: 8px;
+  grid-template-rows: auto auto;
+}
+
+.wp-import-wizard .wp-import-stat__header {
+  align-items: center;
+  color: #dce8f7;
+  display: inline-flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-stat__header span {
+  color: #dce8f7;
+  font-size: 0.86rem;
+}
+
+.wp-import-wizard .wp-import-stat strong {
+  background: transparent;
+  border: 0;
+}
+
+.wp-import-wizard .wp-import-analysis-stats--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.wp-import-wizard .wp-import-analysis-stats--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.wp-import-wizard .wp-import-review-toolbar--validation {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.wp-import-wizard .wp-import-filter-pills {
+  align-items: center;
+  gap: 10px;
+}
+
+.wp-import-wizard .wp-import-filter-pills button {
+  justify-content: center;
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-filter-pills button span {
+  color: #edf4ff;
+  font-size: 0.92rem;
+}
+
+.wp-import-wizard .wp-import-report-button {
+  justify-self: end;
+}
+
+.wp-import-wizard .wp-import-rows-table__head--csv,
+.wp-import-wizard .wp-import-rows-table__row--csv {
+  align-items: center;
+  grid-template-columns: 56px 90px minmax(220px, 1.5fr) 110px 110px minmax(220px, 1.25fr) 72px;
+}
+
+.wp-import-wizard .wp-import-rows-table__head--csv {
+  align-items: center;
+}
+
+.wp-import-wizard .wp-import-preview-board {
+  align-items: center;
+  display: inline-grid;
+  justify-content: center;
+}
+
+.wp-import-wizard .wp-import-rating-value {
+  color: #d7e3f4;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.wp-import-wizard .wp-import-action-icon {
+  align-items: center;
+  color: #dce8f7;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.wp-import-wizard .wp-import-options {
+  gap: 14px;
+}
+
+.wp-import-wizard .wp-import-confirmation {
+  align-items: center;
+  color: #dce8f7;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.wp-import-wizard .wp-import-confirmation input {
+  accent-color: #2f8aff;
+  height: 16px;
+  margin: 0;
+  width: 16px;
+}
+
+.wp-import-wizard .wp-import-confirmation span {
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-actions--between {
+  justify-content: space-between;
+}
+
+@media (max-width: 1100px) {
+  .wp-import-wizard .wp-import-analysis-stats--five {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .wp-import-wizard .wp-import-rows-table__head--csv,
+  .wp-import-wizard .wp-import-rows-table__row--csv {
+    min-width: 980px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .wp-import-wizard .wp-import-format {
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .wp-import-wizard .wp-import-format > div {
+    justify-items: center;
+  }
+
+  .wp-import-wizard .wp-import-template-link {
+    justify-content: center;
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .wp-import-wizard .wp-import-selected-file {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .wp-import-wizard .wp-import-dropzone-trigger--file {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .wp-import-wizard .wp-import-dropzone-trigger--file > span {
+    grid-column: auto;
+    justify-self: end;
+  }
+
+  .wp-import-wizard .wp-import-remove-file {
+    width: 36px;
+  }
+
+  .wp-import-wizard .wp-import-report-button,
+  .wp-import-wizard .wp-import-report-button,
+  .wp-import-wizard .wp-import-actions--between .wp-primary,
+  .wp-import-wizard .wp-import-actions--between .wp-secondary {
+    width: 100%;
+  }
+
+  .wp-import-wizard .wp-import-analysis-stats--five,
+  .wp-import-wizard .wp-import-analysis-stats--four,
+  .wp-import-wizard .wp-import-review-toolbar--validation {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-import-wizard .wp-import-filter-pills {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wp-import-wizard .wp-import-actions--between {
+    flex-direction: column;
+  }
+}

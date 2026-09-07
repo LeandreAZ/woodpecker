@@ -1,0 +1,78 @@
+
+
+@media (max-width: 1180px) {
+  .wp-page.wp-training-stats-page .wp-training-stats-cards,
+  .wp-page.wp-training-stats-page .wp-training-stats-grid--global,
+  .wp-page.wp-training-stats-page .wp-training-stats-grid--selected-top,
+  .wp-page.wp-training-stats-page .wp-training-stats-grid--selected-bottom {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .wp-page.wp-training-stats-page .wp-training-stats-page__header,
+  .wp-page.wp-training-stats-page .wp-training-stats-page__filters,
+  .wp-page.wp-training-stats-page .wp-training-stats-panel__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-cards,
+  .wp-page.wp-training-stats-page .wp-training-stats-grid--global,
+  .wp-page.wp-training-stats-page .wp-training-stats-grid--selected-top,
+  .wp-page.wp-training-stats-page .wp-training-stats-grid--selected-bottom,
+  .wp-page.wp-training-stats-page .wp-training-stats-grid--selected-detail,
+  .wp-page.wp-training-stats-page .wp-training-stats-result-distribution {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-select {
+    min-width: 100%;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-result-row__meta {
+    justify-content: flex-start;
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .wp-page.wp-training-stats-page {
+    gap: 18px;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-card,
+  .wp-page.wp-training-stats-page .wp-training-stats-panel {
+    padding: 16px;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-donut strong {
+    font-size: 0.72rem;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-donut span {
+    font-size: 0.58rem;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-result-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-result-row__main {
+    gap: 10px;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-result-row__main small {
+    line-height: 1.15;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-result-row__meta {
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .wp-page.wp-training-stats-page .wp-training-stats-cycle-results__columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

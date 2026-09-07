@@ -1,0 +1,88 @@
+
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart,
+.wp-page.wp-training-stats-page .wp-training-stats-chart__empty {
+  min-height: 320px;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart {
+  display: grid;
+  gap: 10px;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__header-inline {
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__canvas {
+  width: 100%;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__canvas svg {
+  width: 100%;
+  overflow: visible;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__grid {
+  stroke: rgba(58, 87, 130, 0.62);
+  stroke-dasharray: 4 4;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__axis {
+  stroke: rgba(58, 87, 130, 0.32);
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__stem {
+  stroke: rgba(111, 143, 192, 0.28);
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__line {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 3;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart.is-violet .wp-training-stats-chart__line {
+  stroke: #a855f7;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__dot {
+  fill: #3b82f6;
+  stroke: #0a1222;
+  stroke-width: 3;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart.is-violet .wp-training-stats-chart__dot {
+  fill: #a855f7;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__axis-label,
+.wp-page.wp-training-stats-page .wp-training-stats-chart__x-label {
+  fill: #dbe7f5;
+  font-size: 11px;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__point-value {
+  fill: #f8fafc;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-chart__empty {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 24px;
+  border: 1px dashed #1e2f4d;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.wp-page.wp-training-stats-page .wp-training-stats-result-distribution {
+  display: grid;
+  grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+}

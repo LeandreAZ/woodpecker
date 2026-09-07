@@ -1,0 +1,230 @@
+
+
+
+/* Lichess generator: two-column desktop composition matching the import reference. */
+.wp-import-wizard .wp-import-grid {
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1.5fr) minmax(310px, 0.92fr);
+}
+
+.wp-import-wizard .wp-import-configuration {
+  min-width: 0;
+}
+
+.wp-import-wizard .wp-import-step-card {
+  gap: 14px;
+  padding: 18px;
+}
+
+.wp-import-count-row {
+  align-items: end;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.42fr);
+}
+
+.wp-import-count-row label {
+  min-width: 0;
+}
+
+.wp-import-availability {
+  align-items: flex-end;
+  color: #a9bed5;
+  display: grid;
+  font-size: 0.78rem;
+  gap: 2px;
+  margin: 0;
+}
+
+.wp-import-availability strong {
+  color: #68d675;
+  font-size: 1.05rem;
+}
+
+.wp-import-rating-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wp-import-dual-range {
+  height: 24px;
+  position: relative;
+}
+
+.wp-import-dual-range__track,
+.wp-import-dual-range input {
+  inset: 8px 0 auto;
+  position: absolute;
+  width: 100%;
+}
+
+.wp-import-dual-range__track {
+  border-radius: 999px;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(130, 159, 192, 0.28);
+}
+
+.wp-import-dual-range__track span {
+  background: linear-gradient(90deg, #1674ff, #65a8ff);
+  bottom: 0;
+  position: absolute;
+  top: 0;
+}
+
+.wp-import-dual-range input {
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 18px;
+  pointer-events: none;
+}
+
+.wp-import-dual-range input::-webkit-slider-thumb {
+  appearance: none;
+  background: #f5f9ff;
+  border: 3px solid #207dff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(31, 122, 255, 0.16);
+  height: 16px;
+  pointer-events: auto;
+  width: 16px;
+}
+
+.wp-import-dual-range input::-moz-range-thumb {
+  background: #f5f9ff;
+  border: 3px solid #207dff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(31, 122, 255, 0.16);
+  height: 11px;
+  pointer-events: auto;
+  width: 11px;
+}
+
+.wp-import-range-labels {
+  color: #a9bed5;
+  display: flex;
+  font-size: 0.78rem;
+  justify-content: space-between;
+  margin-top: -8px;
+}
+
+.wp-import-distribution-options {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wp-import-distribution-options button {
+  background: rgba(11, 29, 51, 0.68);
+  border: 1px solid rgba(86, 125, 170, 0.35);
+  border-radius: 10px;
+  color: #dbe9fb;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: auto 1fr;
+  padding: 12px;
+  text-align: left;
+}
+
+.wp-import-distribution-options button.is-selected {
+  border-color: #2584ff;
+  background: rgba(25, 100, 212, 0.15);
+}
+
+.wp-import-distribution-options small {
+  color: #9eb2ca;
+  grid-column: 2;
+  line-height: 1.35;
+}
+
+.wp-import-radio {
+  border: 1px solid #6c8ba9;
+  border-radius: 50%;
+  height: 14px;
+  margin-top: 2px;
+  width: 14px;
+}
+
+.wp-import-distribution-options .is-selected .wp-import-radio {
+  border: 4px solid #2584ff;
+}
+
+.wp-import-advanced[open] {
+  gap: 16px;
+}
+
+.wp-import-advanced-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wp-import-advanced select {
+  background: rgba(8, 22, 40, 0.72);
+  border: 1px solid rgba(91, 132, 182, 0.35);
+  border-radius: 8px;
+  color: #edf4ff;
+  min-height: 40px;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.wp-import-exclusions {
+  display: grid;
+  gap: 9px;
+}
+
+.wp-import-exclusions > span {
+  color: #d8e7f9;
+  font-size: 0.9rem;
+}
+
+.wp-import-exclusions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wp-import-exclusions button {
+  background: rgba(9, 26, 47, 0.72);
+  border: 1px solid rgba(86, 125, 170, 0.35);
+  border-radius: 7px;
+  color: #b9cce2;
+  padding: 7px 10px;
+}
+
+.wp-import-exclusions button.is-selected {
+  border-color: #d95c68;
+  background: rgba(176, 42, 58, 0.18);
+  color: #ffd6da;
+}
+
+.wp-import-wizard .wp-import-summary {
+  align-self: stretch;
+  grid-template-rows: auto auto 1fr auto auto;
+  min-height: 100%;
+}
+
+.wp-import-summary-footnote {
+  color: #9db0c9;
+  line-height: 1.4;
+}
+
+@media (max-width: 1180px) {
+  .wp-import-count-row,
+  .wp-import-advanced-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .wp-import-count-row,
+  .wp-import-distribution-options,
+  .wp-import-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wp-import-wizard .wp-import-summary {
+    min-height: auto;
+  }
+}

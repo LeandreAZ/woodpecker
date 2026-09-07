@@ -1,0 +1,180 @@
+
+
+@media (min-width: 960px) and (max-width: 1279px) {
+  .wp-detail-cycle-status__grid {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .wp-detail-cycle-status__summary {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .wp-detail-cycle-status__lock {
+    margin-top: 0;
+    padding-top: 0;
+    padding-left: var(--space-5);
+    border-top: 0;
+    border-left: 1px solid var(--color-border-default);
+    align-items: center;
+  }
+
+  .wp-detail-side-row--attempt {
+    grid-template-columns: 28px minmax(0, 1fr) auto 16px;
+    align-items: center;
+    column-gap: var(--space-3);
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__status,
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy,
+  .wp-detail-side-row--attempt .wp-detail-side-row__timestamp,
+  .wp-detail-side-row--attempt .wp-detail-side-row__arrow {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy {
+    min-width: 0;
+    justify-self: start;
+    align-content: center;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy strong,
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy small,
+  .wp-detail-side-row--attempt .wp-detail-side-row__timestamp {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy strong {
+    font-size: 0.98rem;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy small,
+  .wp-detail-side-row--attempt .wp-detail-side-row__timestamp {
+    font-size: 0.84rem;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__timestamp {
+    justify-self: end;
+    text-align: right;
+    color: var(--color-text-primary);
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__arrow {
+    justify-self: end;
+  }
+}
+
+.wp-detail-cycle-status__lock {
+  align-items: center;
+}
+
+.wp-detail-cycle-status__lock-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  align-self: center;
+}
+
+.wp-detail-cycle-status__lock-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.wp-detail-cycle-status__lock > div {
+  min-width: 0;
+}
+
+.wp-detail-side-row--attempt {
+  grid-template-columns: 28px minmax(0, 1fr) auto 14px;
+  column-gap: var(--space-3);
+  align-items: center;
+}
+
+.wp-detail-side-row--attempt .wp-detail-side-row__status,
+.wp-detail-side-row--attempt .wp-detail-side-row__copy,
+.wp-detail-side-row--attempt .wp-detail-side-row__timestamp,
+.wp-detail-side-row--attempt .wp-detail-side-row__arrow {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.wp-detail-side-row--attempt .wp-detail-side-row__status {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  align-self: center;
+}
+
+.wp-detail-side-row--attempt .wp-detail-side-row__copy {
+  min-width: 0;
+  justify-self: start;
+  align-content: center;
+}
+
+.wp-detail-side-row--attempt .wp-detail-side-row__copy strong {
+  font-size: clamp(0.98rem, 0.94rem + 0.12vw, 1.05rem);
+}
+
+.wp-detail-side-row--attempt .wp-detail-side-row__copy small,
+.wp-detail-side-row--attempt .wp-detail-side-row__timestamp {
+  font-size: clamp(0.8rem, 0.77rem + 0.08vw, 0.9rem);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-detail-side-row--attempt .wp-detail-side-row__timestamp {
+  justify-self: end;
+  text-align: right;
+  color: var(--color-text-primary);
+}
+
+.wp-detail-side-row--attempt .wp-detail-side-row__arrow {
+  justify-self: end;
+  align-self: center;
+}
+
+@media (max-width: 640px) {
+  .wp-detail-side-row--attempt {
+    grid-template-columns: 24px minmax(0, 1fr) auto 12px;
+    column-gap: 10px;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__status {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy strong {
+    font-size: 0.95rem;
+  }
+
+  .wp-detail-side-row--attempt .wp-detail-side-row__copy small,
+  .wp-detail-side-row--attempt .wp-detail-side-row__timestamp {
+    font-size: 0.82rem;
+  }
+}
+
+.wp-detail-cycle-value {
+  font-weight: 700;
+}
+
+.wp-detail-modal-table :is(th, td):nth-child(n + 3) {
+  text-align: center;
+}
+
+.wp-detail-badge.is-primary {
+  color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.28);
+}

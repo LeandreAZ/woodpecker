@@ -1,0 +1,5 @@
+/* Keep this import order: feature rules retain their historical cascade. */
+@import "./panel/panel-layout.css";
+@import "./identity/training-form.css";
+@import "../../statistics/styles/statistics-layout.css";
+@import "../../import/styles/import.css";
