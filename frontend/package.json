@@ -1,7 +1,7 @@
 {
   "name": "woodpecker-trainer-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
-    "check:exports": "node ./scripts/check-relative-exports.mjs"
+    "check:exports": "node ./scripts/check-relative-exports.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "e2e:smoke": "node scripts/e2e.mjs --grep @smoke",
+    "e2e:ui": "node scripts/e2e.mjs --ui",
+    "e2e:headed": "node scripts/e2e.mjs --headed",
+    "e2e:report": "node scripts/e2e.mjs show-report"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
@@ -25,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^24.0.0",
