@@ -39,3 +39,11 @@ compose.override.yaml
 docker-compose.override.yml
 /.docker-data/
 
+
+# Playwright diagnostics (sources remain tracked)
+frontend/playwright-report/
+frontend/test-results/
+
+# Runtime avatar uploads (directory placeholder remains tracked)
+/backend/public/uploads/avatars/*
+!/backend/public/uploads/avatars/.gitkeep
